@@ -122,24 +122,78 @@ defmodule Mau.Parser do
     |> reduce(:build_number_literal_node)
 
   # ============================================================================
+  # BOOLEAN AND NULL LITERAL PARSING
+  # ============================================================================
+
+  # Boolean literals
+  boolean_literal =
+    choice([
+      string("true") |> replace(true),
+      string("false") |> replace(false)
+    ])
+    |> reduce(:build_boolean_literal_node)
+
+  # Null literal
+  null_literal =
+    string("null")
+    |> replace(nil)
+    |> reduce(:build_null_literal_node)
+
+  # ============================================================================
+  # EXPRESSION BLOCK PARSING
+  # ============================================================================
+
+  # Whitespace handling
+  optional_whitespace = repeat(ascii_char([?\s, ?\t, ?\n, ?\r]))
+
+  # Any literal value (string, number, boolean, null)
+  literal_value =
+    choice([
+      string_literal,
+      number_literal,
+      boolean_literal,
+      null_literal
+    ])
+
+  # Expression block with {{ }} delimiters
+  expression_block =
+    ignore(string("{{"))
+    |> ignore(optional_whitespace)
+    |> concat(literal_value)
+    |> ignore(optional_whitespace)
+    |> ignore(string("}}"))
+    |> reduce(:build_expression_node)
+
+  # ============================================================================
   # TEXT PARSING (GROUP 1)
   # ============================================================================
 
-  # For Group 1: Parse any text content - handle empty strings specially
-  text_content =
+  # Legacy text content parser (unused but kept for reference)
+
+  # Combined content parser (text or expressions)
+  template_content =
     choice([
-      utf8_string([], min: 1) |> reduce(:build_text_node),
-      empty() |> reduce(:build_empty_text_node)
+      expression_block,
+      utf8_string([not: ?{], min: 1) |> reduce(:build_text_node)
     ])
 
-  # Main template parser - for now just handles plain text
-  defparsec(:parse_template, text_content)
+  # Main template parser - handles mixed content
+  defparsec(:parse_template, repeat(template_content))
   
   # Parser for testing string literals directly
   defparsec(:parse_string_literal_raw, string_literal)
   
   # Parser for testing number literals directly
   defparsec(:parse_number_literal_raw, number_literal)
+  
+  # Parser for testing boolean literals directly
+  defparsec(:parse_boolean_literal_raw, boolean_literal)
+  
+  # Parser for testing null literals directly
+  defparsec(:parse_null_literal_raw, null_literal)
+  
+  # Parser for testing expression blocks directly
+  defparsec(:parse_expression_block_raw, expression_block)
 
   @doc """
   Parses a string literal and returns a clean result.
@@ -189,25 +243,100 @@ defmodule Mau.Parser do
   end
 
   @doc """
+  Parses a boolean literal and returns a clean result.
+  
+  ## Examples
+  
+      iex> Mau.Parser.parse_boolean_literal("true")
+      {:ok, {:literal, [true], []}}
+      
+      iex> Mau.Parser.parse_boolean_literal("false")
+      {:ok, {:literal, [false], []}}
+  """
+  def parse_boolean_literal(input) do
+    case parse_boolean_literal_raw(input) do
+      {:ok, [ast], "", _, _, _} ->
+        {:ok, ast}
+      {:ok, [_ast], remaining, _, _, _} ->
+        {:error, "Unexpected input after boolean: #{remaining}"}
+      {:error, reason, _remaining, _context, {line, column}, _offset} ->
+        {:error, "Parse error at line #{line}, column #{column}: #{reason}"}
+    end
+  end
+
+  @doc """
+  Parses a null literal and returns a clean result.
+  
+  ## Examples
+  
+      iex> Mau.Parser.parse_null_literal("null")
+      {:ok, {:literal, [nil], []}}
+  """
+  def parse_null_literal(input) do
+    case parse_null_literal_raw(input) do
+      {:ok, [ast], "", _, _, _} ->
+        {:ok, ast}
+      {:ok, [_ast], remaining, _, _, _} ->
+        {:error, "Unexpected input after null: #{remaining}"}
+      {:error, reason, _remaining, _context, {line, column}, _offset} ->
+        {:error, "Parse error at line #{line}, column #{column}: #{reason}"}
+    end
+  end
+
+  @doc """
+  Parses an expression block and returns a clean result.
+  
+  ## Examples
+  
+      iex> Mau.Parser.parse_expression_block(~s({{ "hello" }}))
+      {:ok, {:expression, [{:literal, ["hello"], []}], []}}
+      
+      iex> Mau.Parser.parse_expression_block("{{42}}")
+      {:ok, {:expression, [{:literal, [42], []}], []}}
+      
+      iex> Mau.Parser.parse_expression_block("{{ true }}")
+      {:ok, {:expression, [{:literal, [true], []}], []}}
+  """
+  def parse_expression_block(input) do
+    case parse_expression_block_raw(input) do
+      {:ok, [ast], "", _, _, _} ->
+        {:ok, ast}
+      {:ok, [_ast], remaining, _, _, _} ->
+        {:error, "Unexpected input after expression block: #{remaining}"}
+      {:error, reason, _remaining, _context, {line, column}, _offset} ->
+        {:error, "Parse error at line #{line}, column #{column}: #{reason}"}
+    end
+  end
+
+  @doc """
   Parses a template string into an AST.
   
-  For Group 1, only handles plain text templates.
+  Now handles mixed content: text and expression blocks.
   
   ## Examples
   
       iex> Mau.Parser.parse("Hello world")
-      {:ok, {:text, ["Hello world"], []}}
+      {:ok, [{:text, ["Hello world"], []}]}
       
       iex> Mau.Parser.parse("")
-      {:ok, {:text, [""], []}}
+      {:ok, []}
+      
+      iex> Mau.Parser.parse(~s(Hello {{ "world" }}!))
+      {:ok, [{:text, ["Hello "], []}, {:expression, [{:literal, ["world"], []}], []}, {:text, ["!"], []}]}
   """
   def parse(template) when is_binary(template) do
     case parse_template(template) do
-      {:ok, [ast], "", _, _, _} ->
-        {:ok, ast}
-      {:ok, [_ast], _remaining, _, _, _} ->
-        # For Group 1, any remaining text is also just text
-        {:ok, Nodes.text_node(template)}
+      {:ok, nodes, "", _, _, _} ->
+        {:ok, nodes}
+      {:ok, _nodes, _remaining, _, _, _} ->
+        # If there's remaining unparsed content, treat it as text
+        case parse_template(template) do
+          {:ok, parsed_nodes, "", _, _, _} ->
+            {:ok, parsed_nodes}
+          _ ->
+            # Fallback: treat entire template as text if parsing fails
+            {:ok, [Nodes.text_node(template)]}
+        end
       {:error, reason, _remaining, _context, {line, column}, _offset} ->
         error = Mau.Error.syntax_error("Parse error: #{reason}", line: line, column: column)
         {:error, error}
@@ -266,7 +395,18 @@ defmodule Mau.Parser do
     Nodes.text_node(content)
   end
 
-  defp build_empty_text_node([]) do
-    Nodes.text_node("")
+
+  # Boolean and null literal helpers
+  defp build_boolean_literal_node([boolean_value]) when is_boolean(boolean_value) do
+    Nodes.literal_node(boolean_value)
+  end
+
+  defp build_null_literal_node([nil]) do
+    Nodes.literal_node(nil)
+  end
+
+  # Expression block helpers
+  defp build_expression_node([literal_ast]) do
+    Nodes.expression_node(literal_ast)
   end
 end

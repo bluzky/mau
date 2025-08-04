@@ -40,44 +40,44 @@
 
 ---
 
-## Group 2: Literal Expressions
+## Group 2: Literal Expressions ✅ COMPLETED
 
-### Task 2.1: String Literal Parser
-- [ ] Implement `string_literal` combinator for double quotes
-- [ ] Implement `string_literal` combinator for single quotes
-- [ ] Add escape sequence handling
-- [ ] Write tests for string parsing edge cases
+### Task 2.1: String Literal Parser ✅
+- [x] Implement `string_literal` combinator for double quotes
+- [x] Implement `string_literal` combinator for single quotes
+- [x] Add escape sequence handling (including Unicode \uXXXX)
+- [x] Write tests for string parsing edge cases (9 comprehensive tests)
 
-### Task 2.2: Number Literal Parser
-- [ ] Implement `number_literal` combinator for integers
-- [ ] Add float number support
-- [ ] Add scientific notation support
-- [ ] Add negative number support
-- [ ] Create `parse_number/1` reducer function
-- [ ] Write tests for all number formats
+### Task 2.2: Number Literal Parser ✅
+- [x] Implement `number_literal` combinator for integers
+- [x] Add float number support
+- [x] Add scientific notation support (e/E with +/- exponents)
+- [x] Add negative number support
+- [x] Create `parse_number/1` reducer function
+- [x] Write tests for all number formats (10 comprehensive tests)
 
-### Task 2.3: Boolean and Null Literal Parser
-- [ ] Implement `boolean_literal` combinator
-- [ ] Implement `null_literal` combinator
-- [ ] Write tests for boolean and null values
+### Task 2.3: Boolean and Null Literal Parser ✅
+- [x] Implement `boolean_literal` combinator
+- [x] Implement `null_literal` combinator
+- [x] Write tests for boolean and null values (7 comprehensive tests)
 
-### Task 2.4: Expression Block Parser
-- [ ] Implement `expression` combinator with `{{` and `}}`
-- [ ] Add whitespace handling inside expressions
-- [ ] Combine all literal parsers in `literal_expression`
-- [ ] Write tests for expression block parsing
+### Task 2.4: Expression Block Parser ✅
+- [x] Implement `expression` combinator with `{{` and `}}`
+- [x] Add whitespace handling inside expressions (spaces, tabs, newlines)
+- [x] Combine all literal parsers in `literal_expression`
+- [x] Write tests for expression block parsing (8 comprehensive tests)
 
-### Task 2.5: Literal Expression Evaluator
-- [ ] Implement `evaluate_expression/2` for literal nodes
-- [ ] Create literal AST node builders
-- [ ] Add type preservation logic
-- [ ] Write tests for literal evaluation
+### Task 2.5: Literal Expression Evaluator ✅
+- [x] Implement `evaluate_expression/2` for literal nodes
+- [x] Create literal AST node builders
+- [x] Add type preservation logic and value formatting
+- [x] Write tests for literal evaluation (9 comprehensive tests)
 
-### Task 2.6: Expression Rendering Integration
-- [ ] Update `render_node/2` for expression nodes
-- [ ] Add pure expression vs mixed content detection
-- [ ] Implement string conversion for mixed content
-- [ ] Write integration tests for literal expressions
+### Task 2.6: Expression Rendering Integration ✅
+- [x] Update `render_node/2` for expression nodes
+- [x] Add mixed content parsing and rendering (text + expressions)
+- [x] Implement multi-node AST rendering system
+- [x] Write integration tests for literal expressions (11 comprehensive scenarios)
 
 ---
 

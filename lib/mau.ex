@@ -14,7 +14,7 @@ defmodule Mau do
   @doc """
   Compiles a template string into an AST.
   
-  For Group 1, only handles plain text templates.
+  Handles text and expression blocks.
   
   ## Options
   - `:strict_mode` - boolean, default `false`
@@ -22,7 +22,7 @@ defmodule Mau do
   ## Examples
   
       iex> Mau.compile("Hello world")
-      {:ok, {:text, ["Hello world"], []}}
+      {:ok, [{:text, ["Hello world"], []}]}
   """
   def compile(template, opts \\ []) when is_binary(template) do
     case Parser.parse(template) do
@@ -58,6 +58,10 @@ defmodule Mau do
 
   def render(ast, context, _opts) when is_tuple(ast) and is_map(context) do
     Renderer.render(ast, context)
+  end
+
+  def render(nodes, context, _opts) when is_list(nodes) and is_map(context) do
+    Renderer.render(nodes, context)
   end
 
   @doc """

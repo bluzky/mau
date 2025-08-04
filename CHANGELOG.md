@@ -21,6 +21,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Edge case handling (very large/small numbers)
   - Proper error handling for invalid number formats
   - Test suite with 10 comprehensive tests
+- **Task 2.3: Boolean and Null Literal Parser** - Complete implementation
+  - Boolean literal parsing (`true`, `false`)
+  - Null literal parsing (`null`)
+  - Proper error handling for invalid formats
+  - Test suite with 7 comprehensive tests
+- **Task 2.4: Expression Block Parser** - Complete implementation
+  - Expression block parsing with `{{ }}` delimiters
+  - Whitespace handling (spaces, tabs, newlines)
+  - Support for all literal types within expressions
+  - Proper error handling for malformed blocks
+  - Test suite with 8 comprehensive tests
+- **Task 2.5: Literal Expression Evaluator** - Complete implementation
+  - Expression evaluation system for literal values
+  - Value formatting for output (strings, numbers, booleans, null)
+  - Proper error handling for unknown expression types
+  - Test suite with 9 comprehensive tests
+- **Task 2.6: Expression Integration** - Complete implementation
+  - Mixed content parsing (text and expressions)
+  - Multi-node AST rendering system
+  - Updated main API to handle expression blocks
+  - Integration tests with 11 comprehensive scenarios
+  - Full end-to-end template processing
 - Clean parser API with consistent `{:ok, ast}` / `{:error, reason}` responses
 - Maintains unified AST structure convention `{type, parts, opts}`
 
@@ -32,8 +54,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Proper AST node creation following established patterns
 
 ### Testing
-- All existing tests continue to pass (41 tests total)
+- All existing tests continue to pass (96 tests total: 20 doctests + 76 unit tests)
 - New literal parsing test suites with comprehensive coverage
+- Expression block parsing and evaluation tests
+- Integration tests for mixed content templates
 - Edge case testing for numeric limits and string escaping
 - Error condition testing for malformed input
 
