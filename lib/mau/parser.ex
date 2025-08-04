@@ -497,7 +497,10 @@ defmodule Mau.Parser do
     case Float.parse(string_value) do
       {float_val, ""} -> float_val
       {float_val, _rest} -> float_val
-      :error -> String.to_float(string_value)  # Fallback for non-scientific notation
+      :error -> 
+        # Handle parse error explicitly - this should not happen with valid parser input
+        # but provides safety in case of unexpected input
+        0.0  # Safe fallback for invalid float strings
     end
   end
 
