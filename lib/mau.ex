@@ -1,18 +1,110 @@
 defmodule Mau do
   @moduledoc """
-  Documentation for `Mau`.
+  Mau template engine for the Prana template language.
+  
+  Provides three main functions:
+  - `compile/2` - Parse template string into AST
+  - `render/3` - Render template string or AST with context
+  - `render_map/3` - Recursively render template strings in nested maps
   """
+
+  alias Mau.Parser
+  alias Mau.Renderer
 
   @doc """
-  Hello world.
-
+  Compiles a template string into an AST.
+  
+  For Group 1, only handles plain text templates.
+  
+  ## Options
+  - `:strict_mode` - boolean, default `false`
+  
   ## Examples
-
-      iex> Mau.hello()
-      :world
-
+  
+      iex> Mau.compile("Hello world")
+      {:ok, {:text, ["Hello world"], []}}
   """
-  def hello do
-    :world
+  def compile(template, opts \\ []) when is_binary(template) do
+    case Parser.parse(template) do
+      {:ok, ast} ->
+        if opts[:strict_mode] do
+          {:ok, ast, []}
+        else
+          {:ok, ast}
+        end
+      {:error, error} ->
+        {:error, error}
+    end
+  end
+
+  @doc """
+  Renders a template string or AST with the given context.
+  
+  For Group 1, only handles plain text templates.
+  
+  ## Examples
+  
+      iex> Mau.render("Hello world", %{})
+      {:ok, "Hello world"}
+  """
+  def render(template, context, opts \\ [])
+
+  def render(template, context, _opts) when is_binary(template) and is_map(context) do
+    with {:ok, ast} <- Parser.parse(template),
+         {:ok, result} <- Renderer.render(ast, context) do
+      {:ok, result}
+    end
+  end
+
+  def render(ast, context, _opts) when is_tuple(ast) and is_map(context) do
+    Renderer.render(ast, context)
+  end
+
+  @doc """
+  Recursively renders template strings in nested maps.
+  
+  For Group 1, only handles plain text templates.
+  
+  ## Examples
+  
+      iex> Mau.render_map(%{message: "Hello world"}, %{})
+      {:ok, %{message: "Hello world"}}
+  """
+  def render_map(nested_map, context, opts \\ []) when is_map(nested_map) and is_map(context) do
+    try do
+      result = render_map_recursive(nested_map, context, opts)
+      {:ok, result}
+    rescue
+      e -> {:error, Mau.Error.runtime_error("Error rendering map: #{Exception.message(e)}")}
+    end
+  end
+
+  # Private helper for recursive map rendering
+  defp render_map_recursive(map, context, opts) when is_map(map) do
+    map
+    |> Enum.map(fn {key, value} ->
+      {key, render_map_recursive(value, context, opts)}
+    end)
+    |> Enum.into(%{})
+  end
+
+  defp render_map_recursive(value, context, opts) when is_binary(value) do
+    if has_template_syntax?(value) do
+      case render(value, context, opts) do
+        {:ok, result} -> result
+        {:error, _} -> value  # Return original value if rendering fails
+      end
+    else
+      value  # Return as-is if no template syntax
+    end
+  end
+
+  defp render_map_recursive(value, _context, _opts), do: value
+
+  # Helper to check if a string contains template syntax
+  defp has_template_syntax?(value) when is_binary(value) do
+    String.contains?(value, "{{") or 
+    String.contains?(value, "{%") or 
+    String.contains?(value, "{#")
   end
 end
