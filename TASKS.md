@@ -309,35 +309,35 @@
 
 ---
 
-## Group 8: Conditional Tags
+## Group 8: Conditional Tags ✅ COMPLETED
 
-### Task 8.1: If Tag Parser
-- [ ] Implement `if_tag` combinator
-- [ ] Parse condition expression after `if`
-- [ ] Write tests for if tag parsing
+### Task 8.1: If Tag Parser ✅
+- [x] Implement `if_tag` combinator
+- [x] Parse condition expression after `if`
+- [x] Write tests for if tag parsing
 
-### Task 8.2: Elsif and Else Tag Parser
-- [ ] Implement `elsif_tag` and `else_tag` combinators
-- [ ] Implement `endif_tag` combinator
-- [ ] Write tests for conditional tag parsing
+### Task 8.2: Elsif and Else Tag Parser ✅
+- [x] Implement `elsif_tag` and `else_tag` combinators
+- [x] Implement `endif_tag` combinator
+- [x] Write tests for conditional tag parsing
 
-### Task 8.3: Block Structure Builder
-- [ ] Create `Mau.Parser.BlockParser` module
-- [ ] Implement `collect_if_block/2` function
-- [ ] Build nested if/elsif/else structure
-- [ ] Write tests for block structure building
+### Task 8.3: Block Structure Builder ✅
+- [x] Create `Mau.BlockProcessor` module
+- [x] Implement `collect_conditional_block/6` function
+- [x] Build nested if/elsif/else structure
+- [x] Write tests for block structure building
 
-### Task 8.4: Conditional Tag Evaluator
-- [ ] Implement `render_tag/4` for `:if`
-- [ ] Add condition evaluation and branching
-- [ ] Handle multiple elsif clauses
-- [ ] Add else clause support
-- [ ] Write comprehensive conditional evaluation tests
+### Task 8.4: Conditional Tag Evaluator ✅
+- [x] Implement `render_conditional_block/2` for conditional blocks
+- [x] Add condition evaluation and branching
+- [x] Handle multiple elsif clauses
+- [x] Add else clause support
+- [x] Write comprehensive conditional evaluation tests
 
-### Task 8.5: Conditional Integration
-- [ ] Update main parser to handle conditional blocks
-- [ ] Add conditional support to template parsing
-- [ ] Write integration tests for conditionals
+### Task 8.5: Conditional Integration ✅
+- [x] Update main parser to handle conditional blocks
+- [x] Add conditional support to template parsing
+- [x] Write integration tests for conditionals
 
 ---
 

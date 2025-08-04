@@ -8,6 +8,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Group 8: Conditional Tags** - Complete implementation
+  - **Task 8.1: If Tag Parser** - Complete if tag parsing with condition expressions
+    - `if` tag combinator parsing with `{%` and `%}` delimiters
+    - Support for variable conditions: `{% if user.active %}`
+    - Support for literal conditions: `{% if true %}`
+    - Support for complex expressions: `{% if age >= 18 and status == "active" %}`
+    - Integration with full expression system (arithmetic, comparisons, logical operations)
+  - **Task 8.2: Elsif, Else, and Endif Tag Parsers** - Complete conditional tag family
+    - `elsif` tag combinator with condition expression parsing
+    - `else` tag combinator (no condition required)
+    - `endif` tag combinator for block termination
+    - All conditional tags integrated into tag content parser
+  - **Task 8.3: Block Structure Builder** - Complete conditional processing infrastructure
+    - `Mau.BlockProcessor` module for grouping conditional tags into blocks
+    - Block collection logic to group if/elsif/else/endif sequences
+    - Conditional block AST structure: `{:conditional_block, [if_branch: {...}, elsif_branches: [...], else_branch: ...]}`
+    - Error handling for unclosed conditional blocks
+  - **Task 8.4: Conditional Tag Evaluator** - Complete conditional rendering logic
+    - Conditional block rendering with proper branching evaluation
+    - If/elsif/else condition evaluation using existing `is_truthy/1` logic
+    - Short-circuit evaluation for elsif branches
+    - Context-aware rendering that maintains variable assignments
+    - Support for nested content rendering within conditional branches
+  - **Task 8.5: Comprehensive Test Coverage** - Complete testing infrastructure
+    - Conditional parser test suite (8 comprehensive parsing tests)
+    - Conditional integration test suite (7 end-to-end functionality tests)
+    - Complex condition parsing with variables, literals, and expressions
+    - Full conditional block structure parsing verification
+
+### Technical Details
+- Extended parser with conditional tag combinators supporting `{%` if/elsif/else/endif `%}` syntax
+- Conditional AST nodes: `{:tag, [:if/:elsif/:else/:endif, condition], opts}`
+- Block processor for grouping individual tags into structured conditional blocks
+- Conditional rendering system with `render_conditional_block/2` functions
+- Integration with existing expression evaluation system for conditions
+- Placeholder individual tag rendering for backward compatibility
+- Support for complex conditional expressions with full precedence handling
+
+### Testing
+- All tests pass (404 tests: 55 doctests + 349 unit tests)
+- New conditional parser test suite (8 comprehensive parsing tests)
+- New conditional integration test suite (7 end-to-end scenarios)
+- Comprehensive condition evaluation with variables and complex expressions
+- Full template rendering with conditional content and variable assignments
+- Error handling tests for malformed conditional syntax
+
 - **Group 7: Assignment Tags** - Complete implementation
   - **Task 7.1: Tag Block Parser Foundation** - Complete tag parsing infrastructure
     - Tag block parsing with `{%` and `%}` delimiters  

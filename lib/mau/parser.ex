@@ -385,8 +385,39 @@ defmodule Mau.Parser do
     |> concat(parsec(:pipe_expression))
     |> reduce(:build_assign_tag)
 
-  # Tag content - currently only assignment tags
-  tag_content = assign_tag
+  # If tag parsing - {% if condition %}
+  if_tag =
+    ignore(string("if"))
+    |> ignore(times(ascii_char([?\s, ?\t]), min: 1))  # At least one whitespace
+    |> concat(parsec(:pipe_expression))
+    |> reduce(:build_if_tag)
+
+  # Elsif tag parsing - {% elsif condition %}
+  elsif_tag =
+    ignore(string("elsif"))
+    |> ignore(times(ascii_char([?\s, ?\t]), min: 1))  # At least one whitespace
+    |> concat(parsec(:pipe_expression))
+    |> reduce(:build_elsif_tag)
+
+  # Else tag parsing - {% else %}
+  else_tag =
+    ignore(string("else"))
+    |> reduce(:build_else_tag)
+
+  # Endif tag parsing - {% endif %}
+  endif_tag =
+    ignore(string("endif"))
+    |> reduce(:build_endif_tag)
+
+  # Tag content - assignment and conditional tags
+  tag_content = 
+    choice([
+      assign_tag,
+      if_tag,
+      elsif_tag,
+      else_tag,
+      endif_tag
+    ])
 
   # Tag block with {% %} delimiters
   tag_block =
@@ -847,10 +878,34 @@ defmodule Mau.Parser do
     {:assign, variable_name, expression}
   end
 
+  defp build_if_tag([condition]) do
+    {:if, condition}
+  end
+
+  defp build_elsif_tag([condition]) do
+    {:elsif, condition}
+  end
+
+  defp build_else_tag([]) do
+    {:else}
+  end
+
+  defp build_endif_tag([]) do
+    {:endif}
+  end
+
   defp build_tag_node([tag_data]) do
     case tag_data do
       {:assign, variable_name, expression} ->
         Nodes.tag_node(:assign, [variable_name, expression])
+      {:if, condition} ->
+        Nodes.tag_node(:if, [condition])
+      {:elsif, condition} ->
+        Nodes.tag_node(:elsif, [condition])
+      {:else} ->
+        Nodes.tag_node(:else, [])
+      {:endif} ->
+        Nodes.tag_node(:endif, [])
     end
   end
 end

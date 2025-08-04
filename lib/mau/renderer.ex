@@ -37,6 +37,10 @@ defmodule Mau.Renderer do
     render_tag(tag_type, tag_parts, context)
   end
 
+  def render_node({:conditional_block, block_data, _opts}, context) do
+    render_conditional_block(block_data, context)
+  end
+
   def render_node(node, _context) do
     error = Mau.Error.runtime_error("Unknown node type: #{inspect(node)}")
     {:error, error}
@@ -56,6 +60,10 @@ defmodule Mau.Renderer do
 
   defp render_node_with_context({:tag, [tag_type | tag_parts], _opts}, context) do
     render_tag_with_context(tag_type, tag_parts, context)
+  end
+
+  defp render_node_with_context({:conditional_block, block_data, _opts}, context) do
+    render_conditional_block_with_context(block_data, context)
   end
 
   defp render_node_with_context(node, _context) do
@@ -396,8 +404,106 @@ defmodule Mau.Renderer do
     end
   end
 
+  # Conditional tags - these need special handling as they work in blocks
+  defp render_tag_with_context(:if, [condition], context) do
+    case evaluate_expression(condition, context) do
+      {:ok, value} ->
+        # For now, store the condition result in a special context key
+        # This is a placeholder - proper block handling will be implemented later
+        updated_context = Map.put(context, :__if_condition__, is_truthy(value))
+        {:ok, "", updated_context}
+      {:error, error} ->
+        {:error, error}
+    end
+  end
+
+  defp render_tag_with_context(:elsif, [condition], context) do
+    case evaluate_expression(condition, context) do
+      {:ok, value} ->
+        # Placeholder implementation
+        updated_context = Map.put(context, :__elsif_condition__, is_truthy(value))
+        {:ok, "", updated_context}
+      {:error, error} ->
+        {:error, error}
+    end
+  end
+
+  defp render_tag_with_context(:else, [], context) do
+    # Placeholder implementation
+    {:ok, "", context}
+  end
+
+  defp render_tag_with_context(:endif, [], context) do
+    # Placeholder implementation
+    {:ok, "", context}
+  end
+
   defp render_tag_with_context(tag_type, _tag_parts, _context) do
     error = Mau.Error.runtime_error("Unknown tag type: #{inspect(tag_type)}")
     {:error, error}
+  end
+
+  # Conditional block rendering functions
+  defp render_conditional_block(block_data, context) do
+    case render_conditional_block_with_context(block_data, context) do
+      {:ok, result, _updated_context} -> {:ok, result}
+      {:error, error} -> {:error, error}
+    end
+  end
+
+  defp render_conditional_block_with_context(block_data, context) do
+    if_branch = Keyword.get(block_data, :if_branch)
+    elsif_branches = Keyword.get(block_data, :elsif_branches, [])
+    else_branch = Keyword.get(block_data, :else_branch)
+
+    case if_branch do
+      {condition, content} ->
+        case evaluate_expression(condition, context) do
+          {:ok, condition_value} ->
+            if is_truthy(condition_value) do
+              # Render if branch content
+              render_conditional_content(content, context)
+            else
+              # Check elsif branches
+              render_elsif_branches(elsif_branches, else_branch, context)
+            end
+          {:error, error} ->
+            {:error, error}
+        end
+      _ ->
+        error = Mau.Error.runtime_error("Invalid conditional block structure")
+        {:error, error}
+    end
+  end
+
+  defp render_elsif_branches([], else_branch, context) do
+    # No more elsif branches, render else if present
+    case else_branch do
+      nil -> {:ok, "", context}  # No else branch
+      content when is_list(content) -> render_conditional_content(content, context)
+    end
+  end
+
+  defp render_elsif_branches([{condition, content} | rest_branches], else_branch, context) do
+    case evaluate_expression(condition, context) do
+      {:ok, condition_value} ->
+        if is_truthy(condition_value) do
+          # Render this elsif branch content
+          render_conditional_content(content, context)
+        else
+          # Check next elsif branch
+          render_elsif_branches(rest_branches, else_branch, context)
+        end
+      {:error, error} ->
+        {:error, error}
+    end
+  end
+
+  # Helper to render nodes for conditional blocks
+  defp render_conditional_content(nodes, context) do
+    case render_nodes(nodes, context, []) do
+      {:ok, parts} -> {:ok, Enum.join(parts, ""), context}
+      {:error, error} -> {:error, error}
+    end
   end
 end
