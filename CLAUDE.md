@@ -83,3 +83,7 @@ The Mau template engine follows a clean separation of concerns:
 - `test/` - ExUnit test suite with doctests
 - `IMPLEMENTATION_PLAN.md` - implementation details plan
 - `TASKS.md` task check list
+
+## Command line node
+- There is no `-v` option for `mix test`. Use `mix test file.exs --trace`
+- To run code with elixir within project use `mix run -e "your code"
