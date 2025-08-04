@@ -10,6 +10,7 @@ defmodule Mau do
 
   alias Mau.Parser
   alias Mau.Renderer
+  alias Mau.BlockProcessor
 
   @doc """
   Compiles a template string into an AST.
@@ -51,7 +52,8 @@ defmodule Mau do
 
   def render(template, context, _opts) when is_binary(template) and is_map(context) do
     with {:ok, ast} <- Parser.parse(template),
-         {:ok, result} <- Renderer.render(ast, context) do
+         processed_ast <- BlockProcessor.process_blocks(ast),
+         {:ok, result} <- Renderer.render(processed_ast, context) do
       {:ok, result}
     end
   end

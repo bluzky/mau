@@ -428,14 +428,32 @@ defmodule Mau.Parser do
     ignore(string("endif"))
     |> reduce({:build_tag, [:endif]})
 
-  # Tag content - assignment and conditional tags
+  # For tag parsing - {% for item in collection %}
+  for_tag =
+    ignore(string("for"))
+    |> ignore(required_whitespace)
+    |> concat(identifier)
+    |> ignore(required_whitespace)
+    |> ignore(string("in"))
+    |> ignore(required_whitespace)
+    |> concat(parsec(:pipe_expression))
+    |> reduce({:build_tag, [:for]})
+
+  # Endfor tag parsing - {% endfor %}
+  endfor_tag =
+    ignore(string("endfor"))
+    |> reduce({:build_tag, [:endfor]})
+
+  # Tag content - assignment, conditional, and loop tags
   tag_content = 
     choice([
       assign_tag,
       if_tag,
       elsif_tag,
       else_tag,
-      endif_tag
+      endif_tag,
+      for_tag,
+      endfor_tag
     ])
 
   # Tag block with {% %} delimiters
@@ -907,6 +925,14 @@ defmodule Mau.Parser do
       {tag_type, []} when tag_type in [:else, :endif] -> 
         {tag_type}
       
+      # For loop tag: {% for item in collection %}
+      {:for, [loop_variable, collection_expression]} -> 
+        {:for, loop_variable, collection_expression}
+      
+      # Loop termination tag: {% endfor %}
+      {:endfor, []} -> 
+        {:endfor}
+      
       # Fallback for unknown patterns
       {tag_type, args} -> 
         {tag_type, args}
@@ -919,8 +945,10 @@ defmodule Mau.Parser do
         Nodes.tag_node(:assign, [variable_name, expression])
       {tag_type, condition} when tag_type in [:if, :elsif] ->
         Nodes.tag_node(tag_type, [condition])
-      {tag_type} when tag_type in [:else, :endif] ->
+      {tag_type} when tag_type in [:else, :endif, :endfor] ->
         Nodes.tag_node(tag_type, [])
+      {:for, loop_variable, collection_expression} ->
+        Nodes.tag_node(:for, [loop_variable, collection_expression])
       # Generic fallback for future tag types
       {tag_type, params} when is_list(params) ->
         Nodes.tag_node(tag_type, params)

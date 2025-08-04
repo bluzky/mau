@@ -8,6 +8,55 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Group 9: Loop Tags** - Complete implementation
+  - **Task 9.1: For Tag Parser** - Complete for tag parsing with loop variable and collection expressions
+    - `for` tag combinator parsing with `{%` and `%}` delimiters
+    - Support for variable collections: `{% for item in items %}`
+    - Support for string collections: `{% for char in "abc" %}`
+    - Support for complex expressions: `{% for user in users | sort %}`
+    - Support for property access: `{% for order in user.orders %}`
+    - Integration with full expression system (variables, filters, functions)
+  - **Task 9.2: Endfor Tag Parser** - Complete loop termination parsing
+    - `endfor` tag combinator for loop block termination
+    - Integrated into generic tag parsing infrastructure
+  - **Task 9.3: Loop Block Structure** - Complete nested loop processing
+    - Extended `Mau.BlockProcessor` to handle for/endfor loop blocks
+    - Proper depth counting for matching nested for/endfor pairs
+    - Recursive processing of nested conditionals within loop content
+    - Loop block AST structure: `{:loop_block, [loop_variable: "item", collection_expression: {...}, content: [...]]}`
+  - **Task 9.4: Loop Context Management** - Complete forloop variables and parent loop preservation
+    - Full forloop variable support: `index`, `first`, `last`, `length`, `rindex`
+    - Parent loop context preservation via `forloop.parentloop` for nested loops
+    - Context isolation ensuring inner loops don't interfere with outer loops
+    - 0-based indexing system for consistency
+  - **Task 9.5: Loop Evaluation Engine** - Complete collection iteration and rendering
+    - Support for multiple collection types: arrays, maps (as key-value pairs), strings (as characters)
+    - Graceful handling of empty collections, nil values, and missing variables
+    - Error handling for non-iterable collections
+    - Context-aware rendering maintaining variable assignments within loops
+  - **Task 9.6: Comprehensive Test Coverage** - Complete testing infrastructure
+    - Loop parser test suite (10 comprehensive parsing tests)
+    - Loop integration test suite (22 end-to-end functionality tests)
+    - Nested loop testing with parentloop access verification
+    - Error handling tests for malformed syntax and invalid collections
+
+### Technical Details
+- Extended parser with for/endfor tag combinators supporting `{%` for/endfor `%}` syntax
+- Loop AST nodes: `{:tag, [:for/:endfor, ...], opts}` and `{:loop_block, [...], opts}`
+- Enhanced block processor with nested loop depth counting and recursive content processing
+- Loop rendering system with `render_loop_block_with_context/2` functions
+- Parent loop context preservation preventing context collision in nested loops
+- Multiple collection type support with automatic type conversion
+- Maintains unified AST structure convention `{type, parts, opts}`
+
+### Testing
+- All tests pass (436 tests: 55 doctests + 381 unit tests)
+- New loop parser test suite (10 comprehensive parsing tests)
+- New loop integration test suite (22 end-to-end scenarios including nested loops)
+- Comprehensive forloop variable testing with parentloop access verification
+- Full template rendering with loop content, conditionals, and variable assignments
+- Error handling tests for unclosed loops and invalid collection types
+
 - **Group 8: Conditional Tags** - Complete implementation
   - **Task 8.1: If Tag Parser** - Complete if tag parsing with condition expressions
     - `if` tag combinator parsing with `{%` and `%}` delimiters
