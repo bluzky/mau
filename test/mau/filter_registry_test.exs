@@ -61,10 +61,10 @@ defmodule Mau.FilterRegistryTest do
       filters = FilterRegistry.list()
       
       assert is_list(filters)
-      assert :upper_case in filters
-      assert :round in filters
-      assert :length in filters
-      assert :abs in filters
+      assert "upper_case" in filters
+      assert "round" in filters
+      assert "length" in filters
+      assert "abs" in filters
       
       # Should be sorted
       assert filters == Enum.sort(filters)
