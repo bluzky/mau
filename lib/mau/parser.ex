@@ -228,16 +228,45 @@ defmodule Mau.Parser do
       variable_path
     ])
 
-  # Forward declare atom expression to include parentheses later
+  # Forward declare atom expression to include parentheses and function calls
+  # We avoid circular dependencies by using additive_expression instead of logical_or_expression
   defcombinatorp(:atom_expression,
     choice([
-      primary_expression,
-      ignore(string("("))
+      # Function call syntax: func(arg1, arg2) - must come before primary_expression
+      identifier
       |> ignore(optional_whitespace)
-      |> parsec(:logical_or_expression)
+      |> ignore(string("("))
+      |> ignore(optional_whitespace)
+      |> optional(parsec(:argument_list))
       |> ignore(optional_whitespace)
       |> ignore(string(")"))
+      |> reduce(:build_function_call),
+      
+      # Parentheses with full expression support
+      ignore(string("("))
+      |> ignore(optional_whitespace)
+      |> parsec(:pipe_expression)  # Use pipe_expression for full expression support in parentheses
+      |> ignore(optional_whitespace)
+      |> ignore(string(")")),
+      
+      primary_expression
     ])
+  )
+
+  # ============================================================================
+  # FUNCTION CALL AND FILTER PARSING
+  # ============================================================================
+
+  # Argument list for function calls - uses primary expressions to avoid circular dependencies
+  defcombinatorp(:argument_list,
+    primary_expression
+    |> repeat(
+      ignore(optional_whitespace)
+      |> ignore(string(","))
+      |> ignore(optional_whitespace)
+      |> concat(primary_expression)
+    )
+    |> reduce(:build_argument_list)
   )
 
   # Multiplicative expressions - *, /, % (highest arithmetic precedence)
@@ -345,8 +374,20 @@ defmodule Mau.Parser do
   # EXPRESSION BLOCK PARSING
   # ============================================================================
 
-  # Any expression value (now supports boolean/comparison)
-  expression_value = logical_or_expression
+  # Forward declare pipe expression to break circular dependency
+  defcombinatorp(:pipe_expression,
+    logical_or_expression
+    |> repeat(
+      ignore(optional_whitespace)
+      |> ignore(string("|"))
+      |> ignore(optional_whitespace)
+      |> concat(identifier)
+    )
+    |> reduce(:build_pipe_expression)
+  )
+
+  # Any expression value (now supports pipes)
+  expression_value = parsec(:pipe_expression)
 
   # Expression block with {{ }} delimiters
   expression_block =
@@ -737,5 +778,39 @@ defmodule Mau.Parser do
   defp build_left_associative_logical_ops(left, [operator, right | rest]) do
     logical_op = Nodes.logical_op_node(operator, left, right)
     build_left_associative_logical_ops(logical_op, rest)
+  end
+
+  # Function call helpers
+  defp build_function_call([function_name | args]) do
+    argument_list = case args do
+      [arg_list] -> arg_list
+      [] -> []
+    end
+    Nodes.call_node(function_name, argument_list)
+  end
+
+  defp build_argument_list([first_arg | rest_args]) do
+    [first_arg | rest_args]
+  end
+
+  # Pipe expression helpers
+  defp build_pipe_expression([value]) do
+    # No pipes, return the value as-is
+    value
+  end
+
+  defp build_pipe_expression([value | filters]) do
+    # Apply filters from left to right using nested call nodes
+    apply_filters_to_value(value, filters)
+  end
+
+  defp apply_filters_to_value(value, []) do
+    value
+  end
+
+  defp apply_filters_to_value(value, [filter_name | rest_filters]) do
+    # Create a call node with value as the first argument
+    call_node = Nodes.call_node(filter_name, [value])
+    apply_filters_to_value(call_node, rest_filters)
   end
 end

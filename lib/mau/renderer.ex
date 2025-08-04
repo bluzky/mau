@@ -92,6 +92,10 @@ defmodule Mau.Renderer do
     evaluate_logical_operation(operator, left, right, context)
   end
 
+  defp evaluate_expression({:call, [function_name, args], _opts}, context) do
+    evaluate_call(function_name, args, context)
+  end
+
   defp evaluate_expression(expression, _context) do
     error = Mau.Error.runtime_error("Unknown expression type: #{inspect(expression)}")
     {:error, error}
@@ -298,6 +302,42 @@ defmodule Mau.Renderer do
           end
         end
       {:error, error} -> {:error, error}
+    end
+  end
+
+  # Filter/function call evaluation
+  defp evaluate_call(function_name, args, context) do
+    with {:ok, evaluated_args} <- evaluate_arguments(args, context) do
+      case Mau.FilterRegistry.apply(function_name, List.first(evaluated_args, nil), Enum.drop(evaluated_args, 1)) do
+        {:ok, result} -> {:ok, result}
+        {:error, :filter_not_found} ->
+          error = Mau.Error.runtime_error("Unknown filter or function: #{function_name}")
+          {:error, error}
+        {:error, {:filter_error, reason}} ->
+          error = Mau.Error.runtime_error("Filter error in #{function_name}: #{inspect(reason)}")
+          {:error, error}
+        {:error, reason} ->
+          error = Mau.Error.runtime_error("Filter error in #{function_name}: #{inspect(reason)}")
+          {:error, error}
+      end
+    end
+  end
+
+  # Evaluates a list of arguments
+  defp evaluate_arguments(args, context) do
+    evaluate_arguments(args, context, [])
+  end
+
+  defp evaluate_arguments([], _context, acc) do
+    {:ok, Enum.reverse(acc)}
+  end
+
+  defp evaluate_arguments([arg | rest], context, acc) do
+    case evaluate_expression(arg, context) do
+      {:ok, value} ->
+        evaluate_arguments(rest, context, [value | acc])
+      {:error, error} ->
+        {:error, error}
     end
   end
 
