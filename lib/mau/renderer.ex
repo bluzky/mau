@@ -88,6 +88,10 @@ defmodule Mau.Renderer do
     end
   end
 
+  defp evaluate_expression({:logical_op, [operator, left, right], _opts}, context) do
+    evaluate_logical_operation(operator, left, right, context)
+  end
+
   defp evaluate_expression(expression, _context) do
     error = Mau.Error.runtime_error("Unknown expression type: #{inspect(expression)}")
     {:error, error}
@@ -220,8 +224,88 @@ defmodule Mau.Renderer do
     end
   end
 
+  # Comparison operations
+  defp evaluate_binary_operation("==", left, right) do
+    {:ok, left == right}
+  end
+
+  defp evaluate_binary_operation("!=", left, right) do
+    {:ok, left != right}
+  end
+
+  defp evaluate_binary_operation(">", left, right) when is_number(left) and is_number(right) do
+    {:ok, left > right}
+  end
+
+  defp evaluate_binary_operation(">=", left, right) when is_number(left) and is_number(right) do
+    {:ok, left >= right}
+  end
+
+  defp evaluate_binary_operation("<", left, right) when is_number(left) and is_number(right) do
+    {:ok, left < right}
+  end
+
+  defp evaluate_binary_operation("<=", left, right) when is_number(left) and is_number(right) do
+    {:ok, left <= right}
+  end
+
+  # String comparison operations
+  defp evaluate_binary_operation(">", left, right) when is_binary(left) and is_binary(right) do
+    {:ok, left > right}
+  end
+
+  defp evaluate_binary_operation(">=", left, right) when is_binary(left) and is_binary(right) do
+    {:ok, left >= right}
+  end
+
+  defp evaluate_binary_operation("<", left, right) when is_binary(left) and is_binary(right) do
+    {:ok, left < right}
+  end
+
+  defp evaluate_binary_operation("<=", left, right) when is_binary(left) and is_binary(right) do
+    {:ok, left <= right}
+  end
+
   defp evaluate_binary_operation(operator, left, right) do
     error = Mau.Error.runtime_error("Unsupported binary operation: #{inspect(left)} #{operator} #{inspect(right)}")
     {:error, error}
   end
+
+  # Logical operation evaluation with short-circuiting
+  defp evaluate_logical_operation("and", left, right, context) do
+    case evaluate_expression(left, context) do
+      {:ok, left_value} ->
+        if is_truthy(left_value) do
+          evaluate_expression(right, context)
+        else
+          {:ok, false}
+        end
+      {:error, error} -> {:error, error}
+    end
+  end
+
+  defp evaluate_logical_operation("or", left, right, context) do
+    case evaluate_expression(left, context) do
+      {:ok, left_value} ->
+        if is_truthy(left_value) do
+          {:ok, true}
+        else
+          case evaluate_expression(right, context) do
+            {:ok, right_value} -> {:ok, is_truthy(right_value)}
+            {:error, error} -> {:error, error}
+          end
+        end
+      {:error, error} -> {:error, error}
+    end
+  end
+
+  # Truthiness evaluation rules
+  defp is_truthy(nil), do: false
+  defp is_truthy(false), do: false
+  defp is_truthy(""), do: false
+  defp is_truthy(0), do: false
+  defp is_truthy(value) when is_float(value) and value == 0.0, do: false
+  defp is_truthy([]), do: false
+  defp is_truthy(%{}), do: false
+  defp is_truthy(_), do: true
 end

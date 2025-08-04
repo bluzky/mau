@@ -8,6 +8,59 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Task 5.1: Comparison Operator Parser** - Complete implementation
+  - Equality operators: `==` (equal to), `!=` (not equal to)
+  - Relational operators: `>` (greater than), `>=` (greater than or equal), `<` (less than), `<=` (less than or equal)
+  - Number comparisons: `{{ 5 > 3 }}`, `{{ 10 >= 10 }}`
+  - String comparisons: `{{ "apple" < "banana" }}`
+  - Mixed-type equality: `{{ 5 == "5" }}` (evaluates to false)
+  - Word boundary detection to prevent keyword conflicts with variables
+- **Task 5.2: Logical Operator Parser** - Complete implementation
+  - Logical AND operator: `and` with proper precedence
+  - Logical OR operator: `or` with lowest precedence
+  - Left-associative operation building for logical expressions
+  - Proper precedence chain: Arithmetic → Comparison → Logical AND → Logical OR
+- **Task 5.3: Boolean Expression Evaluator** - Complete implementation
+  - Comparison operation evaluation for all operators (`==`, `!=`, `>`, `>=`, `<`, `<=`)
+  - Number and string comparison support
+  - Logical operation evaluation with short-circuit logic
+  - AND short-circuiting: `false and expression` doesn't evaluate `expression`
+  - OR short-circuiting: `true or expression` doesn't evaluate `expression`
+- **Task 5.4: Truthiness Evaluation Rules** - Complete implementation
+  - Falsy values: `nil`, `false`, `""`, `0`, `0.0`, `[]`, `%{}`
+  - All other values are truthy
+  - Float zero handling with proper guards
+  - Consistent truthiness across logical operations
+- **Task 5.5: Precedence Integration** - Complete implementation
+  - Complete operator precedence chain: Parentheses > Arithmetic > Comparison > Logical
+  - Proper expression parsing order: `2 + 3 > 4 and 1 < 2`
+  - Circular dependency resolution in parser using `defcombinatorp`
+  - Word boundary parsing for boolean/null literals to avoid variable conflicts
+- **Task 5.6: Comprehensive Test Suites** - Complete implementation
+  - Boolean parser tests (11 tests): syntax, precedence, complex expressions
+  - Boolean evaluator tests (18 tests): comparison logic, logical operations, truthiness
+  - Boolean integration tests (17 tests): end-to-end template rendering
+  - All existing tests maintain compatibility (260 tests total: 26 doctests + 234 unit tests)
+
+### Technical Details
+- Extended NimbleParsec parser with comparison and logical expression combinators
+- Logical operation AST nodes: `{:logical_op, [operator, left, right], opts}`
+- Short-circuit evaluation implementation for performance optimization
+- Word boundary detection using `lookahead_not` for keyword parsing
+- Circular dependency resolution using `defcombinatorp` for recursive parsing
+- Comprehensive truthiness evaluation with type guards
+- Maintains unified AST structure convention `{type, parts, opts}`
+
+### Testing
+- All tests pass without warnings (260 tests total: 26 doctests + 234 unit tests)
+- New boolean parsing test suite (11 comprehensive tests)
+- New boolean evaluation test suite (18 comprehensive tests)
+- New boolean integration test suite (17 end-to-end scenarios)
+- Fixed all compiler warnings in test files
+- Comprehensive precedence and logical operation testing
+- Error condition testing for unsupported comparisons
+- Mixed content template testing with boolean expressions
+
 - **Task 4.1: Operator Precedence Setup** - Complete implementation
   - Designed arithmetic operator precedence: Parentheses > Multiplicative > Additive
   - Clean precedence chain architecture using NimbleParsec combinators

@@ -47,4 +47,11 @@ defmodule Mau.AST.Nodes do
   def binary_op_node(operator, left, right, opts \\ []) when is_binary(operator) do
     {:binary_op, [operator, left, right], opts}
   end
+
+  @doc """
+  Creates a logical operation node for logical operators.
+  """
+  def logical_op_node(operator, left, right, opts \\ []) when is_binary(operator) do
+    {:logical_op, [operator, left, right], opts}
+  end
 end
