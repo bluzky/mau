@@ -373,41 +373,60 @@ defmodule Mau.Parser do
   # ============================================================================
   # TAG BLOCK PARSING
   # ============================================================================
+  # 
+  # Generic tag parsing infrastructure designed to minimize boilerplate when adding new tags.
+  # 
+  # To add a new tag type:
+  # 1. Create a combinator following the existing patterns
+  # 2. Add it to the `tag_content` choice list
+  # 3. Add a case clause to `build_tag/2` for the tag's argument structure
+  # 4. Add a case clause to `build_tag_node/1` for AST construction (or use generic fallback)
+  # 5. Add rendering logic to `render_tag_with_context/3` in the renderer
+  #
+  # Example for a new "include" tag: {% include "template.html" %}
+  #   include_tag = 
+  #     ignore(string("include"))
+  #     |> ignore(required_whitespace)
+  #     |> concat(string_literal)
+  #     |> reduce({:build_tag, [:include]})
 
+  # Generic tag parser helpers - combinators for common patterns
+  required_whitespace = times(ascii_char([?\s, ?\t]), min: 1)
+  
   # Assignment tag parsing - {% assign variable = expression %}
   assign_tag =
     ignore(string("assign"))
-    |> ignore(times(ascii_char([?\s, ?\t]), min: 1))  # At least one whitespace
+    |> ignore(required_whitespace)
     |> concat(identifier)
     |> ignore(optional_whitespace)
     |> ignore(string("="))
     |> ignore(optional_whitespace)
     |> concat(parsec(:pipe_expression))
-    |> reduce(:build_assign_tag)
+    |> reduce({:build_tag, [:assign]})
 
   # If tag parsing - {% if condition %}
   if_tag =
     ignore(string("if"))
-    |> ignore(times(ascii_char([?\s, ?\t]), min: 1))  # At least one whitespace
+    |> ignore(required_whitespace)
     |> concat(parsec(:pipe_expression))
-    |> reduce(:build_if_tag)
+    |> reduce({:build_tag, [:if]})
 
   # Elsif tag parsing - {% elsif condition %}
   elsif_tag =
     ignore(string("elsif"))
-    |> ignore(times(ascii_char([?\s, ?\t]), min: 1))  # At least one whitespace
+    |> ignore(required_whitespace)
     |> concat(parsec(:pipe_expression))
-    |> reduce(:build_elsif_tag)
+    |> reduce({:build_tag, [:elsif]})
 
   # Else tag parsing - {% else %}
   else_tag =
     ignore(string("else"))
-    |> reduce(:build_else_tag)
+    |> reduce({:build_tag, [:else]})
 
   # Endif tag parsing - {% endif %}
   endif_tag =
     ignore(string("endif"))
-    |> reduce(:build_endif_tag)
+    |> reduce({:build_tag, [:endif]})
 
   # Tag content - assignment and conditional tags
   tag_content = 
@@ -873,39 +892,40 @@ defmodule Mau.Parser do
     apply_filters_to_value(call_node, rest_filters)
   end
 
-  # Tag helpers
-  defp build_assign_tag([variable_name, expression]) do
-    {:assign, variable_name, expression}
-  end
-
-  defp build_if_tag([condition]) do
-    {:if, condition}
-  end
-
-  defp build_elsif_tag([condition]) do
-    {:elsif, condition}
-  end
-
-  defp build_else_tag([]) do
-    {:else}
-  end
-
-  defp build_endif_tag([]) do
-    {:endif}
+  # Generic tag builder helpers
+  defp build_tag(args, tag_type) do
+    case {tag_type, args} do
+      # Assignment tag: {% assign var = expr %}
+      {:assign, [variable_name, expression]} -> 
+        {:assign, variable_name, expression}
+      
+      # Conditional tags with expressions: {% if condition %}, {% elsif condition %}
+      {tag_type, [condition]} when tag_type in [:if, :elsif] -> 
+        {tag_type, condition}
+      
+      # Conditional tags without parameters: {% else %}, {% endif %}
+      {tag_type, []} when tag_type in [:else, :endif] -> 
+        {tag_type}
+      
+      # Fallback for unknown patterns
+      {tag_type, args} -> 
+        {tag_type, args}
+    end
   end
 
   defp build_tag_node([tag_data]) do
     case tag_data do
       {:assign, variable_name, expression} ->
         Nodes.tag_node(:assign, [variable_name, expression])
-      {:if, condition} ->
-        Nodes.tag_node(:if, [condition])
-      {:elsif, condition} ->
-        Nodes.tag_node(:elsif, [condition])
-      {:else} ->
-        Nodes.tag_node(:else, [])
-      {:endif} ->
-        Nodes.tag_node(:endif, [])
+      {tag_type, condition} when tag_type in [:if, :elsif] ->
+        Nodes.tag_node(tag_type, [condition])
+      {tag_type} when tag_type in [:else, :endif] ->
+        Nodes.tag_node(tag_type, [])
+      # Generic fallback for future tag types
+      {tag_type, params} when is_list(params) ->
+        Nodes.tag_node(tag_type, params)
+      {tag_type, param} ->
+        Nodes.tag_node(tag_type, [param])
     end
   end
 end

@@ -22,31 +22,14 @@ defmodule Mau.Renderer do
       iex> Mau.Renderer.render_node({:expression, [{:literal, [42], []}], []}, %{})
       {:ok, "42"}
   """
-  def render_node({:text, [content], _opts}, _context) when is_binary(content) do
-    {:ok, content}
-  end
-
-  def render_node({:expression, [expression_ast], _opts}, context) do
-    case evaluate_expression(expression_ast, context) do
-      {:ok, value} -> {:ok, format_value(value)}
+  def render_node(node, context) do
+    case render_node_with_context(node, context) do
+      {:ok, result, _updated_context} -> {:ok, result}
       {:error, error} -> {:error, error}
     end
   end
 
-  def render_node({:tag, [tag_type | tag_parts], _opts}, context) do
-    render_tag(tag_type, tag_parts, context)
-  end
-
-  def render_node({:conditional_block, block_data, _opts}, context) do
-    render_conditional_block(block_data, context)
-  end
-
-  def render_node(node, _context) do
-    error = Mau.Error.runtime_error("Unknown node type: #{inspect(node)}")
-    {:error, error}
-  end
-
-  # Renders a node and returns {result, updated_context}
+  # Renders a node and returns {result, updated_context} - main rendering pipeline
   defp render_node_with_context({:text, [content], _opts}, context) when is_binary(content) do
     {:ok, content, context}
   end
@@ -387,12 +370,6 @@ defmodule Mau.Renderer do
   defp is_truthy(_), do: true
 
   # Tag rendering functions
-  defp render_tag(tag_type, tag_parts, context) do
-    case render_tag_with_context(tag_type, tag_parts, context) do
-      {:ok, result, _updated_context} -> {:ok, result}
-      {:error, error} -> {:error, error}
-    end
-  end
 
   defp render_tag_with_context(:assign, [variable_name, expression], context) do
     case evaluate_expression(expression, context) do
@@ -444,12 +421,6 @@ defmodule Mau.Renderer do
   end
 
   # Conditional block rendering functions
-  defp render_conditional_block(block_data, context) do
-    case render_conditional_block_with_context(block_data, context) do
-      {:ok, result, _updated_context} -> {:ok, result}
-      {:error, error} -> {:error, error}
-    end
-  end
 
   defp render_conditional_block_with_context(block_data, context) do
     if_branch = Keyword.get(block_data, :if_branch)
