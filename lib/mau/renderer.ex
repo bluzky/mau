@@ -104,9 +104,7 @@ defmodule Mau.Renderer do
   defp extract_variable_value([identifier | path_rest], context) when is_binary(identifier) do
     case Map.get(context, identifier) do
       nil -> {:ok, nil}
-      value when is_map(value) -> extract_variable_value(path_rest, value)
-      value when is_list(value) -> extract_from_list(path_rest, value)
-      _value -> {:ok, nil}  # Can't traverse further
+      value -> extract_variable_value(path_rest, value)
     end
   end
 
@@ -131,20 +129,18 @@ defmodule Mau.Renderer do
     {:ok, value}
   end
 
-  # Fallback for unsupported access patterns
-  defp extract_variable_value(_path, _value) do
+  # Fallback for unsupported access patterns - handle any remaining cases
+  defp extract_variable_value([{:property, _property} | _path_rest], value) when not is_map(value) do
+    # Trying to access property on non-map value
     {:ok, nil}
   end
 
-  # Helper for list access from property chain
-  defp extract_from_list([{:index, index} | path_rest], list) when is_list(list) do
-    case get_list_element(list, index) do
-      nil -> {:ok, nil}
-      value -> extract_variable_value(path_rest, value)
-    end
+  defp extract_variable_value([{:index, _index} | _path_rest], value) when not is_list(value) do
+    # Trying to access index on non-list value
+    {:ok, nil}
   end
 
-  defp extract_from_list(_path, _list) do
+  defp extract_variable_value(_path, _value) do
     {:ok, nil}
   end
 
@@ -153,8 +149,21 @@ defmodule Mau.Renderer do
     Enum.at(list, index)
   end
 
+  defp get_list_element(_list, index) when is_integer(index) and index < 0 do
+    # Negative indices are not supported
+    nil
+  end
+
+  defp get_list_element(_list, variable_name) when is_binary(variable_name) do
+    # Variable indices are not yet implemented in the context system
+    # This would require access to the current context to resolve the variable
+    # For now, return nil but this should be extended in the future
+    nil
+  end
+
   defp get_list_element(_list, _index) do
-    nil  # For now, variable indices are not implemented
+    # Unsupported index type (not integer or string)
+    nil
   end
 
   # Formats values for output

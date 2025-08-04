@@ -549,9 +549,9 @@ defmodule Mau.Parser do
       {float_val, ""} -> float_val
       {float_val, _rest} -> float_val
       :error -> 
-        # Handle parse error explicitly - this should not happen with valid parser input
-        # but provides safety in case of unexpected input
-        0.0  # Safe fallback for invalid float strings
+        # This should never happen with valid NimbleParsec input, but if it does,
+        # we should raise an error rather than silently convert to 0.0
+        raise "Invalid float string encountered in parser: #{inspect(string_value)}"
     end
   end
 
