@@ -4,16 +4,16 @@ defmodule MauTest do
 
   describe "Integration Tests - Group 1: Plain Text Templates" do
     test "compile and render plain text" do
-      assert {:ok, {:text, ["Hello world"], []}} = Mau.compile("Hello world")
+      assert {:ok, [{:text, ["Hello world"], []}]} = Mau.compile("Hello world")
       assert {:ok, "Hello world"} = Mau.render("Hello world", %{})
     end
 
     test "compile with strict mode returns warnings tuple" do
-      assert {:ok, {:text, ["Hello"], []}, []} = Mau.compile("Hello", strict_mode: true)
+      assert {:ok, [{:text, ["Hello"], []}], []} = Mau.compile("Hello", strict_mode: true)
     end
 
     test "compile with ease mode returns simple tuple" do
-      assert {:ok, {:text, ["Hello"], []}} = Mau.compile("Hello", strict_mode: false)
+      assert {:ok, [{:text, ["Hello"], []}]} = Mau.compile("Hello", strict_mode: false)
     end
 
     test "render_map with plain text values" do
