@@ -32,7 +32,7 @@ defmodule Mau.VariableIntegrationTest do
       
       assert {:ok, [ast_node]} = Parser.parse(template)
       {:expression, [variable_ast], []} = ast_node
-      assert {:variable, ["users", {:index, 0}], []} = variable_ast
+      assert {:variable, ["users", {:index, {:literal, [0], []}}], []} = variable_ast
       
       assert {:ok, "Alice"} = Mau.render(template, context)
     end

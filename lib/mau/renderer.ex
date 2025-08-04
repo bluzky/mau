@@ -88,6 +88,10 @@ defmodule Mau.Renderer do
     end
   end
 
+  defp evaluate_expression({:logical_op, [operator, left, right], _opts}, context) do
+    evaluate_logical_operation(operator, left, right, context)
+  end
+
   defp evaluate_expression(expression, _context) do
     error = Mau.Error.runtime_error("Unknown expression type: #{inspect(expression)}")
     {:error, error}
@@ -117,8 +121,14 @@ defmodule Mau.Renderer do
   end
 
   # Helper for array index access
-  defp extract_variable_value([{:index, index} | path_rest], value) when is_list(value) do
-    case get_list_element(value, index) do
+  defp extract_variable_value([{:index, index} | path_rest], value) do
+    # Extract the actual index value from literal nodes
+    actual_index = case index do
+      {:literal, [literal_value], _opts} -> literal_value
+      other -> other
+    end
+    
+    case get_list_element(value, actual_index) do
       nil -> {:ok, nil}
       new_value -> extract_variable_value(path_rest, new_value)
     end
@@ -135,34 +145,30 @@ defmodule Mau.Renderer do
     {:ok, nil}
   end
 
-  defp extract_variable_value([{:index, _index} | _path_rest], value) when not is_list(value) do
-    # Trying to access index on non-list value
-    {:ok, nil}
-  end
-
   defp extract_variable_value(_path, _value) do
     {:ok, nil}
   end
 
-  # Gets an element from list by index (integer) or by variable name lookup
-  defp get_list_element(list, index) when is_integer(index) and index >= 0 do
+  # Gets an element from list/map by literal index/key only
+  defp get_list_element(list, index) when is_list(list) and is_integer(index) and index >= 0 do
     Enum.at(list, index)
   end
 
-  defp get_list_element(_list, index) when is_integer(index) and index < 0 do
+  defp get_list_element(list, index) when is_list(list) and is_integer(index) and index < 0 do
     # Negative indices are not supported
     nil
   end
 
-  defp get_list_element(_list, variable_name) when is_binary(variable_name) do
-    # Variable indices are not yet implemented in the context system
-    # This would require access to the current context to resolve the variable
-    # For now, return nil but this should be extended in the future
-    nil
+  defp get_list_element(map, key) when is_map(map) and is_binary(key) do
+    Map.get(map, key)
   end
 
-  defp get_list_element(_list, _index) do
-    # Unsupported index type (not integer or string)
+  defp get_list_element(map, key) when is_map(map) and is_atom(key) do
+    Map.get(map, key)
+  end
+
+  defp get_list_element(_collection, _key) do
+    # All other cases (unsupported collection types or key types)
     nil
   end
 
@@ -220,8 +226,88 @@ defmodule Mau.Renderer do
     end
   end
 
+  # Comparison operations
+  defp evaluate_binary_operation("==", left, right) do
+    {:ok, left == right}
+  end
+
+  defp evaluate_binary_operation("!=", left, right) do
+    {:ok, left != right}
+  end
+
+  defp evaluate_binary_operation(">", left, right) when is_number(left) and is_number(right) do
+    {:ok, left > right}
+  end
+
+  defp evaluate_binary_operation(">=", left, right) when is_number(left) and is_number(right) do
+    {:ok, left >= right}
+  end
+
+  defp evaluate_binary_operation("<", left, right) when is_number(left) and is_number(right) do
+    {:ok, left < right}
+  end
+
+  defp evaluate_binary_operation("<=", left, right) when is_number(left) and is_number(right) do
+    {:ok, left <= right}
+  end
+
+  # String comparison operations
+  defp evaluate_binary_operation(">", left, right) when is_binary(left) and is_binary(right) do
+    {:ok, left > right}
+  end
+
+  defp evaluate_binary_operation(">=", left, right) when is_binary(left) and is_binary(right) do
+    {:ok, left >= right}
+  end
+
+  defp evaluate_binary_operation("<", left, right) when is_binary(left) and is_binary(right) do
+    {:ok, left < right}
+  end
+
+  defp evaluate_binary_operation("<=", left, right) when is_binary(left) and is_binary(right) do
+    {:ok, left <= right}
+  end
+
   defp evaluate_binary_operation(operator, left, right) do
     error = Mau.Error.runtime_error("Unsupported binary operation: #{inspect(left)} #{operator} #{inspect(right)}")
     {:error, error}
   end
+
+  # Logical operation evaluation with short-circuiting
+  defp evaluate_logical_operation("and", left, right, context) do
+    case evaluate_expression(left, context) do
+      {:ok, left_value} ->
+        if is_truthy(left_value) do
+          evaluate_expression(right, context)
+        else
+          {:ok, false}
+        end
+      {:error, error} -> {:error, error}
+    end
+  end
+
+  defp evaluate_logical_operation("or", left, right, context) do
+    case evaluate_expression(left, context) do
+      {:ok, left_value} ->
+        if is_truthy(left_value) do
+          {:ok, true}
+        else
+          case evaluate_expression(right, context) do
+            {:ok, right_value} -> {:ok, is_truthy(right_value)}
+            {:error, error} -> {:error, error}
+          end
+        end
+      {:error, error} -> {:error, error}
+    end
+  end
+
+  # Truthiness evaluation rules
+  defp is_truthy(nil), do: false
+  defp is_truthy(false), do: false
+  defp is_truthy(""), do: false
+  defp is_truthy(0), do: false
+  defp is_truthy(value) when is_float(value) and value == 0.0, do: false
+  defp is_truthy([]), do: false
+  defp is_truthy(%{}), do: false
+  defp is_truthy(_), do: true
 end

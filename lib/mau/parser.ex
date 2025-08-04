@@ -125,17 +125,18 @@ defmodule Mau.Parser do
   # BOOLEAN AND NULL LITERAL PARSING
   # ============================================================================
 
-  # Boolean literals
+  # Boolean literals - with word boundary check
   boolean_literal =
     choice([
-      string("true") |> replace(true),
-      string("false") |> replace(false)
+      string("true") |> concat(lookahead_not(ascii_char([?a..?z, ?A..?Z, ?0..?9, ?_]))) |> replace(true),
+      string("false") |> concat(lookahead_not(ascii_char([?a..?z, ?A..?Z, ?0..?9, ?_]))) |> replace(false)
     ])
     |> reduce(:build_boolean_literal_node)
 
-  # Null literal
+  # Null literal - with word boundary check
   null_literal =
     string("null")
+    |> concat(lookahead_not(ascii_char([?a..?z, ?A..?Z, ?0..?9, ?_])))
     |> replace(nil)
     |> reduce(:build_null_literal_node)
 
@@ -170,17 +171,25 @@ defmodule Mau.Parser do
       basic_identifier
     ])
 
+  # Atom literal - :atom_name (defined after identifier parsers)
+  atom_literal =
+    string(":")
+    |> concat(identifier_start)
+    |> repeat(identifier_char)
+    |> reduce(:build_atom_literal)
+
   # Property access parsing
   property_access =
     string(".")
     |> concat(basic_identifier)
     |> reduce(:build_property_access)
 
-  # Array index parsing - supports literal numbers and simple identifiers
+  # Array index parsing - supports only literal values (no variables)
   array_index_content =
     choice([
-      integer_number,  # Literal number index like [0], [123]
-      identifier       # Simple variable index like [index], [i]
+      number_literal,   # Literal number index like [0], [123], [-1]
+      string_literal,   # Literal string key like ["key"], ["name"]
+      atom_literal      # Literal atom key like [:key], [:name]
     ])
 
   array_index =
@@ -205,24 +214,31 @@ defmodule Mau.Parser do
     |> reduce(:build_variable_path)
 
   # ============================================================================
-  # ARITHMETIC EXPRESSION PARSING
+  # EXPRESSION PARSING WITH PRECEDENCE
   # ============================================================================
 
-  # Primary expressions - literals, variables, and parentheses
+  # Primary expressions - literals with word boundaries, then variables
   primary_expression =
     choice([
       string_literal,
-      number_literal, 
+      number_literal,
       boolean_literal,
       null_literal,
-      variable_path,
-      # Parentheses for grouping (highest precedence)
+      atom_literal,
+      variable_path
+    ])
+
+  # Forward declare atom expression to include parentheses later
+  defcombinatorp(:atom_expression,
+    choice([
+      primary_expression,
       ignore(string("("))
       |> ignore(optional_whitespace)
-      |> parsec(:additive_expression)
+      |> parsec(:logical_or_expression)
       |> ignore(optional_whitespace)
       |> ignore(string(")"))
     ])
+  )
 
   # Multiplicative expressions - *, /, % (highest arithmetic precedence)
   multiplicative_operator =
@@ -233,12 +249,12 @@ defmodule Mau.Parser do
     ])
 
   multiplicative_expression =
-    primary_expression
+    parsec(:atom_expression)
     |> repeat(
       ignore(optional_whitespace)
       |> concat(multiplicative_operator)
       |> ignore(optional_whitespace)
-      |> concat(primary_expression)
+      |> concat(parsec(:atom_expression))
     )
     |> reduce(:build_binary_operation)
 
@@ -260,11 +276,77 @@ defmodule Mau.Parser do
     |> reduce(:build_binary_operation)
 
   # ============================================================================
+  # COMPARISON EXPRESSION PARSING
+  # ============================================================================
+
+  # Equality operators - ==, !=
+  equality_operator =
+    choice([
+      string("=="),
+      string("!=")
+    ])
+
+  equality_expression =
+    additive_expression
+    |> repeat(
+      ignore(optional_whitespace)
+      |> concat(equality_operator)
+      |> ignore(optional_whitespace)
+      |> concat(additive_expression)
+    )
+    |> reduce(:build_binary_operation)
+
+  # Relational operators - >, >=, <, <=
+  relational_operator =
+    choice([
+      string(">="),
+      string("<="),
+      string(">"),
+      string("<")
+    ])
+
+  relational_expression =
+    equality_expression
+    |> repeat(
+      ignore(optional_whitespace)
+      |> concat(relational_operator)
+      |> ignore(optional_whitespace)
+      |> concat(equality_expression)
+    )
+    |> reduce(:build_binary_operation)
+
+  # ============================================================================
+  # LOGICAL EXPRESSION PARSING
+  # ============================================================================
+
+  # Logical AND operator
+  logical_and_expression =
+    relational_expression
+    |> repeat(
+      ignore(optional_whitespace)
+      |> string("and")
+      |> ignore(optional_whitespace)
+      |> concat(relational_expression)
+    )
+    |> reduce(:build_logical_operation)
+
+  # Logical OR operator (lowest precedence)
+  logical_or_expression =
+    logical_and_expression
+    |> repeat(
+      ignore(optional_whitespace)
+      |> string("or")
+      |> ignore(optional_whitespace)
+      |> concat(logical_and_expression)
+    )
+    |> reduce(:build_logical_operation)
+
+  # ============================================================================
   # EXPRESSION BLOCK PARSING
   # ============================================================================
 
-  # Any expression value (now supports arithmetic)
-  expression_value = additive_expression
+  # Any expression value (now supports boolean/comparison)
+  expression_value = logical_or_expression
 
   # Expression block with {{ }} delimiters
   expression_block =
@@ -293,6 +375,9 @@ defmodule Mau.Parser do
   
   # Parser for additive expressions (needed for recursive parsing)
   defparsec(:additive_expression, additive_expression)
+  
+  # Parser for logical OR expressions (needed for recursive parsing in parentheses)
+  defparsec(:logical_or_expression, logical_or_expression)
   
   # Parser for testing string literals directly
   defparsec(:parse_string_literal_raw, string_literal)
@@ -578,6 +663,12 @@ defmodule Mau.Parser do
     Nodes.literal_node(nil)
   end
 
+  # Atom literal helpers
+  defp build_atom_literal([":" | atom_chars]) do
+    atom_name = atom_chars |> List.to_string()
+    Nodes.atom_literal_node(atom_name)
+  end
+
   # Expression block helpers
   defp build_expression_node([expression_ast]) do
     Nodes.expression_node(expression_ast)
@@ -626,5 +717,25 @@ defmodule Mau.Parser do
   defp build_left_associative_ops(left, [operator, right | rest]) do
     binary_op = Nodes.binary_op_node(operator, left, right)
     build_left_associative_ops(binary_op, rest)
+  end
+
+  # Logical operation helpers
+  defp build_logical_operation([left]) do
+    # Single operand, no operation
+    left
+  end
+
+  defp build_logical_operation([left | rest]) do
+    # Build left-associative logical operations
+    build_left_associative_logical_ops(left, rest)
+  end
+
+  defp build_left_associative_logical_ops(left, []) do
+    left
+  end
+
+  defp build_left_associative_logical_ops(left, [operator, right | rest]) do
+    logical_op = Nodes.logical_op_node(operator, left, right)
+    build_left_associative_logical_ops(logical_op, rest)
   end
 end
