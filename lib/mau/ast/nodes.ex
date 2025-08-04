@@ -40,4 +40,11 @@ defmodule Mau.AST.Nodes do
   def variable_node(path, opts \\ []) when is_list(path) do
     {:variable, path, opts}
   end
+
+  @doc """
+  Creates a binary operation node for binary operators.
+  """
+  def binary_op_node(operator, left, right, opts \\ []) when is_binary(operator) do
+    {:binary_op, [operator, left, right], opts}
+  end
 end

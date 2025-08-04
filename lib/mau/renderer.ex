@@ -72,13 +72,20 @@ defmodule Mau.Renderer do
     end
   end
 
-  # Evaluates expressions - handles literals and variables
+  # Evaluates expressions - handles literals, variables, and arithmetic operations
   defp evaluate_expression({:literal, [value], _opts}, _context) do
     {:ok, value}
   end
 
   defp evaluate_expression({:variable, path, _opts}, context) do
     extract_variable_value(path, context)
+  end
+
+  defp evaluate_expression({:binary_op, [operator, left, right], _opts}, context) do
+    with {:ok, left_value} <- evaluate_expression(left, context),
+         {:ok, right_value} <- evaluate_expression(right, context) do
+      evaluate_binary_operation(operator, left_value, right_value)
+    end
   end
 
   defp evaluate_expression(expression, _context) do
@@ -157,4 +164,55 @@ defmodule Mau.Renderer do
   defp format_value(false), do: "false"
   defp format_value(nil), do: ""
   defp format_value(value), do: inspect(value)
+
+  # Arithmetic operation evaluation
+  defp evaluate_binary_operation("+", left, right) when is_number(left) and is_number(right) do
+    {:ok, left + right}
+  end
+
+  defp evaluate_binary_operation("+", left, right) when is_binary(left) or is_binary(right) do
+    # String concatenation
+    {:ok, to_string(left) <> to_string(right)}
+  end
+
+  defp evaluate_binary_operation("+", nil, right) do
+    # Treat nil as empty string for concatenation
+    {:ok, to_string(right)}
+  end
+
+  defp evaluate_binary_operation("+", left, nil) do
+    # Treat nil as empty string for concatenation
+    {:ok, to_string(left)}
+  end
+
+  defp evaluate_binary_operation("-", left, right) when is_number(left) and is_number(right) do
+    {:ok, left - right}
+  end
+
+  defp evaluate_binary_operation("*", left, right) when is_number(left) and is_number(right) do
+    {:ok, left * right}
+  end
+
+  defp evaluate_binary_operation("/", left, right) when is_number(left) and is_number(right) do
+    if right == 0 do
+      error = Mau.Error.runtime_error("Division by zero")
+      {:error, error}
+    else
+      {:ok, left / right}
+    end
+  end
+
+  defp evaluate_binary_operation("%", left, right) when is_integer(left) and is_integer(right) do
+    if right == 0 do
+      error = Mau.Error.runtime_error("Modulo by zero")
+      {:error, error}
+    else
+      {:ok, rem(left, right)}
+    end
+  end
+
+  defp evaluate_binary_operation(operator, left, right) do
+    error = Mau.Error.runtime_error("Unsupported binary operation: #{inspect(left)} #{operator} #{inspect(right)}")
+    {:error, error}
+  end
 end
