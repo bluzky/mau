@@ -66,8 +66,8 @@ defmodule Mau.ExpressionBlockTest do
       assert {:error, _} = Parser.parse_expression_block("{{}}")
       assert {:error, _} = Parser.parse_expression_block("{{ }}")
       
-      # Invalid content
-      assert {:error, _} = Parser.parse_expression_block("{{ invalid }}")
+      # Invalid content (identifier starting with number)
+      assert {:error, _} = Parser.parse_expression_block("{{ 123invalid }}")
     end
 
     test "fails on expressions with extra characters" do

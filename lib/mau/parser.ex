@@ -140,26 +140,89 @@ defmodule Mau.Parser do
     |> reduce(:build_null_literal_node)
 
   # ============================================================================
+  # VARIABLE PARSING
+  # ============================================================================
+
+  # Whitespace handling (moved up for use in variable parsing)
+  optional_whitespace = repeat(ascii_char([?\s, ?\t, ?\n, ?\r]))
+
+  # Identifier parsing - supports letters, numbers, underscores
+  # Must start with letter or underscore, can contain numbers after first char
+  identifier_start = ascii_char([?a..?z, ?A..?Z, ?_])
+  identifier_char = ascii_char([?a..?z, ?A..?Z, ?0..?9, ?_])
+  
+  # Basic identifier (user, name, index, etc.)
+  basic_identifier =
+    identifier_start
+    |> repeat(identifier_char)
+    |> reduce(:build_identifier)
+
+  # Workflow variable identifier (starts with $)
+  workflow_identifier =
+    string("$")
+    |> concat(basic_identifier)
+    |> reduce(:build_workflow_identifier)
+
+  # Combined identifier parser
+  identifier =
+    choice([
+      workflow_identifier,
+      basic_identifier
+    ])
+
+  # Property access parsing
+  property_access =
+    string(".")
+    |> concat(basic_identifier)
+    |> reduce(:build_property_access)
+
+  # Array index parsing - supports literal numbers and simple identifiers
+  array_index_content =
+    choice([
+      integer_number,  # Literal number index like [0], [123]
+      identifier       # Simple variable index like [index], [i]
+    ])
+
+  array_index =
+    ignore(string("["))
+    |> ignore(optional_whitespace)
+    |> concat(array_index_content)
+    |> ignore(optional_whitespace)  
+    |> ignore(string("]"))
+    |> reduce(:build_array_index)
+
+  # Variable access element - either property access or array index
+  variable_access =
+    choice([
+      property_access,
+      array_index
+    ])
+
+  # Variable path - identifier followed by zero or more property accesses or array indices
+  variable_path =
+    identifier
+    |> repeat(variable_access)
+    |> reduce(:build_variable_path)
+
+  # ============================================================================
   # EXPRESSION BLOCK PARSING
   # ============================================================================
 
-  # Whitespace handling
-  optional_whitespace = repeat(ascii_char([?\s, ?\t, ?\n, ?\r]))
-
-  # Any literal value (string, number, boolean, null)
-  literal_value =
+  # Any expression value (literals and variables)
+  expression_value =
     choice([
       string_literal,
-      number_literal,
+      number_literal, 
       boolean_literal,
-      null_literal
+      null_literal,
+      variable_path
     ])
 
   # Expression block with {{ }} delimiters
   expression_block =
     ignore(string("{{"))
     |> ignore(optional_whitespace)
-    |> concat(literal_value)
+    |> concat(expression_value)
     |> ignore(optional_whitespace)
     |> ignore(string("}}"))
     |> reduce(:build_expression_node)
@@ -194,6 +257,12 @@ defmodule Mau.Parser do
   
   # Parser for testing expression blocks directly
   defparsec(:parse_expression_block_raw, expression_block)
+
+  # Parser for testing identifiers directly
+  defparsec(:parse_identifier_raw, identifier)
+
+  # Parser for testing variable paths directly
+  defparsec(:parse_variable_path_raw, variable_path)
 
   @doc """
   Parses a string literal and returns a clean result.
@@ -309,6 +378,56 @@ defmodule Mau.Parser do
   end
 
   @doc """
+  Parses an identifier and returns a clean result.
+  
+  ## Examples
+  
+      iex> Mau.Parser.parse_identifier("user")
+      {:ok, "user"}
+      
+      iex> Mau.Parser.parse_identifier("$input")
+      {:ok, "$input"}
+      
+      iex> Mau.Parser.parse_identifier("user_name")
+      {:ok, "user_name"}
+  """
+  def parse_identifier(input) do
+    case parse_identifier_raw(input) do
+      {:ok, [identifier], "", _, _, _} ->
+        {:ok, identifier}
+      {:ok, [_identifier], remaining, _, _, _} ->
+        {:error, "Unexpected input after identifier: #{remaining}"}
+      {:error, reason, _remaining, _context, {line, column}, _offset} ->
+        {:error, "Parse error at line #{line}, column #{column}: #{reason}"}
+    end
+  end
+
+  @doc """
+  Parses a variable path and returns a clean result.
+  
+  ## Examples
+  
+      iex> Mau.Parser.parse_variable_path("user")
+      {:ok, {:variable, ["user"], []}}
+      
+      iex> Mau.Parser.parse_variable_path("user.name")
+      {:ok, {:variable, ["user", {:property, "name"}], []}}
+      
+      iex> Mau.Parser.parse_variable_path("$input.data.field")
+      {:ok, {:variable, ["$input", {:property, "data"}, {:property, "field"}], []}}
+  """
+  def parse_variable_path(input) do
+    case parse_variable_path_raw(input) do
+      {:ok, [path_segments], "", _, _, _} ->
+        {:ok, path_segments}
+      {:ok, [_path_segments], remaining, _, _, _} ->
+        {:error, "Unexpected input after variable path: #{remaining}"}
+      {:error, reason, _remaining, _context, {line, column}, _offset} ->
+        {:error, "Parse error at line #{line}, column #{column}: #{reason}"}
+    end
+  end
+
+  @doc """
   Parses a template string into an AST.
   
   Now handles mixed content: text and expression blocks.
@@ -378,7 +497,10 @@ defmodule Mau.Parser do
     case Float.parse(string_value) do
       {float_val, ""} -> float_val
       {float_val, _rest} -> float_val
-      :error -> String.to_float(string_value)  # Fallback for non-scientific notation
+      :error -> 
+        # Handle parse error explicitly - this should not happen with valid parser input
+        # but provides safety in case of unexpected input
+        0.0  # Safe fallback for invalid float strings
     end
   end
 
@@ -406,7 +528,32 @@ defmodule Mau.Parser do
   end
 
   # Expression block helpers
-  defp build_expression_node([literal_ast]) do
-    Nodes.expression_node(literal_ast)
+  defp build_expression_node([expression_ast]) do
+    Nodes.expression_node(expression_ast)
+  end
+
+  # Variable identifier helpers
+  defp build_identifier(chars) do
+    chars |> List.to_string()
+  end
+
+  defp build_workflow_identifier(["$", identifier]) do
+    "$" <> identifier
+  end
+
+  # Property access helpers
+  defp build_property_access([".", property]) do
+    {:property, property}
+  end
+
+  # Array index helpers
+  defp build_array_index([index]) do
+    {:index, index}
+  end
+
+  # Variable path helpers
+  defp build_variable_path([identifier | accesses]) do
+    path_segments = [identifier | accesses]
+    Nodes.variable_node(path_segments)
   end
 end

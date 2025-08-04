@@ -8,58 +8,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- **Task 2.1: String Literal Parser** - Complete implementation
-  - Double-quoted and single-quoted string parsing
-  - Comprehensive escape sequence support (\\n, \\t, \\", \\', \\\\, \\/, \\b, \\f, \\r)
-  - Unicode escape sequences (\\uXXXX)
-  - Proper error handling for unterminated strings and invalid escapes
-  - Test suite with 9 comprehensive tests
-- **Task 2.2: Number Literal Parser** - Complete implementation  
-  - Integer parsing (positive and negative)
-  - Float parsing with decimal points
-  - Scientific notation support (e/E with optional +/- exponents)
-  - Edge case handling (very large/small numbers)
-  - Proper error handling for invalid number formats
-  - Test suite with 10 comprehensive tests
-- **Task 2.3: Boolean and Null Literal Parser** - Complete implementation
-  - Boolean literal parsing (`true`, `false`)
-  - Null literal parsing (`null`)
-  - Proper error handling for invalid formats
-  - Test suite with 7 comprehensive tests
-- **Task 2.4: Expression Block Parser** - Complete implementation
-  - Expression block parsing with `{{ }}` delimiters
-  - Whitespace handling (spaces, tabs, newlines)
-  - Support for all literal types within expressions
-  - Proper error handling for malformed blocks
-  - Test suite with 8 comprehensive tests
-- **Task 2.5: Literal Expression Evaluator** - Complete implementation
-  - Expression evaluation system for literal values
-  - Value formatting for output (strings, numbers, booleans, null)
-  - Proper error handling for unknown expression types
-  - Test suite with 9 comprehensive tests
-- **Task 2.6: Expression Integration** - Complete implementation
-  - Mixed content parsing (text and expressions)
-  - Multi-node AST rendering system
-  - Updated main API to handle expression blocks
-  - Integration tests with 11 comprehensive scenarios
-  - Full end-to-end template processing
-- Clean parser API with consistent `{:ok, ast}` / `{:error, reason}` responses
-- Maintains unified AST structure convention `{type, parts, opts}`
+- **Task 3.1: Identifier Parser** - Complete implementation
+  - Basic identifier parsing (letters, numbers, underscores)
+  - Workflow variable support with `$` prefix (`$input`, `$variables`, etc.)
+  - Test suite with 10 comprehensive tests covering all identifier patterns
+- **Task 3.2: Property Access Parser** - Complete implementation
+  - Dot notation property access parsing (`user.name`, `user.profile.email`)
+  - Workflow variable property access (`$input.data.field`)
+  - Test suite with 10 comprehensive tests including nested properties
+- **Task 3.3: Array Index Parser** - Complete implementation
+  - Array index parsing with `[]` notation (`users[0]`, `matrix[1][2]`)
+  - Support for both literal integer indices and variable indices
+  - Whitespace handling within array index brackets
+  - Test suite with 11 comprehensive tests covering all access patterns
+- **Task 3.4: Variable Path Builder** - Complete implementation
+  - Complex variable path construction combining identifiers, properties, and indices
+  - Unified AST structure using `{:variable, path_segments, opts}` format
+  - Support for mixed access patterns (`user.orders[0].name`)
+- **Task 3.5: Variable Evaluator** - Complete implementation
+  - Context-based variable value extraction with path traversal
+  - Property access on maps with graceful fallback for undefined properties
+  - Array index access with bounds checking
+  - Support for nested data structures and complex paths
+  - Workflow variable evaluation with `$` prefix support
+  - Test suite with 14 comprehensive evaluation scenarios
+- **Task 3.6: Variable Integration** - Complete implementation
+  - Variable expressions integrated into main expression parsing system
+  - Mixed content templates with variables and literals
+  - End-to-end parsing and rendering of variable expressions
+  - Updated expression block parser to handle both literals and variables
+  - Test suite with 14 integration scenarios covering all variable features
 
 ### Technical Details
-- Enhanced NimbleParsec parser infrastructure
-- Robust character-to-string conversion handling
-- Float parsing with `Float.parse/1` for scientific notation support
-- Comprehensive escape sequence processing including Unicode
-- Proper AST node creation following established patterns
+- Extended NimbleParsec parser with variable parsing combinators
+- Variable path representation using structured tuples: `{:property, "name"}`, `{:index, 0}`
+- Context traversal algorithms for complex nested data access
+- Graceful handling of undefined variables and out-of-bounds access
+- Maintains unified AST structure convention `{type, parts, opts}`
+- Proper separation of parsing, AST construction, and evaluation concerns
 
 ### Testing
-- All existing tests continue to pass (96 tests total: 20 doctests + 76 unit tests)
-- New literal parsing test suites with comprehensive coverage
-- Expression block parsing and evaluation tests
-- Integration tests for mixed content templates
-- Edge case testing for numeric limits and string escaping
-- Error condition testing for malformed input
+- All existing tests continue to pass (161 tests total: 26 doctests + 135 unit tests)
+- New variable parsing test suites with comprehensive coverage
+- Variable evaluation tests covering all access patterns and edge cases
+- Integration tests for mixed content templates with variables
+- Workflow variable tests for specialized use cases
+- Error condition testing for malformed variable syntax
 
 ## [0.1.0-group-1] - 2025-08-04
 

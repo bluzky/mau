@@ -88,11 +88,13 @@ defmodule Mau.LiteralEvaluatorTest do
       assert {:ok, "1.0e-6"} = Renderer.render_node(ast, %{})
     end
 
-    test "fails on unknown expression types" do
-      # Non-literal expression
+    test "handles unknown expression types gracefully" do
+      # Variable expressions are now supported and return empty string for undefined vars
       ast = {:expression, [{:variable, ["name"], []}], []}
-      assert {:error, error} = Renderer.render_node(ast, %{})
-      assert String.contains?(error.message, "Unknown expression type")
+      assert {:ok, ""} = Renderer.render_node(ast, %{})
+      
+      # With context it should return the value
+      assert {:ok, "Alice"} = Renderer.render_node(ast, %{"name" => "Alice"})
     end
   end
 end

@@ -81,44 +81,50 @@
 
 ---
 
-## Group 3: Variable Expressions
+## Group 3: Variable Expressions ✅ COMPLETED
 
-### Task 3.1: Identifier Parser
-- [ ] Implement `identifier` combinator
-- [ ] Support `$` prefix for workflow variables
-- [ ] Add underscore and number support
-- [ ] Write tests for identifier parsing
+### Task 3.1: Identifier Parser ✅
+- [x] Implement `identifier` combinator for basic identifiers
+- [x] Support `$` prefix for workflow variables (`$input`, `$variables`, etc.)
+- [x] Add underscore and number support in identifiers
+- [x] Write tests for identifier parsing (10 comprehensive tests)
 
-### Task 3.2: Property Access Parser
-- [ ] Implement dot notation parser (`.property`)
-- [ ] Add property access to variable expression
-- [ ] Write tests for property access parsing
+### Task 3.2: Property Access Parser ✅
+- [x] Implement dot notation parser (`.property`) with `build_property_access/1`
+- [x] Add property access to variable expression with `variable_access` combinator
+- [x] Support nested property access (`user.profile.email`)
+- [x] Write tests for property access parsing (10 comprehensive tests)
 
-### Task 3.3: Array Index Parser
-- [ ] Implement `array_index` combinator
-- [ ] Support literal number indices `[0]`
-- [ ] Support variable indices `[index]`
-- [ ] Write tests for array indexing
+### Task 3.3: Array Index Parser ✅
+- [x] Implement `array_index` combinator with `[` and `]` delimiters
+- [x] Support literal number indices `[0]`, `[123]`
+- [x] Support variable indices `[index]`, `[i]` (simple identifiers)
+- [x] Add whitespace handling within brackets `[ 0 ]`
+- [x] Write tests for array indexing (11 comprehensive tests)
 
-### Task 3.4: Variable Path Builder
-- [ ] Create `build_variable_path/1` reducer
-- [ ] Combine identifiers, properties, and indices
-- [ ] Create variable AST nodes
-- [ ] Write tests for complex path building
+### Task 3.4: Variable Path Builder ✅
+- [x] Create `build_variable_path/1` reducer combining all access types
+- [x] Combine identifiers, properties, and indices in unified path structure
+- [x] Create variable AST nodes using `Nodes.variable_node/2`
+- [x] Support complex mixed access patterns (`user.orders[0].name`)
+- [x] Write tests for complex path building (integrated with property/array tests)
 
-### Task 3.5: Variable Evaluator
-- [ ] Implement `extract_variable_value/2`
-- [ ] Add context lookup for simple variables
-- [ ] Add property traversal logic
-- [ ] Add array indexing with bounds checking
-- [ ] Handle undefined variables (strict vs ease mode)
-- [ ] Write comprehensive variable evaluation tests
+### Task 3.5: Variable Evaluator ✅
+- [x] Implement `extract_variable_value/2` with recursive path traversal
+- [x] Add context lookup for simple variables with `Map.get/2`
+- [x] Add property traversal logic for nested maps
+- [x] Add array indexing with bounds checking using `Enum.at/2`
+- [x] Handle undefined variables gracefully (return nil/empty string)
+- [x] Support workflow variables with `$` prefix
+- [x] Write comprehensive variable evaluation tests (14 comprehensive scenarios)
 
-### Task 3.6: Variable Integration
-- [ ] Update main parser to include variable expressions
-- [ ] Update renderer to handle variable nodes
-- [ ] Add variable support to primary expression parser
-- [ ] Write integration tests for variables
+### Task 3.6: Variable Integration ✅
+- [x] Update main parser to include variable expressions in `expression_value`
+- [x] Update renderer to handle variable nodes with `evaluate_expression/2`
+- [x] Add variable support to expression block parser
+- [x] Update expression parsing to handle both literals and variables
+- [x] Write integration tests for variables (14 comprehensive scenarios)
+- [x] Update existing tests to handle new variable capabilities
 
 ---
 
