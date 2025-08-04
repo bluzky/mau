@@ -205,18 +205,66 @@ defmodule Mau.Parser do
     |> reduce(:build_variable_path)
 
   # ============================================================================
-  # EXPRESSION BLOCK PARSING
+  # ARITHMETIC EXPRESSION PARSING
   # ============================================================================
 
-  # Any expression value (literals and variables)
-  expression_value =
+  # Primary expressions - literals, variables, and parentheses
+  primary_expression =
     choice([
       string_literal,
       number_literal, 
       boolean_literal,
       null_literal,
-      variable_path
+      variable_path,
+      # Parentheses for grouping (highest precedence)
+      ignore(string("("))
+      |> ignore(optional_whitespace)
+      |> parsec(:additive_expression)
+      |> ignore(optional_whitespace)
+      |> ignore(string(")"))
     ])
+
+  # Multiplicative expressions - *, /, % (highest arithmetic precedence)
+  multiplicative_operator =
+    choice([
+      string("*"),
+      string("/"),
+      string("%")
+    ])
+
+  multiplicative_expression =
+    primary_expression
+    |> repeat(
+      ignore(optional_whitespace)
+      |> concat(multiplicative_operator)
+      |> ignore(optional_whitespace)
+      |> concat(primary_expression)
+    )
+    |> reduce(:build_binary_operation)
+
+  # Additive expressions - +, - (lowest arithmetic precedence)
+  additive_operator =
+    choice([
+      string("+"),
+      string("-")
+    ])
+
+  additive_expression =
+    multiplicative_expression
+    |> repeat(
+      ignore(optional_whitespace)
+      |> concat(additive_operator)
+      |> ignore(optional_whitespace)
+      |> concat(multiplicative_expression)
+    )
+    |> reduce(:build_binary_operation)
+
+  # ============================================================================
+  # EXPRESSION BLOCK PARSING
+  # ============================================================================
+
+  # Any expression value (now supports arithmetic)
+  expression_value = additive_expression
 
   # Expression block with {{ }} delimiters
   expression_block =
@@ -242,6 +290,9 @@ defmodule Mau.Parser do
 
   # Main template parser - handles mixed content
   defparsec(:parse_template, repeat(template_content))
+  
+  # Parser for additive expressions (needed for recursive parsing)
+  defparsec(:additive_expression, additive_expression)
   
   # Parser for testing string literals directly
   defparsec(:parse_string_literal_raw, string_literal)
@@ -498,9 +549,9 @@ defmodule Mau.Parser do
       {float_val, ""} -> float_val
       {float_val, _rest} -> float_val
       :error -> 
-        # Handle parse error explicitly - this should not happen with valid parser input
-        # but provides safety in case of unexpected input
-        0.0  # Safe fallback for invalid float strings
+        # This should never happen with valid NimbleParsec input, but if it does,
+        # we should raise an error rather than silently convert to 0.0
+        raise "Invalid float string encountered in parser: #{inspect(string_value)}"
     end
   end
 
@@ -555,5 +606,25 @@ defmodule Mau.Parser do
   defp build_variable_path([identifier | accesses]) do
     path_segments = [identifier | accesses]
     Nodes.variable_node(path_segments)
+  end
+
+  # Arithmetic expression helpers
+  defp build_binary_operation([left]) do
+    # Single operand, no operation
+    left
+  end
+
+  defp build_binary_operation([left | rest]) do
+    # Build left-associative binary operations
+    build_left_associative_ops(left, rest)
+  end
+
+  defp build_left_associative_ops(left, []) do
+    left
+  end
+
+  defp build_left_associative_ops(left, [operator, right | rest]) do
+    binary_op = Nodes.binary_op_node(operator, left, right)
+    build_left_associative_ops(binary_op, rest)
   end
 end

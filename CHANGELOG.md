@@ -8,6 +8,57 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Task 4.1: Operator Precedence Setup** - Complete implementation
+  - Designed arithmetic operator precedence: Parentheses > Multiplicative > Additive
+  - Clean precedence chain architecture using NimbleParsec combinators
+  - Proper left-associative operation handling
+- **Task 4.2: Additive Expression Parser** - Complete implementation
+  - Addition (`+`) and subtraction (`-`) operator parsing
+  - String concatenation support with `+` operator
+  - Mixed type concatenation (string + number, number + string)
+  - Whitespace handling around operators
+- **Task 4.3: Multiplicative Expression Parser** - Complete implementation
+  - Multiplication (`*`), division (`/`), and modulo (`%`) operator parsing
+  - Higher precedence than additive operations
+  - Proper precedence enforcement in parser combinators
+- **Task 4.4: Unary Expression Parser** - Simplified approach
+  - Determined unary minus redundant due to existing negative number parsing
+  - Streamlined arithmetic precedence chain without unary layer
+  - Maintained compatibility with existing negative number literals
+- **Task 4.5: Parentheses Support** - Complete implementation
+  - Parentheses parsing for precedence override: `(2 + 3) * 4`
+  - Nested parentheses support: `((2 + 3) * 4) / 2`
+  - Recursive parsing using `parsec(:additive_expression)`
+- **Task 4.6: Arithmetic Evaluator** - Complete implementation
+  - Binary operation evaluation for all arithmetic operators
+  - Number arithmetic: `+`, `-`, `*`, `/`, `%`
+  - String concatenation with `+` operator
+  - Mixed type concatenation with automatic type conversion
+  - Division by zero and modulo by zero error handling
+  - Graceful nil handling (undefined variables as empty strings)
+- **Task 4.7: Parser Integration** - Complete implementation
+  - Arithmetic expressions integrated into main expression parsing system
+  - Variables work seamlessly in arithmetic: `user.age * 2`
+  - Complex paths in arithmetic: `rates[0] + rates[1]`
+  - Mixed content templates with arithmetic expressions
+  - Workflow variable support in arithmetic operations
+
+### Technical Details
+- Extended NimbleParsec parser with precedence-climbing arithmetic parsing
+- Binary operation AST nodes: `{:binary_op, [operator, left, right], opts}`
+- Left-associative operation building with `build_left_associative_ops/2`
+- Comprehensive arithmetic evaluation in renderer with type coercion
+- Error handling for division/modulo by zero and unsupported operations
+- Maintains unified AST structure convention `{type, parts, opts}`
+
+### Testing
+- All existing tests continue to pass (214 tests total: 26 doctests + 188 unit tests)
+- New arithmetic parsing test suite (17 comprehensive tests)
+- New arithmetic evaluation test suite (19 comprehensive tests)
+- New arithmetic integration test suite (17 end-to-end scenarios)
+- Comprehensive precedence and associativity testing
+- Error condition testing for all edge cases
+- Mixed content template testing with arithmetic expressions
 - **Task 3.1: Identifier Parser** - Complete implementation
   - Basic identifier parsing (letters, numbers, underscores)
   - Workflow variable support with `$` prefix (`$input`, `$variables`, etc.)
