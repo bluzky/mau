@@ -33,7 +33,32 @@ defmodule Mau.Renderer do
     end
   end
 
+  def render_node({:tag, [tag_type | tag_parts], _opts}, context) do
+    render_tag(tag_type, tag_parts, context)
+  end
+
   def render_node(node, _context) do
+    error = Mau.Error.runtime_error("Unknown node type: #{inspect(node)}")
+    {:error, error}
+  end
+
+  # Renders a node and returns {result, updated_context}
+  defp render_node_with_context({:text, [content], _opts}, context) when is_binary(content) do
+    {:ok, content, context}
+  end
+
+  defp render_node_with_context({:expression, [expression_ast], _opts}, context) do
+    case evaluate_expression(expression_ast, context) do
+      {:ok, value} -> {:ok, format_value(value), context}
+      {:error, error} -> {:error, error}
+    end
+  end
+
+  defp render_node_with_context({:tag, [tag_type | tag_parts], _opts}, context) do
+    render_tag_with_context(tag_type, tag_parts, context)
+  end
+
+  defp render_node_with_context(node, _context) do
     error = Mau.Error.runtime_error("Unknown node type: #{inspect(node)}")
     {:error, error}
   end
@@ -66,9 +91,11 @@ defmodule Mau.Renderer do
   end
 
   defp render_nodes([node | rest], context, acc) do
-    case render_node(node, context) do
-      {:ok, result} -> render_nodes(rest, context, [result | acc])
-      {:error, error} -> {:error, error}
+    case render_node_with_context(node, context) do
+      {:ok, result, updated_context} -> 
+        render_nodes(rest, updated_context, [result | acc])
+      {:error, error} -> 
+        {:error, error}
     end
   end
 
@@ -350,4 +377,27 @@ defmodule Mau.Renderer do
   defp is_truthy([]), do: false
   defp is_truthy(%{}), do: false
   defp is_truthy(_), do: true
+
+  # Tag rendering functions
+  defp render_tag(tag_type, tag_parts, context) do
+    case render_tag_with_context(tag_type, tag_parts, context) do
+      {:ok, result, _updated_context} -> {:ok, result}
+      {:error, error} -> {:error, error}
+    end
+  end
+
+  defp render_tag_with_context(:assign, [variable_name, expression], context) do
+    case evaluate_expression(expression, context) do
+      {:ok, value} ->
+        updated_context = Map.put(context, variable_name, value)
+        {:ok, "", updated_context}  # Assignment produces no output
+      {:error, error} ->
+        {:error, error}
+    end
+  end
+
+  defp render_tag_with_context(tag_type, _tag_parts, _context) do
+    error = Mau.Error.runtime_error("Unknown tag type: #{inspect(tag_type)}")
+    {:error, error}
+  end
 end

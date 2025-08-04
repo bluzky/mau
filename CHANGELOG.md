@@ -8,6 +8,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Group 7: Assignment Tags** - Complete implementation
+  - **Task 7.1: Tag Block Parser Foundation** - Complete tag parsing infrastructure
+    - Tag block parsing with `{%` and `%}` delimiters  
+    - Integrated tag blocks into main template content parser
+    - Tag structure validation and AST node creation
+    - Support for mixed content (text, expressions, and tags)
+  - **Task 7.2: Assignment Tag Parser** - Complete assignment syntax parsing
+    - `assign` tag combinator with variable name and expression parsing
+    - Assignment operator `=` parsing with whitespace handling
+    - Integration with full expression system (arithmetic, filters, variables)
+    - Support for complex assignment expressions: `{% assign result = (price + tax) | round(2) %}`
+  - **Task 7.3: Assignment Tag Evaluator** - Complete assignment rendering
+    - Assignment tag evaluation that produces no output but updates context
+    - Expression evaluation for assignment values with full feature support
+    - Error handling for assignment expression failures
+    - Integration with existing expression evaluation system
+  - **Task 7.4: Context Management** - Complete context update system
+    - Context-aware rendering that propagates variable assignments
+    - Variable assignment persistence throughout template execution
+    - Assignment overwrites existing context variables
+    - Support for chained assignments using previously assigned variables
+
+### Technical Details
+- Extended parser with tag block combinators supporting `{%` and `%}` syntax
+- Assignment AST nodes: `{:tag, [:assign, variable_name, expression], opts}`
+- Context-aware rendering system with `render_node_with_context/2` functions
+- Assignment tags return empty strings but update rendering context
+- Full expression support in assignments: variables, arithmetic, filters, functions
+- Integrated with existing precedence system and all expression types
+- Tag rendering functions with `render_tag_with_context/3` for stateful operations
+
+### Testing
+- All tests pass (334 tests + 32 doctests)
+- New tag parser test suite (10 comprehensive parsing tests)
+- New assignment tag evaluation test suite (15 evaluation scenarios)
+- New assignment integration test suite (18 end-to-end scenarios)
+- Comprehensive error handling tests for assignment failures
+- Mixed content template testing with assignments, expressions, and text
+- Context persistence and variable scoping validation
+
+### Added
 - **Group 6: Filter Expressions** - Complete implementation
   - **Task 6.1: Filter Registry System** - Static compile-time filter storage
     - `Mau.FilterRegistry` module with 25 built-in filters

@@ -371,6 +371,33 @@ defmodule Mau.Parser do
     |> reduce(:build_logical_operation)
 
   # ============================================================================
+  # TAG BLOCK PARSING
+  # ============================================================================
+
+  # Assignment tag parsing - {% assign variable = expression %}
+  assign_tag =
+    ignore(string("assign"))
+    |> ignore(times(ascii_char([?\s, ?\t]), min: 1))  # At least one whitespace
+    |> concat(identifier)
+    |> ignore(optional_whitespace)
+    |> ignore(string("="))
+    |> ignore(optional_whitespace)
+    |> concat(parsec(:pipe_expression))
+    |> reduce(:build_assign_tag)
+
+  # Tag content - currently only assignment tags
+  tag_content = assign_tag
+
+  # Tag block with {% %} delimiters
+  tag_block =
+    ignore(string("{%"))
+    |> ignore(optional_whitespace)
+    |> concat(tag_content)
+    |> ignore(optional_whitespace)
+    |> ignore(string("%}"))
+    |> reduce(:build_tag_node)
+
+  # ============================================================================
   # EXPRESSION BLOCK PARSING
   # ============================================================================
 
@@ -404,9 +431,10 @@ defmodule Mau.Parser do
 
   # Legacy text content parser (unused but kept for reference)
 
-  # Combined content parser (text or expressions)
+  # Combined content parser (text, expressions, or tags)
   template_content =
     choice([
+      tag_block,
       expression_block,
       utf8_string([not: ?{], min: 1) |> reduce(:build_text_node)
     ])
@@ -812,5 +840,17 @@ defmodule Mau.Parser do
     # Create a call node with value as the first argument
     call_node = Nodes.call_node(filter_name, [value])
     apply_filters_to_value(call_node, rest_filters)
+  end
+
+  # Tag helpers
+  defp build_assign_tag([variable_name, expression]) do
+    {:assign, variable_name, expression}
+  end
+
+  defp build_tag_node([tag_data]) do
+    case tag_data do
+      {:assign, variable_name, expression} ->
+        Nodes.tag_node(:assign, [variable_name, expression])
+    end
   end
 end
