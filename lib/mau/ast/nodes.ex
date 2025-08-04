@@ -61,4 +61,11 @@ defmodule Mau.AST.Nodes do
   def logical_op_node(operator, left, right, opts \\ []) when is_binary(operator) do
     {:logical_op, [operator, left, right], opts}
   end
+
+  @doc """
+  Creates a function call node for function calls and filters.
+  """
+  def call_node(function_name, args, opts \\ []) when is_binary(function_name) and is_list(args) do
+    {:call, [function_name, args], opts}
+  end
 end

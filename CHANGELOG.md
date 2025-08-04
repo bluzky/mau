@@ -8,6 +8,53 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Group 6: Filter Expressions** - Complete implementation
+  - **Task 6.1: Filter Registry System** - Static compile-time filter storage
+    - `Mau.FilterRegistry` module with 25 built-in filters
+    - Compile-time filter storage using module attributes (no GenServer overhead)
+    - Filter application with error handling and graceful fallbacks
+  - **Task 6.2: Pipe Syntax Parser** - Complete pipe operator implementation  
+    - Pipe operator `|` parsing at top expression level
+    - Chained filter support: `{{ "hello" | upper_case | length }}`
+    - Seamless integration with existing expression precedence system
+  - **Task 6.3: Function Call Syntax Parser** - Complete function call support
+    - Function call parsing: `{{ upper_case("hello") }}`
+    - Multi-argument function calls: `{{ truncate("text", 5) }}`
+    - Argument list parsing with primary expressions
+  - **Task 6.4: Filter Chain Builder** - Automatic chain conversion
+    - Pipe chains converted to nested call expressions in AST
+    - Both pipe and function call syntax supported identically
+    - Left-to-right filter application order
+  - **Task 6.5-6.7: Built-in Filter Library** - Complete filter collection
+    - **String filters**: `upper_case`, `lower_case`, `capitalize`, `truncate`, `default`
+    - **Number filters**: `round`, `format_currency` 
+    - **Collection filters**: `length`, `first`, `last`, `join`, `sort`, `reverse`, `uniq`
+    - **Math filters**: `abs`, `ceil`, `floor`, `max`, `min`, `power`, `sqrt`, `mod`, `clamp`
+  - **Task 6.8: Filter Evaluation Engine** - Complete evaluation system
+    - Filter evaluation integrated into renderer with `evaluate_call/3`
+    - Recursive argument evaluation for complex expressions
+    - Comprehensive error handling for unknown filters and execution errors
+    - Structured error messages with context information
+
+### Technical Details
+- Extended parser with pipe expression combinators and function call support
+- Call AST nodes: `{:call, [function_name, args], opts}`
+- Static filter registry using module attributes for zero-runtime overhead
+- Avoided circular parser dependencies through careful combinator design
+- Filter chain conversion to nested call expressions for consistent evaluation
+- Comprehensive type conversion and error handling in filter implementations
+- Maintains unified AST structure convention `{type, parts, opts}`
+
+### Testing
+- All tests pass (291 tests + 32 doctests)
+- New filter registry test suite (20 test scenarios)
+- New filter parser test suite (12 comprehensive parsing tests)
+- New filter evaluator test suite (15 evaluation scenarios)
+- Comprehensive filter functionality testing for all 25 built-in filters
+- Error condition testing for unknown filters and malformed expressions
+- Integration testing with existing arithmetic and boolean expressions
+
+### Added
 - **Task 5.1: Comparison Operator Parser** - Complete implementation
   - Equality operators: `==` (equal to), `!=` (not equal to)
   - Relational operators: `>` (greater than), `>=` (greater than or equal), `<` (less than), `<=` (less than or equal)
