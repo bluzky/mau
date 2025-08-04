@@ -26,7 +26,7 @@ defmodule Mau.ConditionalIntegrationTest do
       context = %{}
       
       assert {:ok, result} = Mau.render(template, context)
-      assert result == "Hidden content"  # Content still renders (placeholder behavior)
+      assert result == ""  # Content should not render when condition is false
     end
 
     test "parses multiple conditional tags" do
@@ -43,10 +43,10 @@ defmodule Mau.ConditionalIntegrationTest do
       context = %{"score" => 85}
       
       assert {:ok, result} = Mau.render(template, context)
-      # All text content will be rendered in placeholder implementation
-      assert String.contains?(result, "Excellent!")
+      # Only the matching elsif branch should render
+      refute String.contains?(result, "Excellent!")
       assert String.contains?(result, "Good job!")
-      assert String.contains?(result, "Keep trying!")
+      refute String.contains?(result, "Keep trying!")
     end
 
     test "handles assignment within conditional blocks" do

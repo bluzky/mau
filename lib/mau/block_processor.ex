@@ -45,8 +45,19 @@ defmodule Mau.BlockProcessor do
     end
   end
 
+  defp process_nodes([{:tag, [:for, loop_variable, collection_expression], opts} | rest], acc) do
+    # Found a for tag - collect the entire loop block
+    case collect_loop_block(rest, loop_variable, collection_expression) do
+      {:ok, {block_node, remaining_nodes}} ->
+        process_nodes(remaining_nodes, [block_node | acc])
+      {:error, _reason} ->
+        # If block collection fails, treat as individual tag
+        process_nodes(rest, [{:tag, [:for, loop_variable, collection_expression], opts} | acc])
+    end
+  end
+
   defp process_nodes([node | rest], acc) do
-    # For non-if tags, just pass through
+    # For non-block-starting tags, just pass through
     process_nodes(rest, [node | acc])
   end
 
@@ -101,11 +112,11 @@ defmodule Mau.BlockProcessor do
     end
     
     # Build the conditional block node
-    final_else_branch = if final_else_content, do: Enum.reverse(final_else_content), else: nil
+    final_else_branch = if final_else_content, do: process_blocks(Enum.reverse(final_else_content)), else: nil
     
     block_data = [
-      if_branch: {if_condition, Enum.reverse(final_if_content)},
-      elsif_branches: elsif_branches,
+      if_branch: {if_condition, process_blocks(Enum.reverse(final_if_content))},
+      elsif_branches: process_elsif_branches(elsif_branches),
       else_branch: final_else_branch
     ]
     
@@ -116,5 +127,51 @@ defmodule Mau.BlockProcessor do
   defp collect_conditional_block([node | rest], if_condition, if_content, elsif_branches, else_content, current_content) do
     # Regular node - add to current content
     collect_conditional_block(rest, if_condition, if_content, elsif_branches, else_content, [node | current_content])
+  end
+
+  # Collects nodes from for to endfor, building a loop block structure
+  defp collect_loop_block(nodes, loop_variable, collection_expression) do
+    collect_loop_block(nodes, loop_variable, collection_expression, [], 0)
+  end
+
+  defp collect_loop_block([], _loop_variable, _collection_expression, _content, _depth) do
+    {:error, "Unclosed for statement - missing endfor"}
+  end
+
+  defp collect_loop_block([{:tag, [:for, _, _], _opts} = node | rest], loop_variable, collection_expression, content, depth) do
+    # Found nested for - increment depth and add to content
+    collect_loop_block(rest, loop_variable, collection_expression, [node | content], depth + 1)
+  end
+
+  defp collect_loop_block([{:tag, [:endfor], _opts} = node | rest], loop_variable, collection_expression, content, depth) do
+    if depth > 0 do
+      # This endfor belongs to a nested for - decrement depth and add to content
+      collect_loop_block(rest, loop_variable, collection_expression, [node | content], depth - 1)
+    else
+      # This is the matching endfor for our loop - build the final loop block
+      # Process nested content for any conditional blocks
+      processed_content = process_blocks(Enum.reverse(content))
+      
+      block_data = [
+        loop_variable: loop_variable,
+        collection_expression: collection_expression,
+        content: processed_content
+      ]
+      
+      block_node = {:loop_block, block_data, []}
+      {:ok, {block_node, rest}}
+    end
+  end
+
+  defp collect_loop_block([node | rest], loop_variable, collection_expression, content, depth) do
+    # Regular node - add to loop content
+    collect_loop_block(rest, loop_variable, collection_expression, [node | content], depth)
+  end
+
+  # Helper to recursively process elsif branches content
+  defp process_elsif_branches(elsif_branches) do
+    Enum.map(elsif_branches, fn {condition, content} ->
+      {condition, process_blocks(content)}
+    end)
   end
 end

@@ -1,24 +1,24 @@
 defmodule Mau.Renderer do
   @moduledoc """
   Renderer for the Mau template engine.
-  
+
   Handles rendering of AST nodes into output strings.
   For Group 1, only handles text node rendering.
   """
 
   @doc """
   Renders an AST node to a string.
-  
+
   Handles text nodes and expression nodes with literal evaluation.
-  
+
   ## Examples
-  
+
       iex> Mau.Renderer.render_node({:text, ["Hello world"], []}, %{})
       {:ok, "Hello world"}
-      
+
       iex> Mau.Renderer.render_node({:expression, [{:literal, ["hello"], []}], []}, %{})
       {:ok, "hello"}
-      
+
       iex> Mau.Renderer.render_node({:expression, [{:literal, [42], []}], []}, %{})
       {:ok, "42"}
   """
@@ -49,6 +49,10 @@ defmodule Mau.Renderer do
     render_conditional_block_with_context(block_data, context)
   end
 
+  defp render_node_with_context({:loop_block, block_data, _opts}, context) do
+    render_loop_block_with_context(block_data, context)
+  end
+
   defp render_node_with_context(node, _context) do
     error = Mau.Error.runtime_error("Unknown node type: #{inspect(node)}")
     {:error, error}
@@ -56,7 +60,7 @@ defmodule Mau.Renderer do
 
   @doc """
   Renders a template AST with the given context.
-  
+
   Handles both single nodes and lists of nodes.
   """
   def render(nodes, context) when is_list(nodes) and is_map(context) do
@@ -74,18 +78,22 @@ defmodule Mau.Renderer do
 
   # Renders a list of nodes
   defp render_nodes(nodes, context) do
-    render_nodes(nodes, context, [])
+    case render_nodes(nodes, context, []) do
+      {:ok, parts, _updated_context} -> {:ok, parts}
+      {:error, error} -> {:error, error}
+    end
   end
 
-  defp render_nodes([], _context, acc) do
-    {:ok, Enum.reverse(acc)}
+  defp render_nodes([], context, acc) do
+    {:ok, Enum.reverse(acc), context}
   end
 
   defp render_nodes([node | rest], context, acc) do
     case render_node_with_context(node, context) do
-      {:ok, result, updated_context} -> 
+      {:ok, result, updated_context} ->
         render_nodes(rest, updated_context, [result | acc])
-      {:error, error} -> 
+
+      {:error, error} ->
         {:error, error}
     end
   end
@@ -122,7 +130,8 @@ defmodule Mau.Renderer do
   # Extracts variable values from context following the path
   defp extract_variable_value([identifier], context) when is_binary(identifier) do
     case Map.get(context, identifier) do
-      nil -> {:ok, nil}  # Undefined variables return nil for now
+      # Undefined variables return nil for now
+      nil -> {:ok, nil}
       value -> {:ok, value}
     end
   end
@@ -145,11 +154,12 @@ defmodule Mau.Renderer do
   # Helper for array index access
   defp extract_variable_value([{:index, index} | path_rest], value) do
     # Extract the actual index value from literal nodes
-    actual_index = case index do
-      {:literal, [literal_value], _opts} -> literal_value
-      other -> other
-    end
-    
+    actual_index =
+      case index do
+        {:literal, [literal_value], _opts} -> literal_value
+        other -> other
+      end
+
     case get_list_element(value, actual_index) do
       nil -> {:ok, nil}
       new_value -> extract_variable_value(path_rest, new_value)
@@ -162,7 +172,8 @@ defmodule Mau.Renderer do
   end
 
   # Fallback for unsupported access patterns - handle any remaining cases
-  defp extract_variable_value([{:property, _property} | _path_rest], value) when not is_map(value) do
+  defp extract_variable_value([{:property, _property} | _path_rest], value)
+       when not is_map(value) do
     # Trying to access property on non-map value
     {:ok, nil}
   end
@@ -291,7 +302,11 @@ defmodule Mau.Renderer do
   end
 
   defp evaluate_binary_operation(operator, left, right) do
-    error = Mau.Error.runtime_error("Unsupported binary operation: #{inspect(left)} #{operator} #{inspect(right)}")
+    error =
+      Mau.Error.runtime_error(
+        "Unsupported binary operation: #{inspect(left)} #{operator} #{inspect(right)}"
+      )
+
     {:error, error}
   end
 
@@ -304,7 +319,9 @@ defmodule Mau.Renderer do
         else
           {:ok, false}
         end
-      {:error, error} -> {:error, error}
+
+      {:error, error} ->
+        {:error, error}
     end
   end
 
@@ -319,21 +336,31 @@ defmodule Mau.Renderer do
             {:error, error} -> {:error, error}
           end
         end
-      {:error, error} -> {:error, error}
+
+      {:error, error} ->
+        {:error, error}
     end
   end
 
   # Filter/function call evaluation
   defp evaluate_call(function_name, args, context) do
     with {:ok, evaluated_args} <- evaluate_arguments(args, context) do
-      case Mau.FilterRegistry.apply(function_name, List.first(evaluated_args, nil), Enum.drop(evaluated_args, 1)) do
-        {:ok, result} -> {:ok, result}
+      case Mau.FilterRegistry.apply(
+             function_name,
+             List.first(evaluated_args, nil),
+             Enum.drop(evaluated_args, 1)
+           ) do
+        {:ok, result} ->
+          {:ok, result}
+
         {:error, :filter_not_found} ->
           error = Mau.Error.runtime_error("Unknown filter or function: #{function_name}")
           {:error, error}
+
         {:error, {:filter_error, reason}} ->
           error = Mau.Error.runtime_error("Filter error in #{function_name}: #{inspect(reason)}")
           {:error, error}
+
         {:error, reason} ->
           error = Mau.Error.runtime_error("Filter error in #{function_name}: #{inspect(reason)}")
           {:error, error}
@@ -354,6 +381,7 @@ defmodule Mau.Renderer do
     case evaluate_expression(arg, context) do
       {:ok, value} ->
         evaluate_arguments(rest, context, [value | acc])
+
       {:error, error} ->
         {:error, error}
     end
@@ -375,7 +403,9 @@ defmodule Mau.Renderer do
     case evaluate_expression(expression, context) do
       {:ok, value} ->
         updated_context = Map.put(context, variable_name, value)
-        {:ok, "", updated_context}  # Assignment produces no output
+        # Assignment produces no output
+        {:ok, "", updated_context}
+
       {:error, error} ->
         {:error, error}
     end
@@ -389,6 +419,7 @@ defmodule Mau.Renderer do
         # This is a placeholder - proper block handling will be implemented later
         updated_context = Map.put(context, :__if_condition__, is_truthy(value))
         {:ok, "", updated_context}
+
       {:error, error} ->
         {:error, error}
     end
@@ -400,6 +431,7 @@ defmodule Mau.Renderer do
         # Placeholder implementation
         updated_context = Map.put(context, :__elsif_condition__, is_truthy(value))
         {:ok, "", updated_context}
+
       {:error, error} ->
         {:error, error}
     end
@@ -412,6 +444,17 @@ defmodule Mau.Renderer do
 
   defp render_tag_with_context(:endif, [], context) do
     # Placeholder implementation
+    {:ok, "", context}
+  end
+
+  # Individual for/endfor tags (when block processing fails or doesn't apply)
+  defp render_tag_with_context(:for, [_loop_variable, _collection_expression], context) do
+    # Individual for tag - just return empty (should be handled by block processor)
+    {:ok, "", context}
+  end
+
+  defp render_tag_with_context(:endfor, [], context) do
+    # Individual endfor tag - just return empty
     {:ok, "", context}
   end
 
@@ -438,9 +481,11 @@ defmodule Mau.Renderer do
               # Check elsif branches
               render_elsif_branches(elsif_branches, else_branch, context)
             end
+
           {:error, error} ->
             {:error, error}
         end
+
       _ ->
         error = Mau.Error.runtime_error("Invalid conditional block structure")
         {:error, error}
@@ -450,7 +495,8 @@ defmodule Mau.Renderer do
   defp render_elsif_branches([], else_branch, context) do
     # No more elsif branches, render else if present
     case else_branch do
-      nil -> {:ok, "", context}  # No else branch
+      # No else branch
+      nil -> {:ok, "", context}
       content when is_list(content) -> render_conditional_content(content, context)
     end
   end
@@ -465,6 +511,7 @@ defmodule Mau.Renderer do
           # Check next elsif branch
           render_elsif_branches(rest_branches, else_branch, context)
         end
+
       {:error, error} ->
         {:error, error}
     end
@@ -473,8 +520,104 @@ defmodule Mau.Renderer do
   # Helper to render nodes for conditional blocks
   defp render_conditional_content(nodes, context) do
     case render_nodes(nodes, context, []) do
-      {:ok, parts} -> {:ok, Enum.join(parts, ""), context}
+      {:ok, parts, updated_context} -> {:ok, Enum.join(parts, ""), updated_context}
       {:error, error} -> {:error, error}
     end
+  end
+
+  # Loop block rendering functions
+
+  defp render_loop_block_with_context(block_data, context) do
+    loop_variable = Keyword.get(block_data, :loop_variable)
+    collection_expression = Keyword.get(block_data, :collection_expression)
+    content = Keyword.get(block_data, :content, [])
+
+    with {:ok, collection} <- evaluate_expression(collection_expression, context),
+         {:ok, items} <- ensure_iterable(collection),
+         {:ok, acc_result, _} <- render_loop_items(items, loop_variable, content, context) do
+      {:ok, Enum.reverse(acc_result), context}
+    end
+  end
+
+  defp ensure_iterable(value) when is_list(value), do: {:ok, value}
+  
+  defp ensure_iterable(value) when is_map(value) do
+    # Convert map to list of {key, value} tuples
+    {:ok, Enum.to_list(value)}
+  end
+
+  defp ensure_iterable(value) when is_binary(value) do
+    # Convert string to list of characters
+    {:ok, String.graphemes(value)}
+  end
+
+  defp ensure_iterable(nil), do: {:ok, []}
+  defp ensure_iterable(_), do: {:error, Mau.Error.runtime_error("Collection is not iterable")}
+
+  defp render_loop_items(items, loop_variable, content, context) do
+    loop_context = create_loop_context(context, loop_variable, items)
+
+    Enum.reduce_while(items, {:ok, [], loop_context}, fn item, {:ok, acc, loop_context} ->
+      # Update loop context with current item
+      updated_loop_context = update_loop_context(loop_context, loop_variable, item)
+
+      case render_nodes(content, updated_loop_context, []) do
+        {:ok, parts, final_context} ->
+          rendered_content = Enum.join(parts, "")
+          # Accumulate rendered content
+          {:cont, {:ok, [rendered_content | acc], final_context}}
+
+        {:error, error} ->
+          {:halt, {:error, error}}
+      end
+    end)
+  end
+
+  defp create_loop_context(base_context, loop_variable, items) do
+    length = length(items)
+
+    # Preserve parent forloop context if exists
+    parent_forloop = Map.get(base_context, "forloop")
+
+    # Initialize forloop data
+    # set index to -1 (0-based), rindex to length - 1
+    # because we will increment index before first item render
+    forloop_data = %{
+      # 0-based index
+      "index" => -1,
+      # Reverse index (remaining items + 1)
+      "rindex" => length - 1,
+      # Reverse 0-based index
+      "first" => false,
+      "last" => false,
+      "length" => length
+    }
+
+    # Add parent loop reference if we're in a nested loop
+    forloop_data = if parent_forloop do
+      Map.put(forloop_data, "parentloop", parent_forloop)
+    else
+      forloop_data
+    end
+
+    base_context
+    |> Map.put(loop_variable, nil)
+    |> Map.put("forloop", forloop_data)
+  end
+
+  defp update_loop_context(loop_context, loop_variable, item) do
+    forloop = Map.get(loop_context, "forloop", %{})
+    index = forloop["index"] + 1
+
+    forloop =
+      Map.merge(forloop, %{
+        "index" => index,
+        "rindex" => forloop["length"] - 1 - index,
+        "first" => index == 0,
+        "last" => forloop["length"] - 1 == index
+      })
+
+    Map.put(loop_context, "forloop", forloop)
+    |> Map.put(loop_variable, item)
   end
 end
