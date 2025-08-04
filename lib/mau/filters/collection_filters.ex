@@ -9,21 +9,22 @@ defmodule Mau.Filters.CollectionFilters do
   ## Examples
   
       iex> Mau.Filters.CollectionFilters.length([1, 2, 3], [])
-      3
+      {:ok, 3}
       
       iex> Mau.Filters.CollectionFilters.length("hello", [])
-      5
+      {:ok, 5}
       
       iex> Mau.Filters.CollectionFilters.length(%{a: 1, b: 2}, [])
-      2
+      {:ok, 2}
   """
   def length(value, _args) do
-    case value do
+    result = case value do
       list when is_list(list) -> Enum.count(list)
       string when is_binary(string) -> String.length(string)
       map when is_map(map) -> map_size(map)
       _ -> 0
     end
+    {:ok, result}
   end
 
   @doc """

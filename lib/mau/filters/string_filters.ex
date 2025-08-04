@@ -9,15 +9,17 @@ defmodule Mau.Filters.StringFilters do
   ## Examples
   
       iex> Mau.Filters.StringFilters.upper_case("hello", [])
-      "HELLO"
+      {:ok, "HELLO"}
       
       iex> Mau.Filters.StringFilters.upper_case(123, [])
-      "123"
+      {:ok, "123"}
   """
+  def upper_case(value, _args) when is_binary(value) do
+    {:ok, String.upcase(value)}
+  end
+  
   def upper_case(value, _args) do
-    value
-    |> to_string()
-    |> String.upcase()
+    {:ok, value |> to_string() |> String.upcase()}
   end
 
   @doc """
@@ -26,15 +28,17 @@ defmodule Mau.Filters.StringFilters do
   ## Examples
   
       iex> Mau.Filters.StringFilters.lower_case("HELLO", [])
-      "hello"
+      {:ok, "hello"}
       
       iex> Mau.Filters.StringFilters.lower_case(123, [])
-      "123"
+      {:ok, "123"}
   """
+  def lower_case(value, _args) when is_binary(value) do
+    {:ok, String.downcase(value)}
+  end
+  
   def lower_case(value, _args) do
-    value
-    |> to_string()
-    |> String.downcase()
+    {:ok, value |> to_string() |> String.downcase()}
   end
 
   @doc """
@@ -43,15 +47,17 @@ defmodule Mau.Filters.StringFilters do
   ## Examples
   
       iex> Mau.Filters.StringFilters.capitalize("hello world", [])
-      "Hello world"
+      {:ok, "Hello world"}
       
       iex> Mau.Filters.StringFilters.capitalize("", [])
-      ""
+      {:ok, ""}
   """
+  def capitalize(value, _args) when is_binary(value) do
+    {:ok, String.capitalize(value)}
+  end
+  
   def capitalize(value, _args) do
-    value
-    |> to_string()
-    |> String.capitalize()
+    {:ok, value |> to_string() |> String.capitalize()}
   end
 
   @doc """
@@ -60,27 +66,35 @@ defmodule Mau.Filters.StringFilters do
   ## Examples
   
       iex> Mau.Filters.StringFilters.truncate("hello world", [5])
-      "hello"
+      {:ok, "hello"}
       
       iex> Mau.Filters.StringFilters.truncate("hello", [10])
-      "hello"
+      {:ok, "hello"}
       
       iex> Mau.Filters.StringFilters.truncate("hello world", [])
-      "hello world"
+      {:ok, "hello world"}
+      
+      iex> Mau.Filters.StringFilters.truncate("hello", [-5])
+      {:error, "Truncate length must be non-negative"}
   """
-  def truncate(value, args) do
-    string = to_string(value)
-    
+  def truncate(value, args) when is_binary(value) do
     case args do
       [length] when is_integer(length) and length >= 0 ->
-        String.slice(string, 0, length)
+        {:ok, String.slice(value, 0, length)}
+      
+      [length] when is_integer(length) ->
+        {:error, "Truncate length must be non-negative"}
       
       [] ->
-        string
+        {:ok, value}
       
       _ ->
-        string
+        {:error, "Invalid truncate arguments"}
     end
+  end
+  
+  def truncate(value, args) do
+    truncate(to_string(value), args)
   end
 
   @doc """
@@ -89,13 +103,13 @@ defmodule Mau.Filters.StringFilters do
   ## Examples
   
       iex> Mau.Filters.StringFilters.default(nil, ["fallback"])
-      "fallback"
+      {:ok, "fallback"}
       
       iex> Mau.Filters.StringFilters.default("", ["fallback"])
-      "fallback"
+      {:ok, "fallback"}
       
       iex> Mau.Filters.StringFilters.default("value", ["fallback"])  
-      "value"
+      {:ok, "value"}
   """
   def default(value, args) do
     fallback = case args do
@@ -104,11 +118,13 @@ defmodule Mau.Filters.StringFilters do
       _ -> ""
     end
     
-    case value do
+    result = case value do
       nil -> fallback
       "" -> fallback
       false -> fallback
       _ -> value
     end
+    
+    {:ok, result}
   end
 end

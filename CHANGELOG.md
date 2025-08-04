@@ -8,6 +8,93 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Group 8: Conditional Tags** - Complete implementation
+  - **Task 8.1: If Tag Parser** - Complete if tag parsing with condition expressions
+    - `if` tag combinator parsing with `{%` and `%}` delimiters
+    - Support for variable conditions: `{% if user.active %}`
+    - Support for literal conditions: `{% if true %}`
+    - Support for complex expressions: `{% if age >= 18 and status == "active" %}`
+    - Integration with full expression system (arithmetic, comparisons, logical operations)
+  - **Task 8.2: Elsif, Else, and Endif Tag Parsers** - Complete conditional tag family
+    - `elsif` tag combinator with condition expression parsing
+    - `else` tag combinator (no condition required)
+    - `endif` tag combinator for block termination
+    - All conditional tags integrated into tag content parser
+  - **Task 8.3: Block Structure Builder** - Complete conditional processing infrastructure
+    - `Mau.BlockProcessor` module for grouping conditional tags into blocks
+    - Block collection logic to group if/elsif/else/endif sequences
+    - Conditional block AST structure: `{:conditional_block, [if_branch: {...}, elsif_branches: [...], else_branch: ...]}`
+    - Error handling for unclosed conditional blocks
+  - **Task 8.4: Conditional Tag Evaluator** - Complete conditional rendering logic
+    - Conditional block rendering with proper branching evaluation
+    - If/elsif/else condition evaluation using existing `is_truthy/1` logic
+    - Short-circuit evaluation for elsif branches
+    - Context-aware rendering that maintains variable assignments
+    - Support for nested content rendering within conditional branches
+  - **Task 8.5: Comprehensive Test Coverage** - Complete testing infrastructure
+    - Conditional parser test suite (8 comprehensive parsing tests)
+    - Conditional integration test suite (7 end-to-end functionality tests)
+    - Complex condition parsing with variables, literals, and expressions
+    - Full conditional block structure parsing verification
+
+### Technical Details
+- Extended parser with conditional tag combinators supporting `{%` if/elsif/else/endif `%}` syntax
+- Conditional AST nodes: `{:tag, [:if/:elsif/:else/:endif, condition], opts}`
+- Block processor for grouping individual tags into structured conditional blocks
+- Conditional rendering system with `render_conditional_block/2` functions
+- Integration with existing expression evaluation system for conditions
+- Placeholder individual tag rendering for backward compatibility
+- Support for complex conditional expressions with full precedence handling
+
+### Testing
+- All tests pass (404 tests: 55 doctests + 349 unit tests)
+- New conditional parser test suite (8 comprehensive parsing tests)
+- New conditional integration test suite (7 end-to-end scenarios)
+- Comprehensive condition evaluation with variables and complex expressions
+- Full template rendering with conditional content and variable assignments
+- Error handling tests for malformed conditional syntax
+
+- **Group 7: Assignment Tags** - Complete implementation
+  - **Task 7.1: Tag Block Parser Foundation** - Complete tag parsing infrastructure
+    - Tag block parsing with `{%` and `%}` delimiters  
+    - Integrated tag blocks into main template content parser
+    - Tag structure validation and AST node creation
+    - Support for mixed content (text, expressions, and tags)
+  - **Task 7.2: Assignment Tag Parser** - Complete assignment syntax parsing
+    - `assign` tag combinator with variable name and expression parsing
+    - Assignment operator `=` parsing with whitespace handling
+    - Integration with full expression system (arithmetic, filters, variables)
+    - Support for complex assignment expressions: `{% assign result = (price + tax) | round(2) %}`
+  - **Task 7.3: Assignment Tag Evaluator** - Complete assignment rendering
+    - Assignment tag evaluation that produces no output but updates context
+    - Expression evaluation for assignment values with full feature support
+    - Error handling for assignment expression failures
+    - Integration with existing expression evaluation system
+  - **Task 7.4: Context Management** - Complete context update system
+    - Context-aware rendering that propagates variable assignments
+    - Variable assignment persistence throughout template execution
+    - Assignment overwrites existing context variables
+    - Support for chained assignments using previously assigned variables
+
+### Technical Details
+- Extended parser with tag block combinators supporting `{%` and `%}` syntax
+- Assignment AST nodes: `{:tag, [:assign, variable_name, expression], opts}`
+- Context-aware rendering system with `render_node_with_context/2` functions
+- Assignment tags return empty strings but update rendering context
+- Full expression support in assignments: variables, arithmetic, filters, functions
+- Integrated with existing precedence system and all expression types
+- Tag rendering functions with `render_tag_with_context/3` for stateful operations
+
+### Testing
+- All tests pass (334 tests + 32 doctests)
+- New tag parser test suite (10 comprehensive parsing tests)
+- New assignment tag evaluation test suite (15 evaluation scenarios)
+- New assignment integration test suite (18 end-to-end scenarios)
+- Comprehensive error handling tests for assignment failures
+- Mixed content template testing with assignments, expressions, and text
+- Context persistence and variable scoping validation
+
+### Added
 - **Group 6: Filter Expressions** - Complete implementation
   - **Task 6.1: Filter Registry System** - Static compile-time filter storage
     - `Mau.FilterRegistry` module with 25 built-in filters
