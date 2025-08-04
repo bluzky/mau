@@ -171,17 +171,25 @@ defmodule Mau.Parser do
       basic_identifier
     ])
 
+  # Atom literal - :atom_name (defined after identifier parsers)
+  atom_literal =
+    string(":")
+    |> concat(identifier_start)
+    |> repeat(identifier_char)
+    |> reduce(:build_atom_literal)
+
   # Property access parsing
   property_access =
     string(".")
     |> concat(basic_identifier)
     |> reduce(:build_property_access)
 
-  # Array index parsing - supports literal numbers and simple identifiers
+  # Array index parsing - supports only literal values (no variables)
   array_index_content =
     choice([
-      integer_number,  # Literal number index like [0], [123]
-      identifier       # Simple variable index like [index], [i]
+      number_literal,   # Literal number index like [0], [123], [-1]
+      string_literal,   # Literal string key like ["key"], ["name"]
+      atom_literal      # Literal atom key like [:key], [:name]
     ])
 
   array_index =
@@ -216,6 +224,7 @@ defmodule Mau.Parser do
       number_literal,
       boolean_literal,
       null_literal,
+      atom_literal,
       variable_path
     ])
 
@@ -652,6 +661,12 @@ defmodule Mau.Parser do
 
   defp build_null_literal_node([nil]) do
     Nodes.literal_node(nil)
+  end
+
+  # Atom literal helpers
+  defp build_atom_literal([":" | atom_chars]) do
+    atom_name = atom_chars |> List.to_string()
+    Nodes.atom_literal_node(atom_name)
   end
 
   # Expression block helpers

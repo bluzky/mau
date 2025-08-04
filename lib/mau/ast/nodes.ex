@@ -21,6 +21,13 @@ defmodule Mau.AST.Nodes do
   end
 
   @doc """
+  Creates an atom literal node for atom values.
+  """
+  def atom_literal_node(atom_name, opts \\ []) when is_binary(atom_name) do
+    {:literal, [String.to_atom(atom_name)], opts}
+  end
+
+  @doc """
   Creates an expression node for variable interpolation.
   """
   def expression_node(expression_ast, opts \\ []) do

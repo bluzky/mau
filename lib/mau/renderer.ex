@@ -121,8 +121,14 @@ defmodule Mau.Renderer do
   end
 
   # Helper for array index access
-  defp extract_variable_value([{:index, index} | path_rest], value) when is_list(value) do
-    case get_list_element(value, index) do
+  defp extract_variable_value([{:index, index} | path_rest], value) do
+    # Extract the actual index value from literal nodes
+    actual_index = case index do
+      {:literal, [literal_value], _opts} -> literal_value
+      other -> other
+    end
+    
+    case get_list_element(value, actual_index) do
       nil -> {:ok, nil}
       new_value -> extract_variable_value(path_rest, new_value)
     end
@@ -139,34 +145,30 @@ defmodule Mau.Renderer do
     {:ok, nil}
   end
 
-  defp extract_variable_value([{:index, _index} | _path_rest], value) when not is_list(value) do
-    # Trying to access index on non-list value
-    {:ok, nil}
-  end
-
   defp extract_variable_value(_path, _value) do
     {:ok, nil}
   end
 
-  # Gets an element from list by index (integer) or by variable name lookup
-  defp get_list_element(list, index) when is_integer(index) and index >= 0 do
+  # Gets an element from list/map by literal index/key only
+  defp get_list_element(list, index) when is_list(list) and is_integer(index) and index >= 0 do
     Enum.at(list, index)
   end
 
-  defp get_list_element(_list, index) when is_integer(index) and index < 0 do
+  defp get_list_element(list, index) when is_list(list) and is_integer(index) and index < 0 do
     # Negative indices are not supported
     nil
   end
 
-  defp get_list_element(_list, variable_name) when is_binary(variable_name) do
-    # Variable indices are not yet implemented in the context system
-    # This would require access to the current context to resolve the variable
-    # For now, return nil but this should be extended in the future
-    nil
+  defp get_list_element(map, key) when is_map(map) and is_binary(key) do
+    Map.get(map, key)
   end
 
-  defp get_list_element(_list, _index) do
-    # Unsupported index type (not integer or string)
+  defp get_list_element(map, key) when is_map(map) and is_atom(key) do
+    Map.get(map, key)
+  end
+
+  defp get_list_element(_collection, _key) do
+    # All other cases (unsupported collection types or key types)
     nil
   end
 
