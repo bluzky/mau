@@ -8,6 +8,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Group 10: Whitespace Control** - Complete implementation
+  - **Task 10.1: Trim Token Parser** - Complete trim detection for expressions and tags
+    - Expression trim parsing: `{{-`, `-}}`, `{{-` `-}}`
+    - Tag trim parsing: `{%-`, `-%}`, `{%-` `-%}` 
+    - Support for left trim, right trim, and both trim combinations
+    - Integration with existing expression and tag parsing infrastructure
+  - **Task 10.2: AST Trim Options** - Complete trim option integration
+    - `trim_left` and `trim_right` options added to AST node structures
+    - All expression and tag builder functions support trim options
+    - Maintains unified AST structure convention `{type, parts, opts}`
+  - **Task 10.3: Whitespace Processor** - Complete trim logic implementation  
+    - `Mau.WhitespaceProcessor` module for whitespace control
+    - Trims adjacent text nodes based on trim options
+    - Handles left trim (trailing whitespace removal) and right trim (leading whitespace removal)
+    - Supports complex whitespace including newlines, tabs, and multiple spaces
+    - Graceful handling of empty text nodes and non-text adjacent nodes
+  - **Task 10.4: Pipeline Integration** - Complete rendering pipeline integration
+    - Whitespace processing integrated into main `Mau.render/3` function
+    - Applied before block processing to preserve trim information from individual tags
+    - Works seamlessly with expressions, tags, conditionals, and loops
+    - Zero performance impact when no trim options are used
+
+### Technical Details
+- Extended parser with trim token detection using NimbleParsec choice combinators
+- Expression trim AST nodes: `{:expression, [...], [trim_left: true, trim_right: true]}`
+- Tag trim AST nodes: `{:tag, [...], [trim_left: true, trim_right: true]}`
+- Whitespace processor applies `String.trim_trailing/1` and `String.trim_leading/1` to adjacent text nodes
+- Integrated before block processing to handle individual tag trim options correctly
+- Maintains backward compatibility - templates without trim tokens work unchanged
+
+### Testing
+- All tests pass (472 tests: 56 doctests + 416 unit tests)
+- New whitespace parser test suite (12 comprehensive parsing tests)
+- New whitespace processor test suite (11 whitespace logic tests including 1 doctest)
+- New whitespace integration test suite (13 end-to-end scenarios)
+- Comprehensive trim token parsing with all combinations (left, right, both, none)
+- Full template rendering with whitespace control for expressions, tags, conditionals, and loops
+- Complex whitespace handling tests including newlines, tabs, and mixed content
+
+### Added
 - **Group 9: Loop Tags** - Complete implementation
   - **Task 9.1: For Tag Parser** - Complete for tag parsing with loop variable and collection expressions
     - `for` tag combinator parsing with `{%` and `%}` delimiters

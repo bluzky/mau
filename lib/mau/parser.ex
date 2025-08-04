@@ -457,13 +457,41 @@ defmodule Mau.Parser do
     ])
 
   # Tag block with {% %} delimiters
+  # Tag block with {% %} delimiters (with optional trim)
   tag_block =
-    ignore(string("{%"))
-    |> ignore(optional_whitespace)
-    |> concat(tag_content)
-    |> ignore(optional_whitespace)
-    |> ignore(string("%}"))
-    |> reduce(:build_tag_node)
+    choice([
+      # Left trim: {%- tag %}
+      ignore(string("{%-"))
+      |> ignore(optional_whitespace)
+      |> concat(tag_content)  
+      |> ignore(optional_whitespace)
+      |> ignore(string("%}"))
+      |> reduce(:build_tag_node_with_left_trim),
+      
+      # Right trim: {% tag -%}
+      ignore(string("{%"))
+      |> ignore(optional_whitespace)
+      |> concat(tag_content)
+      |> ignore(optional_whitespace)
+      |> ignore(string("-%}"))
+      |> reduce(:build_tag_node_with_right_trim),
+      
+      # Both trim: {%- tag -%}
+      ignore(string("{%-"))
+      |> ignore(optional_whitespace)
+      |> concat(tag_content)
+      |> ignore(optional_whitespace)
+      |> ignore(string("-%}"))
+      |> reduce(:build_tag_node_with_both_trim),
+      
+      # No trim: {% tag %}
+      ignore(string("{%"))
+      |> ignore(optional_whitespace)
+      |> concat(tag_content)
+      |> ignore(optional_whitespace)
+      |> ignore(string("%}"))
+      |> reduce(:build_tag_node)
+    ])
 
   # ============================================================================
   # EXPRESSION BLOCK PARSING
@@ -484,14 +512,41 @@ defmodule Mau.Parser do
   # Any expression value (now supports pipes)
   expression_value = parsec(:pipe_expression)
 
-  # Expression block with {{ }} delimiters
+  # Expression block with {{ }} delimiters (with optional trim)
   expression_block =
-    ignore(string("{{"))
-    |> ignore(optional_whitespace)
-    |> concat(expression_value)
-    |> ignore(optional_whitespace)
-    |> ignore(string("}}"))
-    |> reduce(:build_expression_node)
+    choice([
+      # Left trim: {{- expr }}
+      ignore(string("{{-"))
+      |> ignore(optional_whitespace)
+      |> concat(expression_value)
+      |> ignore(optional_whitespace)
+      |> ignore(string("}}"))
+      |> reduce(:build_expression_node_with_left_trim),
+      
+      # Right trim: {{ expr -}}
+      ignore(string("{{"))
+      |> ignore(optional_whitespace)
+      |> concat(expression_value)
+      |> ignore(optional_whitespace)
+      |> ignore(string("-}}"))
+      |> reduce(:build_expression_node_with_right_trim),
+      
+      # Both trim: {{- expr -}}
+      ignore(string("{{-"))
+      |> ignore(optional_whitespace)
+      |> concat(expression_value)
+      |> ignore(optional_whitespace)
+      |> ignore(string("-}}"))
+      |> reduce(:build_expression_node_with_both_trim),
+      
+      # No trim: {{ expr }}
+      ignore(string("{{"))
+      |> ignore(optional_whitespace)
+      |> concat(expression_value)
+      |> ignore(optional_whitespace)
+      |> ignore(string("}}"))
+      |> reduce(:build_expression_node)
+    ])
 
   # ============================================================================
   # TEXT PARSING (GROUP 1)
@@ -811,6 +866,18 @@ defmodule Mau.Parser do
     Nodes.expression_node(expression_ast)
   end
 
+  defp build_expression_node_with_left_trim([expression_ast]) do
+    Nodes.expression_node(expression_ast, [trim_left: true])
+  end
+
+  defp build_expression_node_with_right_trim([expression_ast]) do
+    Nodes.expression_node(expression_ast, [trim_right: true])
+  end
+
+  defp build_expression_node_with_both_trim([expression_ast]) do
+    Nodes.expression_node(expression_ast, [trim_left: true, trim_right: true])
+  end
+
   # Variable identifier helpers
   defp build_identifier(chars) do
     chars |> List.to_string()
@@ -954,6 +1021,60 @@ defmodule Mau.Parser do
         Nodes.tag_node(tag_type, params)
       {tag_type, param} ->
         Nodes.tag_node(tag_type, [param])
+    end
+  end
+
+  defp build_tag_node_with_left_trim([tag_data]) do
+    case tag_data do
+      {:assign, variable_name, expression} ->
+        Nodes.tag_node(:assign, [variable_name, expression], [trim_left: true])
+      {tag_type, condition} when tag_type in [:if, :elsif] ->
+        Nodes.tag_node(tag_type, [condition], [trim_left: true])
+      {tag_type} when tag_type in [:else, :endif, :endfor] ->
+        Nodes.tag_node(tag_type, [], [trim_left: true])
+      {:for, loop_variable, collection_expression} ->
+        Nodes.tag_node(:for, [loop_variable, collection_expression], [trim_left: true])
+      # Generic fallback for future tag types
+      {tag_type, params} when is_list(params) ->
+        Nodes.tag_node(tag_type, params, [trim_left: true])
+      {tag_type, param} ->
+        Nodes.tag_node(tag_type, [param], [trim_left: true])
+    end
+  end
+
+  defp build_tag_node_with_right_trim([tag_data]) do
+    case tag_data do
+      {:assign, variable_name, expression} ->
+        Nodes.tag_node(:assign, [variable_name, expression], [trim_right: true])
+      {tag_type, condition} when tag_type in [:if, :elsif] ->
+        Nodes.tag_node(tag_type, [condition], [trim_right: true])
+      {tag_type} when tag_type in [:else, :endif, :endfor] ->
+        Nodes.tag_node(tag_type, [], [trim_right: true])
+      {:for, loop_variable, collection_expression} ->
+        Nodes.tag_node(:for, [loop_variable, collection_expression], [trim_right: true])
+      # Generic fallback for future tag types
+      {tag_type, params} when is_list(params) ->
+        Nodes.tag_node(tag_type, params, [trim_right: true])
+      {tag_type, param} ->
+        Nodes.tag_node(tag_type, [param], [trim_right: true])
+    end
+  end
+
+  defp build_tag_node_with_both_trim([tag_data]) do
+    case tag_data do
+      {:assign, variable_name, expression} ->
+        Nodes.tag_node(:assign, [variable_name, expression], [trim_left: true, trim_right: true])
+      {tag_type, condition} when tag_type in [:if, :elsif] ->
+        Nodes.tag_node(tag_type, [condition], [trim_left: true, trim_right: true])
+      {tag_type} when tag_type in [:else, :endif, :endfor] ->
+        Nodes.tag_node(tag_type, [], [trim_left: true, trim_right: true])
+      {:for, loop_variable, collection_expression} ->
+        Nodes.tag_node(:for, [loop_variable, collection_expression], [trim_left: true, trim_right: true])
+      # Generic fallback for future tag types
+      {tag_type, params} when is_list(params) ->
+        Nodes.tag_node(tag_type, params, [trim_left: true, trim_right: true])
+      {tag_type, param} ->
+        Nodes.tag_node(tag_type, [param], [trim_left: true, trim_right: true])
     end
   end
 end
