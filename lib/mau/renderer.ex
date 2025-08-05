@@ -557,8 +557,11 @@ defmodule Mau.Renderer do
   # Helper to render nodes for conditional blocks
   defp render_conditional_content(nodes, context) do
     case render_nodes(nodes, context, []) do
-      {:ok, parts, updated_context} -> {:ok, Enum.join(parts, ""), updated_context}
-      {:error, error} -> {:error, error}
+      {:ok, parts, updated_context} ->
+        {:ok, parts, updated_context}
+
+      {:error, error} ->
+        {:error, error}
     end
   end
 
@@ -571,8 +574,10 @@ defmodule Mau.Renderer do
 
     with {:ok, collection} <- evaluate_expression(collection_expression, context),
          {:ok, items} <- ensure_iterable(collection),
-         {:ok, acc_result, _} <- render_loop_items(items, loop_variable, content, context) do
-      {:ok, Enum.reverse(acc_result), context}
+         {:ok, acc_result, updated_context} <-
+           render_loop_items(items, loop_variable, content, context) do
+      updated_context = Map.drop(updated_context, [loop_variable, "forloop"])
+      {:ok, Enum.reverse(acc_result), updated_context}
     end
   end
 
@@ -601,8 +606,15 @@ defmodule Mau.Renderer do
       case render_nodes(content, updated_loop_context, []) do
         {:ok, parts, final_context} ->
           rendered_content = Enum.join(parts, "")
+
+          restored_context =
+            Map.merge(final_context, %{
+              loop_variable => item,
+              "forloop" => updated_loop_context["forloop"]
+            })
+
           # Accumulate rendered content
-          {:cont, {:ok, [rendered_content | acc], final_context}}
+          {:cont, {:ok, [rendered_content | acc], restored_context}}
 
         {:error, error} ->
           {:halt, {:error, error}}

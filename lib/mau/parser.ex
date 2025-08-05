@@ -629,13 +629,26 @@ defmodule Mau.Parser do
 
   # Legacy text content parser (unused but kept for reference)
 
+  # Text content that handles { characters not part of template constructs
+  text_content =
+    choice([
+      # Text that doesn't contain any { characters  
+      utf8_string([not: ?{], min: 1),
+      # Handle { character that's not part of a template construct
+      string("{")
+      |> lookahead_not(choice([string("%"), string("{"), string("#")]))
+      |> concat(repeat(utf8_char(not: ?{)))
+      |> reduce(:join_chars)
+    ])
+    |> reduce(:build_text_node)
+
   # Combined content parser (text, expressions, tags, or comments)
   template_content =
     choice([
       comment_block,
       tag_block,
       expression_block,
-      utf8_string([not: ?{], min: 1) |> reduce(:build_text_node)
+      text_content
     ])
 
   # Main template parser - handles mixed content
@@ -942,6 +955,10 @@ defmodule Mau.Parser do
   end
 
   # Text node helpers
+  defp join_chars(chars) when is_list(chars) do
+    :binary.list_to_bin(chars)
+  end
+
   defp build_text_node([content]) do
     Nodes.text_node(content)
   end
