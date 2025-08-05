@@ -146,6 +146,7 @@ defmodule Mau.Parser do
 
   # Whitespace handling (moved up for use in variable parsing)
   optional_whitespace = repeat(ascii_char([?\s, ?\t, ?\n, ?\r]))
+  required_whitespace = times(ascii_char([?\s, ?\t]), min: 1)
 
   # Identifier parsing - supports letters, numbers, underscores
   # Must start with letter or underscore, can contain numbers after first char
@@ -184,18 +185,11 @@ defmodule Mau.Parser do
     |> concat(basic_identifier)
     |> reduce(:build_property_access)
 
-  # Array index parsing - supports only literal values (no variables)
-  array_index_content =
-    choice([
-      number_literal,   # Literal number index like [0], [123], [-1]
-      string_literal,   # Literal string key like ["key"], ["name"]
-      atom_literal      # Literal atom key like [:key], [:name]
-    ])
-
+  # Array index parsing - supports literals and variable expressions (forward declared)
   array_index =
     ignore(string("["))
     |> ignore(optional_whitespace)
-    |> concat(array_index_content)
+    |> parsec(:array_index_content)
     |> ignore(optional_whitespace)  
     |> ignore(string("]"))
     |> reduce(:build_array_index)
@@ -212,6 +206,16 @@ defmodule Mau.Parser do
     identifier
     |> repeat(variable_access)
     |> reduce(:build_variable_path)
+
+  # Array index content - now that variable_path is defined
+  defcombinatorp(:array_index_content,
+    choice([
+      number_literal,   # Literal number index like [0], [123], [-1]
+      string_literal,   # Literal string key like ["key"], ["name"]
+      atom_literal,     # Literal atom key like [:key], [:name]
+      variable_path     # Variable expression like [key], [index], [user.id]
+    ])
+  )
 
   # ============================================================================
   # EXPRESSION PARSING WITH PRECEDENCE
@@ -345,17 +349,35 @@ defmodule Mau.Parser do
     |> reduce(:build_binary_operation)
 
   # ============================================================================
+  # UNARY EXPRESSION PARSING
+  # ============================================================================
+
+  # Unary expressions - not
+  unary_expression =
+    choice([
+      # not expression - must use lookahead to ensure word boundary
+      string("not")
+      |> lookahead_not(ascii_char([?a..?z, ?A..?Z, ?0..?9, ?_]))
+      |> ignore(required_whitespace)
+      |> concat(parsec(:unary_expression))
+      |> reduce(:build_unary_operation),
+      
+      # No unary operator
+      relational_expression
+    ])
+
+  # ============================================================================
   # LOGICAL EXPRESSION PARSING
   # ============================================================================
 
   # Logical AND operator
   logical_and_expression =
-    relational_expression
+    unary_expression
     |> repeat(
       ignore(optional_whitespace)
       |> string("and")
       |> ignore(optional_whitespace)
-      |> concat(relational_expression)
+      |> concat(unary_expression)
     )
     |> reduce(:build_logical_operation)
 
@@ -391,7 +413,6 @@ defmodule Mau.Parser do
   #     |> reduce({:build_tag, [:include]})
 
   # Generic tag parser helpers - combinators for common patterns
-  required_whitespace = times(ascii_char([?\s, ?\t]), min: 1)
   
   # Assignment tag parsing - {% assign variable = expression %}
   assign_tag =
@@ -494,8 +515,48 @@ defmodule Mau.Parser do
     ])
 
   # ============================================================================
+  # COMMENT BLOCK PARSING
+  # ============================================================================
+
+  # Comment content - anything up to #}
+  comment_content =
+    repeat(
+      choice([
+        # Match # that's not followed by }
+        string("#") |> lookahead_not(string("}")),
+        # Match anything that's not #
+        utf8_char([not: ?#])
+      ])
+    )
+    |> reduce(:build_comment_content)
+
+  # Comment block with {# #} delimiters
+  comment_block =
+    ignore(string("{#"))
+    |> concat(comment_content)
+    |> ignore(string("#}"))
+    |> reduce(:build_comment_node)
+
+  # ============================================================================
   # EXPRESSION BLOCK PARSING
   # ============================================================================
+
+  # Pipe filter - can be either a simple identifier or a function call
+  pipe_filter =
+    choice([
+      # Function call syntax: filter(arg1, arg2)
+      identifier
+      |> ignore(optional_whitespace)
+      |> ignore(string("("))
+      |> ignore(optional_whitespace)
+      |> optional(parsec(:argument_list))
+      |> ignore(optional_whitespace)
+      |> ignore(string(")"))
+      |> reduce(:build_pipe_function_call),
+      
+      # Simple identifier: filter
+      identifier
+    ])
 
   # Forward declare pipe expression to break circular dependency
   defcombinatorp(:pipe_expression,
@@ -504,7 +565,7 @@ defmodule Mau.Parser do
       ignore(optional_whitespace)
       |> ignore(string("|"))
       |> ignore(optional_whitespace)
-      |> concat(identifier)
+      |> concat(pipe_filter)
     )
     |> reduce(:build_pipe_expression)
   )
@@ -554,9 +615,10 @@ defmodule Mau.Parser do
 
   # Legacy text content parser (unused but kept for reference)
 
-  # Combined content parser (text, expressions, or tags)
+  # Combined content parser (text, expressions, tags, or comments)
   template_content =
     choice([
+      comment_block,
       tag_block,
       expression_block,
       utf8_string([not: ?{], min: 1) |> reduce(:build_text_node)
@@ -570,6 +632,9 @@ defmodule Mau.Parser do
   
   # Parser for logical OR expressions (needed for recursive parsing in parentheses)
   defparsec(:logical_or_expression, logical_or_expression)
+  
+  # Parser for unary expressions (needed for recursive parsing)
+  defparsec(:unary_expression, unary_expression)
   
   # Parser for testing string literals directly
   defparsec(:parse_string_literal_raw, string_literal)
@@ -878,6 +943,15 @@ defmodule Mau.Parser do
     Nodes.expression_node(expression_ast, [trim_left: true, trim_right: true])
   end
 
+  # Comment node builders
+  defp build_comment_content(chars) do
+    IO.iodata_to_binary(chars)
+  end
+
+  defp build_comment_node([content]) do
+    Nodes.comment_node(content, [])
+  end
+
   # Variable identifier helpers
   defp build_identifier(chars) do
     chars |> List.to_string()
@@ -943,6 +1017,11 @@ defmodule Mau.Parser do
     build_left_associative_logical_ops(logical_op, rest)
   end
 
+  # Unary operation helpers
+  defp build_unary_operation(["not", operand]) do
+    Nodes.unary_op_node("not", operand)
+  end
+
   # Function call helpers
   defp build_function_call([function_name | args]) do
     argument_list = case args do
@@ -954,6 +1033,16 @@ defmodule Mau.Parser do
 
   defp build_argument_list([first_arg | rest_args]) do
     [first_arg | rest_args]
+  end
+
+  # Pipe function call helpers
+  defp build_pipe_function_call([function_name | args]) do
+    argument_list = case args do
+      [arg_list] -> arg_list
+      [] -> []
+    end
+    # Return a tuple that indicates this is a function call with arguments
+    {:pipe_function_call, function_name, argument_list}
   end
 
   # Pipe expression helpers
@@ -971,9 +1060,18 @@ defmodule Mau.Parser do
     value
   end
 
-  defp apply_filters_to_value(value, [filter_name | rest_filters]) do
-    # Create a call node with value as the first argument
-    call_node = Nodes.call_node(filter_name, [value])
+  defp apply_filters_to_value(value, [filter | rest_filters]) do
+    call_node = case filter do
+      {:pipe_function_call, function_name, args} ->
+        # Function call with arguments: value | filter(arg1, arg2)
+        # The value becomes the first argument
+        Nodes.call_node(function_name, [value | args])
+      
+      filter_name when is_binary(filter_name) ->
+        # Simple filter: value | filter
+        Nodes.call_node(filter_name, [value])
+    end
+    
     apply_filters_to_value(call_node, rest_filters)
   end
 

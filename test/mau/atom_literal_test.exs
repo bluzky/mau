@@ -113,12 +113,15 @@ defmodule Mau.AtomLiteralTest do
     end
   end
 
-  describe "Literal-Only Restriction" do
-    test "treats templates with variable indices as plain text (fallback)" do
-      # These fall back to text parsing since variables are not supported in array indices
-      assert {:ok, [{:text, ["{{ items[index] }}"], []}]} = Parser.parse("{{ items[index] }}")
-      assert {:ok, [{:text, ["{{ user[field] }}"], []}]} = Parser.parse("{{ user[field] }}")
-      assert {:ok, [{:text, ["{{ data[key_var] }}"], []}]} = Parser.parse("{{ data[key_var] }}")
+  describe "Variable Index Support" do
+    test "now parses templates with variable indices successfully" do
+      # Variable indices are now supported (updated behavior)
+      assert {:ok, [{:expression, [{:variable, ["items", {:index, {:variable, ["index"], []}}], []}], []}]} = 
+        Parser.parse("{{ items[index] }}")
+      assert {:ok, [{:expression, [{:variable, ["user", {:index, {:variable, ["field"], []}}], []}], []}]} = 
+        Parser.parse("{{ user[field] }}")
+      assert {:ok, [{:expression, [{:variable, ["data", {:index, {:variable, ["key_var"], []}}], []}], []}]} = 
+        Parser.parse("{{ data[key_var] }}")
     end
 
     test "only accepts literal values in array index syntax" do
@@ -133,10 +136,10 @@ defmodule Mau.AtomLiteralTest do
       assert [{:expression, [_], []}] = ast3
     end
 
-    test "renders variable index templates as literal text" do
-      # Since these fall back to text, they render as-is
-      assert {:ok, "{{ items[index] }}"} = Mau.render("{{ items[index] }}", %{})
-      assert {:ok, "Value: {{ user[field] }}"} = Mau.render("Value: {{ user[field] }}", %{})
+    test "renders variable index templates with undefined variables as empty" do
+      # Variable indices now parse successfully but render empty when variables are undefined
+      assert {:ok, ""} = Mau.render("{{ items[index] }}", %{})
+      assert {:ok, "Value: "} = Mau.render("Value: {{ user[field] }}", %{})
     end
   end
 end

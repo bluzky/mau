@@ -17,6 +17,7 @@ defmodule Mau.FilterRegistry do
     "capitalize" => &Mau.Filters.StringFilters.capitalize/2,
     "truncate" => &Mau.Filters.StringFilters.truncate/2,
     "default" => &Mau.Filters.StringFilters.default/2,
+    "strip" => &Mau.Filters.StringFilters.strip/2,
     
     # Number filters
     "round" => &Mau.Filters.NumberFilters.round/2,
@@ -30,6 +31,18 @@ defmodule Mau.FilterRegistry do
     "sort" => &Mau.Filters.CollectionFilters.sort/2,
     "reverse" => &Mau.Filters.CollectionFilters.reverse/2,
     "uniq" => &Mau.Filters.CollectionFilters.uniq/2,
+    "slice" => &Mau.Filters.CollectionFilters.slice/2,
+    "contains" => &Mau.Filters.CollectionFilters.contains/2,
+    "compact" => &Mau.Filters.CollectionFilters.compact/2,
+    "flatten" => &Mau.Filters.CollectionFilters.flatten/2,
+    "sum" => &Mau.Filters.CollectionFilters.sum/2,
+    "keys" => &Mau.Filters.CollectionFilters.keys/2,
+    "values" => &Mau.Filters.CollectionFilters.values/2,
+    "group_by" => &Mau.Filters.CollectionFilters.group_by/2,
+    "map" => &Mau.Filters.CollectionFilters.map/2,
+    "filter" => &Mau.Filters.CollectionFilters.filter/2,
+    "reject" => &Mau.Filters.CollectionFilters.reject/2,
+    "dump" => &Mau.Filters.CollectionFilters.dump/2,
     
     # Math filters
     "abs" => &Mau.Filters.MathFilters.abs/2,
@@ -73,7 +86,7 @@ defmodule Mau.FilterRegistry do
   ## Examples
   
       iex> Mau.FilterRegistry.list()
-      ["abs", "capitalize", "ceil", "clamp", "default", "first", "floor", "format_currency", "join", "last", "length", "lower_case", "max", "min", "mod", "power", "reverse", "round", "sort", "sqrt", "truncate", "uniq", "upper_case"]
+      ["abs", "capitalize", "ceil", "clamp", "compact", "contains", "default", "dump", "filter", "first", "flatten", "floor", "format_currency", "group_by", "join", "keys", "last", "length", "lower_case", "map", "max", "min", "mod", "power", "reject", "reverse", "round", "slice", "sort", "sqrt", "strip", "sum", "truncate", "uniq", "upper_case", "values"]
   """
   @spec list() :: [String.t()]
   def list do

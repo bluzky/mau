@@ -127,4 +127,26 @@ defmodule Mau.Filters.StringFilters do
     
     {:ok, result}
   end
+
+  @doc """
+  Removes leading and trailing whitespace from a string.
+  
+  ## Examples
+  
+      iex> Mau.Filters.StringFilters.strip("  hello world  ", [])
+      {:ok, "hello world"}
+      
+      iex> Mau.Filters.StringFilters.strip("\\n\\t hello \\n\\t", [])
+      {:ok, "hello"}
+      
+      iex> Mau.Filters.StringFilters.strip(123, [])
+      {:ok, "123"}
+  """
+  def strip(value, _args) when is_binary(value) do
+    {:ok, String.trim(value)}
+  end
+  
+  def strip(value, args) do
+    strip(to_string(value), args)
+  end
 end

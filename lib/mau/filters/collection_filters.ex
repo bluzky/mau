@@ -157,4 +157,293 @@ defmodule Mau.Filters.CollectionFilters do
       _ -> value
     end
   end
+
+  @doc """
+  Extracts a slice from a list or string.
+  
+  ## Examples
+  
+      iex> Mau.Filters.CollectionFilters.slice([1, 2, 3, 4, 5], [1, 3])
+      {:ok, [2, 3, 4]}
+      
+      iex> Mau.Filters.CollectionFilters.slice("hello", [1, 3])
+      {:ok, "ell"}
+      
+      iex> Mau.Filters.CollectionFilters.slice([1, 2, 3], [1])
+      {:ok, [2, 3]}
+  """
+  def slice(value, args) do
+    case {value, args} do
+      {list, [start]} when is_list(list) and is_integer(start) ->
+        {:ok, Enum.drop(list, start)}
+      
+      {list, [start, length]} when is_list(list) and is_integer(start) and is_integer(length) ->
+        {:ok, list |> Enum.drop(start) |> Enum.take(length)}
+      
+      {string, [start]} when is_binary(string) and is_integer(start) ->
+        {:ok, String.slice(string, start..-1)}
+      
+      {string, [start, length]} when is_binary(string) and is_integer(start) and is_integer(length) ->
+        {:ok, String.slice(string, start, length)}
+      
+      _ ->
+        {:error, "slice requires start index and optional length"}
+    end
+  end
+
+  @doc """
+  Checks if a collection contains a value.
+  
+  ## Examples
+  
+      iex> Mau.Filters.CollectionFilters.contains([1, 2, 3], [2])
+      {:ok, true}
+      
+      iex> Mau.Filters.CollectionFilters.contains("hello", ["ll"])
+      {:ok, true}
+      
+      iex> Mau.Filters.CollectionFilters.contains(%{a: 1, b: 2}, ["a"])
+      {:ok, true}
+  """
+  def contains(value, args) do
+    case {value, args} do
+      {list, [item]} when is_list(list) ->
+        {:ok, Enum.member?(list, item)}
+      
+      {string, [substring]} when is_binary(string) and is_binary(substring) ->
+        {:ok, String.contains?(string, substring)}
+      
+      {map, [key]} when is_map(map) ->
+        {:ok, Map.has_key?(map, key)}
+      
+      _ ->
+        {:error, "contains requires a value to search for"}
+    end
+  end
+
+  @doc """
+  Removes nil values from a list.
+  
+  ## Examples
+  
+      iex> Mau.Filters.CollectionFilters.compact([1, nil, 2, nil, 3], [])
+      {:ok, [1, 2, 3]}
+      
+      iex> Mau.Filters.CollectionFilters.compact([], [])
+      {:ok, []}
+  """
+  def compact(value, _args) do
+    case value do
+      list when is_list(list) ->
+        {:ok, Enum.reject(list, &is_nil/1)}
+      
+      _ ->
+        {:ok, value}
+    end
+  end
+
+  @doc """
+  Flattens nested lists.
+  
+  ## Examples
+  
+      iex> Mau.Filters.CollectionFilters.flatten([[1, 2], [3, 4]], [])
+      {:ok, [1, 2, 3, 4]}
+      
+      iex> Mau.Filters.CollectionFilters.flatten([1, [2, [3, 4]]], [])
+      {:ok, [1, 2, 3, 4]}
+  """
+  def flatten(value, _args) do
+    case value do
+      list when is_list(list) ->
+        {:ok, List.flatten(list)}
+      
+      _ ->
+        {:ok, value}
+    end
+  end
+
+  @doc """
+  Sums numeric values in a list.
+  
+  ## Examples
+  
+      iex> Mau.Filters.CollectionFilters.sum([1, 2, 3, 4], [])
+      {:ok, 10}
+      
+      iex> Mau.Filters.CollectionFilters.sum([1.5, 2.5], [])
+      {:ok, 4.0}
+      
+      iex> Mau.Filters.CollectionFilters.sum([1, "2", 3], [])
+      {:ok, 4}
+  """
+  def sum(value, _args) do
+    case value do
+      list when is_list(list) ->
+        result = list
+        |> Enum.filter(&is_number/1)
+        |> Enum.sum()
+        {:ok, result}
+      
+      _ ->
+        {:ok, 0}
+    end
+  end
+
+  @doc """
+  Gets the keys of a map.
+  
+  ## Examples
+  
+      iex> Mau.Filters.CollectionFilters.keys(%{a: 1, b: 2}, [])
+      {:ok, [:a, :b]}
+      
+      iex> Mau.Filters.CollectionFilters.keys(%{"x" => 1, "y" => 2}, [])
+      {:ok, ["x", "y"]}
+  """
+  def keys(value, _args) do
+    case value do
+      map when is_map(map) ->
+        {:ok, Map.keys(map)}
+      
+      _ ->
+        {:ok, []}
+    end
+  end
+
+  @doc """
+  Gets the values of a map.
+  
+  ## Examples
+  
+      iex> Mau.Filters.CollectionFilters.values(%{a: 1, b: 2}, [])
+      {:ok, [1, 2]}
+      
+      iex> Mau.Filters.CollectionFilters.values(%{"x" => 1, "y" => 2}, [])
+      {:ok, [1, 2]}
+  """
+  def values(value, _args) do
+    case value do
+      map when is_map(map) ->
+        {:ok, Map.values(map)}
+      
+      _ ->
+        {:ok, []}
+    end
+  end
+
+  @doc """
+  Groups list elements by a key field.
+  
+  ## Examples
+  
+      iex> users = [%{"name" => "Alice", "role" => "admin"}, %{"name" => "Bob", "role" => "user"}, %{"name" => "Carol", "role" => "admin"}]
+      iex> Mau.Filters.CollectionFilters.group_by(users, ["role"])
+      {:ok, %{"admin" => [%{"name" => "Alice", "role" => "admin"}, %{"name" => "Carol", "role" => "admin"}], "user" => [%{"name" => "Bob", "role" => "user"}]}}
+  """
+  def group_by(value, args) do
+    case {value, args} do
+      {list, [key]} when is_list(list) ->
+        result = Enum.group_by(list, fn item ->
+          case item do
+            map when is_map(map) -> Map.get(map, key)
+            _ -> nil
+          end
+        end)
+        {:ok, result}
+      
+      _ ->
+        {:error, "group_by requires a key field"}
+    end
+  end
+
+  @doc """
+  Extracts field values from a list of maps.
+  
+  ## Examples
+  
+      iex> users = [%{"name" => "Alice"}, %{"name" => "Bob"}]
+      iex> Mau.Filters.CollectionFilters.map(users, ["name"])
+      {:ok, ["Alice", "Bob"]}
+  """
+  def map(value, args) do
+    case {value, args} do
+      {list, [field]} when is_list(list) ->
+        result = Enum.map(list, fn item ->
+          case item do
+            map when is_map(map) -> Map.get(map, field)
+            _ -> nil
+          end
+        end)
+        {:ok, result}
+      
+      _ ->
+        {:error, "map requires a field name"}
+    end
+  end
+
+  @doc """
+  Filters list of maps by field value.
+  
+  ## Examples
+  
+      iex> users = [%{"name" => "Alice", "active" => true}, %{"name" => "Bob", "active" => false}]
+      iex> Mau.Filters.CollectionFilters.filter(users, ["active", true])
+      {:ok, [%{"name" => "Alice", "active" => true}]}
+  """
+  def filter(value, args) do
+    case {value, args} do
+      {list, [field, filter_value]} when is_list(list) ->
+        result = Enum.filter(list, fn item ->
+          case item do
+            map when is_map(map) -> Map.get(map, field) == filter_value
+            _ -> false
+          end
+        end)
+        {:ok, result}
+      
+      _ ->
+        {:error, "filter requires field name and value"}
+    end
+  end
+
+  @doc """
+  Rejects list of maps by field value (opposite of filter).
+  
+  ## Examples
+  
+      iex> users = [%{"name" => "Alice", "active" => true}, %{"name" => "Bob", "active" => false}]
+      iex> Mau.Filters.CollectionFilters.reject(users, ["active", false])
+      {:ok, [%{"name" => "Alice", "active" => true}]}
+  """
+  def reject(value, args) do
+    case {value, args} do
+      {list, [field, reject_value]} when is_list(list) ->
+        result = Enum.reject(list, fn item ->
+          case item do
+            map when is_map(map) -> Map.get(map, field) == reject_value
+            _ -> false
+          end
+        end)
+        {:ok, result}
+      
+      _ ->
+        {:error, "reject requires field name and value"}
+    end
+  end
+
+  @doc """
+  Formats data structures for display (debugging).
+  
+  ## Examples
+  
+      iex> Mau.Filters.CollectionFilters.dump(%{a: 1, b: 2}, [])
+      {:ok, "%{a: 1, b: 2}"}
+      
+      iex> Mau.Filters.CollectionFilters.dump([1, 2, 3], [])
+      {:ok, "[1, 2, 3]"}
+  """
+  def dump(value, _args) do
+    {:ok, inspect(value)}
+  end
 end

@@ -37,10 +37,13 @@ defmodule Mau.ArrayIndexTest do
         Parser.parse_variable_path("users[ 0 ]")
     end
 
-    test "rejects variable indices (falls back to parse error)" do
-      assert {:error, _} = Parser.parse_variable_path("users[i]")
-      assert {:error, _} = Parser.parse_variable_path("users[index]")
-      assert {:error, _} = Parser.parse_variable_path("$input.data[current_index].value")
+    test "now supports variable indices (parsing only - see bracket_variable_access_test for evaluation)" do
+      assert {:ok, {:variable, ["users", {:index, {:variable, ["i"], []}}], []}} = 
+        Parser.parse_variable_path("users[i]")
+      assert {:ok, {:variable, ["users", {:index, {:variable, ["index"], []}}], []}} = 
+        Parser.parse_variable_path("users[index]")
+      assert {:ok, {:variable, ["$input", {:property, "data"}, {:index, {:variable, ["current_index"], []}}, {:property, "value"}], []}} = 
+        Parser.parse_variable_path("$input.data[current_index].value")
     end
 
     test "fails on empty array index" do

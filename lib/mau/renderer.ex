@@ -34,6 +34,10 @@ defmodule Mau.Renderer do
     {:ok, content, context}
   end
 
+  defp render_node_with_context({:comment, [_content], _opts}, context) do
+    {:ok, "", context}
+  end
+
   defp render_node_with_context({:expression, [expression_ast], _opts}, context) do
     case evaluate_expression(expression_ast, context) do
       {:ok, value} -> {:ok, format_value(value), context}
@@ -104,7 +108,7 @@ defmodule Mau.Renderer do
   end
 
   defp evaluate_expression({:variable, path, _opts}, context) do
-    extract_variable_value(path, context)
+    extract_variable_value_with_context(path, context, context)
   end
 
   defp evaluate_expression({:binary_op, [operator, left, right], _opts}, context) do
@@ -118,6 +122,10 @@ defmodule Mau.Renderer do
     evaluate_logical_operation(operator, left, right, context)
   end
 
+  defp evaluate_expression({:unary_op, [operator, operand], _opts}, context) do
+    evaluate_unary_operation(operator, operand, context)
+  end
+
   defp evaluate_expression({:call, [function_name, args], _opts}, context) do
     evaluate_call(function_name, args, context)
   end
@@ -127,60 +135,74 @@ defmodule Mau.Renderer do
     {:error, error}
   end
 
-  # Extracts variable values from context following the path
-  defp extract_variable_value([identifier], context) when is_binary(identifier) do
+
+  # Context-aware variable value extraction with support for variable indices
+  # All extract_variable_value_with_context/3 clauses grouped together
+  
+  # Context-based lookup (start of path with identifier)
+  defp extract_variable_value_with_context([identifier], context, _original_context) when is_binary(identifier) do
     case Map.get(context, identifier) do
-      # Undefined variables return nil for now
       nil -> {:ok, nil}
       value -> {:ok, value}
     end
   end
 
-  defp extract_variable_value([identifier | path_rest], context) when is_binary(identifier) do
+  defp extract_variable_value_with_context([identifier | path_rest], context, original_context) when is_binary(identifier) do
     case Map.get(context, identifier) do
       nil -> {:ok, nil}
-      value -> extract_variable_value(path_rest, value)
+      value -> extract_variable_value_with_context_from_value(path_rest, value, original_context)
     end
   end
 
-  # Helper for property access
-  defp extract_variable_value([{:property, property} | path_rest], value) when is_map(value) do
-    case Map.get(value, property) do
-      nil -> {:ok, nil}
-      new_value -> extract_variable_value(path_rest, new_value)
-    end
-  end
-
-  # Helper for array index access
-  defp extract_variable_value([{:index, index} | path_rest], value) do
-    # Extract the actual index value from literal nodes
-    actual_index =
-      case index do
-        {:literal, [literal_value], _opts} -> literal_value
-        other -> other
-      end
-
-    case get_list_element(value, actual_index) do
-      nil -> {:ok, nil}
-      new_value -> extract_variable_value(path_rest, new_value)
-    end
-  end
-
-  # Base case: empty path means we've reached the final value
-  defp extract_variable_value([], value) do
+  # Base case for context version
+  defp extract_variable_value_with_context([], value, _original_context) do
     {:ok, value}
   end
 
-  # Fallback for unsupported access patterns - handle any remaining cases
-  defp extract_variable_value([{:property, _property} | _path_rest], value)
-       when not is_map(value) do
-    # Trying to access property on non-map value
+  # Fallback for context version
+  defp extract_variable_value_with_context(_path, _value, _original_context) do
     {:ok, nil}
   end
 
-  defp extract_variable_value(_path, _value) do
+  # Continue extraction from a value (not context map)
+  defp extract_variable_value_with_context_from_value([], value, _original_context) do
+    {:ok, value}
+  end
+
+  # Property access from value with context available
+  defp extract_variable_value_with_context_from_value([{:property, property} | path_rest], value, original_context) when is_map(value) do
+    case Map.get(value, property) do
+      nil -> {:ok, nil}
+      new_value -> extract_variable_value_with_context_from_value(path_rest, new_value, original_context)
+    end
+  end
+
+  # Array index access from value with context - supports variable indices
+  defp extract_variable_value_with_context_from_value([{:index, index} | path_rest], value, original_context) do
+    # Extract the actual index value from literal nodes or evaluate variable expressions
+    actual_index_result =
+      case index do
+        {:literal, [literal_value], _opts} -> {:ok, literal_value}
+        {:variable, _path, _opts} = var_expr -> evaluate_expression(var_expr, original_context)
+        other -> {:ok, other}
+      end
+
+    case actual_index_result do
+      {:ok, actual_index} ->
+        case get_list_element(value, actual_index) do
+          nil -> {:ok, nil}
+          new_value -> extract_variable_value_with_context_from_value(path_rest, new_value, original_context)
+        end
+      
+      {:error, error} -> {:error, error}
+    end
+  end
+
+  # Fallback for unsupported access patterns
+  defp extract_variable_value_with_context_from_value(_path, _value, _original_context) do
     {:ok, nil}
   end
+
 
   # Gets an element from list/map by literal index/key only
   defp get_list_element(list, index) when is_list(list) and is_integer(index) and index >= 0 do
@@ -339,6 +361,14 @@ defmodule Mau.Renderer do
 
       {:error, error} ->
         {:error, error}
+    end
+  end
+
+  # Unary operation evaluation
+  defp evaluate_unary_operation("not", operand, context) do
+    case evaluate_expression(operand, context) do
+      {:ok, value} -> {:ok, !is_truthy(value)}
+      {:error, error} -> {:error, error}
     end
   end
 
