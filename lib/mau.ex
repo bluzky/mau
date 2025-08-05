@@ -43,30 +43,43 @@ defmodule Mau do
   @doc """
   Renders a template string or AST with the given context.
 
-  For Group 1, only handles plain text templates.
+  ## Options
+  - `:preserve_types` - boolean, default `false`. When `true`, preserves data types 
+    for single-value templates (templates that render to a single expression result).
 
   ## Examples
 
       iex> Mau.render("Hello world", %{})
       {:ok, "Hello world"}
+
+      # Type preservation for single values
+      iex> Mau.render("{{ 42 }}", %{}, preserve_types: true)
+      {:ok, 42}
+
+      iex> Mau.render("{{ user.active }}", %{"user" => %{"active" => true}}, preserve_types: true)
+      {:ok, true}
+
+      # Mixed content always returns strings
+      iex> Mau.render("Count: {{ items | length }}", %{"items" => [1,2,3]}, preserve_types: true)
+      {:ok, "Count: 3"}
   """
   def render(template, context, opts \\ [])
 
-  def render(template, context, _opts) when is_binary(template) and is_map(context) do
+  def render(template, context, opts) when is_binary(template) and is_map(context) do
     with {:ok, ast} <- Parser.parse(template),
          trimmed_ast <- WhitespaceProcessor.apply_whitespace_control(ast),
          processed_ast <- BlockProcessor.process_blocks(trimmed_ast),
-         {:ok, result} <- Renderer.render(processed_ast, context) do
+         {:ok, result} <- Renderer.render(processed_ast, context, opts) do
       {:ok, result}
     end
   end
 
-  def render(ast, context, _opts) when is_tuple(ast) and is_map(context) do
-    Renderer.render(ast, context)
+  def render(ast, context, opts) when is_tuple(ast) and is_map(context) do
+    Renderer.render(ast, context, opts)
   end
 
-  def render(nodes, context, _opts) when is_list(nodes) and is_map(context) do
-    Renderer.render(nodes, context)
+  def render(nodes, context, opts) when is_list(nodes) and is_map(context) do
+    Renderer.render(nodes, context, opts)
   end
 
   @doc """

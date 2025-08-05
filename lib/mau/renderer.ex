@@ -67,18 +67,55 @@ defmodule Mau.Renderer do
 
   Handles both single nodes and lists of nodes.
   """
-  def render(nodes, context) when is_list(nodes) and is_map(context) do
+  def render(data, context, opts \\ [])
+
+  def render(nodes, context, opts) when is_list(nodes) and is_map(context) do
     case render_nodes(nodes, context) do
-      {:ok, parts} -> {:ok, Enum.join(parts, "")}
+      {:ok, parts} -> 
+        result = Enum.join(parts, "")
+        if opts[:preserve_types] && is_single_value_template?(nodes, parts) do
+          # Extract the raw value from single expression templates
+          extract_single_value(nodes, context)
+        else
+          {:ok, result}
+        end
       {:error, error} -> {:error, error}
     end
   end
 
-  def render(ast, context) when is_map(context) do
-    render_node(ast, context)
+  def render(ast, context, opts) when is_map(context) do
+    if opts[:preserve_types] && is_single_expression?(ast) do
+      # For single expression nodes, evaluate and return the raw value
+      case ast do
+        {:expression, [expression_ast], _opts} ->
+          evaluate_expression(expression_ast, context)
+        _ ->
+          render_node(ast, context)
+      end
+    else
+      render_node(ast, context)
+    end
   end
 
   # Private helper functions
+
+  # Checks if AST represents a single expression (no mixed text)
+  defp is_single_expression?({:expression, _expression_ast, _opts}), do: true
+  defp is_single_expression?(_), do: false
+
+  # Checks if a list of nodes represents a single value template
+  defp is_single_value_template?(nodes, _parts) do
+    case nodes do
+      [{:expression, _expression_ast, _opts}] -> true
+      _ -> false
+    end
+  end
+
+  # Extracts the raw value from a single expression template
+  defp extract_single_value([{:expression, [expression_ast], _opts}], context) do
+    evaluate_expression(expression_ast, context)
+  end
+  defp extract_single_value(_, _), do: {:error, Mau.Error.runtime_error("Not a single value template")}
 
   # Renders a list of nodes
   defp render_nodes(nodes, context) do
