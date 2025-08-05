@@ -1,7 +1,7 @@
 defmodule Mau.FilterRegistry do
   @moduledoc """
   Static registry for template filters with compile-time filter storage.
-  
+
   The filter registry manages filter functions that can be applied to values in templates
   using either pipe syntax (`{{ value | filter }}`) or function call syntax (`{{ filter(value) }}`).
   """
@@ -18,11 +18,11 @@ defmodule Mau.FilterRegistry do
     "truncate" => &Mau.Filters.StringFilters.truncate/2,
     "default" => &Mau.Filters.StringFilters.default/2,
     "strip" => &Mau.Filters.StringFilters.strip/2,
-    
+
     # Number filters
     "round" => &Mau.Filters.NumberFilters.round/2,
     "format_currency" => &Mau.Filters.NumberFilters.format_currency/2,
-    
+
     # Collection filters
     "length" => &Mau.Filters.CollectionFilters.length/2,
     "first" => &Mau.Filters.CollectionFilters.first/2,
@@ -43,7 +43,7 @@ defmodule Mau.FilterRegistry do
     "filter" => &Mau.Filters.CollectionFilters.filter/2,
     "reject" => &Mau.Filters.CollectionFilters.reject/2,
     "dump" => &Mau.Filters.CollectionFilters.dump/2,
-    
+
     # Math filters
     "abs" => &Mau.Filters.MathFilters.abs/2,
     "ceil" => &Mau.Filters.MathFilters.ceil/2,
@@ -58,9 +58,9 @@ defmodule Mau.FilterRegistry do
 
   @doc """
   Gets a filter function by name.
-  
+
   ## Examples
-  
+
       iex> {:ok, func} = Mau.FilterRegistry.get(:upper_case)
       iex> is_function(func, 2)
       true
@@ -75,16 +75,16 @@ defmodule Mau.FilterRegistry do
       function -> {:ok, function}
     end
   end
-  
+
   def get(name) when is_atom(name) do
     get(Atom.to_string(name))
   end
 
   @doc """
   Lists all registered filter names.
-  
+
   ## Examples
-  
+
       iex> Mau.FilterRegistry.list()
       ["abs", "capitalize", "ceil", "clamp", "compact", "contains", "default", "dump", "filter", "first", "flatten", "floor", "format_currency", "group_by", "join", "keys", "last", "length", "lower_case", "map", "max", "min", "mod", "power", "reject", "reverse", "round", "slice", "sort", "sqrt", "strip", "sum", "truncate", "uniq", "upper_case", "values"]
   """
@@ -97,9 +97,9 @@ defmodule Mau.FilterRegistry do
 
   @doc """
   Applies a filter to a value with the given arguments.
-  
+
   ## Examples
-  
+
       iex> Mau.FilterRegistry.apply(:upper_case, "hello", [])
       {:ok, "HELLO"}
       
@@ -109,7 +109,8 @@ defmodule Mau.FilterRegistry do
       iex> Mau.FilterRegistry.apply(:unknown, "value", [])
       {:error, :filter_not_found}
   """
-  @spec apply(filter_name(), any(), list()) :: {:ok, any()} | {:error, :filter_not_found | :filter_error}
+  @spec apply(filter_name(), any(), list()) ::
+          {:ok, any()} | {:error, :filter_not_found | :filter_error}
   def apply(name, value, args \\ []) do
     case get(name) do
       {:ok, filter_function} ->
@@ -124,10 +125,9 @@ defmodule Mau.FilterRegistry do
           error ->
             {:error, {:filter_error, error}}
         end
-      
+
       {:error, :not_found} ->
         {:error, :filter_not_found}
     end
   end
-
 end

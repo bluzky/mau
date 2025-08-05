@@ -1,19 +1,19 @@
 defmodule Mau.WhitespaceProcessor do
   @moduledoc """
   Processes template AST to apply whitespace control based on trim options.
-  
+
   This module takes an AST with trim options and applies whitespace trimming
   logic to adjacent text nodes.
   """
 
   @doc """
   Applies whitespace control to an AST based on trim options.
-  
+
   Trims whitespace from adjacent text nodes when expressions or tags
   have trim_left or trim_right options set.
-  
+
   ## Examples
-  
+
       iex> nodes = [
       ...>   {:text, ["  before  "], []},
       ...>   {:expression, [{:variable, ["name"], []}], [trim_left: true]},
@@ -41,7 +41,7 @@ defmodule Mau.WhitespaceProcessor do
         # Apply trimming to adjacent text nodes
         {updated_acc, updated_rest} = apply_trim_to_adjacent(acc, rest, trim_options)
         apply_trim_processing(updated_rest, [node | updated_acc])
-      
+
       {false, _} ->
         # No trimming needed
         apply_trim_processing(rest, [node | acc])
@@ -49,10 +49,10 @@ defmodule Mau.WhitespaceProcessor do
   end
 
   # Check if a node needs trimming applied
-  defp should_trim_node({_type, _parts, opts}) do
+  defp should_trim_node({_type, _parts, opts}) when is_list(opts) do
     trim_left = Keyword.get(opts, :trim_left, false)
     trim_right = Keyword.get(opts, :trim_right, false)
-    
+
     if trim_left || trim_right do
       {true, %{trim_left: trim_left, trim_right: trim_right}}
     else
@@ -60,20 +60,27 @@ defmodule Mau.WhitespaceProcessor do
     end
   end
 
+  # Handle non-3-tuple nodes or nodes without proper options list
+  defp should_trim_node(_node) do
+    {false, nil}
+  end
+
   # Apply trimming to adjacent text nodes
   defp apply_trim_to_adjacent(acc, rest, trim_options) do
-    updated_acc = if trim_options.trim_left do
-      trim_left_whitespace(acc)
-    else
-      acc
-    end
-    
-    updated_rest = if trim_options.trim_right do
-      trim_right_whitespace(rest)
-    else
-      rest
-    end
-    
+    updated_acc =
+      if trim_options.trim_left do
+        trim_left_whitespace(acc)
+      else
+        acc
+      end
+
+    updated_rest =
+      if trim_options.trim_right do
+        trim_right_whitespace(rest)
+      else
+        rest
+      end
+
     {updated_acc, updated_rest}
   end
 

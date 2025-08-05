@@ -135,19 +135,20 @@ defmodule Mau.Renderer do
     {:error, error}
   end
 
-
   # Context-aware variable value extraction with support for variable indices
   # All extract_variable_value_with_context/3 clauses grouped together
-  
+
   # Context-based lookup (start of path with identifier)
-  defp extract_variable_value_with_context([identifier], context, _original_context) when is_binary(identifier) do
+  defp extract_variable_value_with_context([identifier], context, _original_context)
+       when is_binary(identifier) do
     case Map.get(context, identifier) do
       nil -> {:ok, nil}
       value -> {:ok, value}
     end
   end
 
-  defp extract_variable_value_with_context([identifier | path_rest], context, original_context) when is_binary(identifier) do
+  defp extract_variable_value_with_context([identifier | path_rest], context, original_context)
+       when is_binary(identifier) do
     case Map.get(context, identifier) do
       nil -> {:ok, nil}
       value -> extract_variable_value_with_context_from_value(path_rest, value, original_context)
@@ -170,31 +171,53 @@ defmodule Mau.Renderer do
   end
 
   # Property access from value with context available
-  defp extract_variable_value_with_context_from_value([{:property, property} | path_rest], value, original_context) when is_map(value) do
+  defp extract_variable_value_with_context_from_value(
+         [{:property, property} | path_rest],
+         value,
+         original_context
+       )
+       when is_map(value) do
     case Map.get(value, property) do
-      nil -> {:ok, nil}
-      new_value -> extract_variable_value_with_context_from_value(path_rest, new_value, original_context)
+      nil ->
+        {:ok, nil}
+
+      new_value ->
+        extract_variable_value_with_context_from_value(path_rest, new_value, original_context)
     end
   end
 
   # Array index access from value with context - supports variable indices
-  defp extract_variable_value_with_context_from_value([{:index, index} | path_rest], value, original_context) do
+  defp extract_variable_value_with_context_from_value(
+         [{:index, index} | path_rest],
+         value,
+         original_context
+       ) do
     # Extract the actual index value from literal nodes or evaluate variable expressions
+
     actual_index_result =
       case index do
-        {:literal, [literal_value], _opts} -> {:ok, literal_value}
-        {:variable, _path, _opts} = var_expr -> evaluate_expression(var_expr, original_context)
-        other -> {:ok, other}
+        {:literal, [literal_value], _opts} ->
+          {:ok, literal_value}
+
+        {:variable, _path, _opts} = var_expr ->
+          evaluate_expression(var_expr, original_context)
+
+        other ->
+          {:ok, other}
       end
 
     case actual_index_result do
       {:ok, actual_index} ->
         case get_list_element(value, actual_index) do
-          nil -> {:ok, nil}
-          new_value -> extract_variable_value_with_context_from_value(path_rest, new_value, original_context)
+          nil ->
+            {:ok, nil}
+
+          new_value ->
+            extract_variable_value_with_context_from_value(path_rest, new_value, original_context)
         end
-      
-      {:error, error} -> {:error, error}
+
+      {:error, error} ->
+        {:error, error}
     end
   end
 
@@ -202,7 +225,6 @@ defmodule Mau.Renderer do
   defp extract_variable_value_with_context_from_value(_path, _value, _original_context) do
     {:ok, nil}
   end
-
 
   # Gets an element from list/map by literal index/key only
   defp get_list_element(list, index) when is_list(list) and is_integer(index) and index >= 0 do
@@ -570,7 +592,7 @@ defmodule Mau.Renderer do
   end
 
   defp ensure_iterable(value) when is_list(value), do: {:ok, value}
-  
+
   defp ensure_iterable(value) when is_map(value) do
     # Convert map to list of {key, value} tuples
     {:ok, Enum.to_list(value)}
@@ -624,11 +646,12 @@ defmodule Mau.Renderer do
     }
 
     # Add parent loop reference if we're in a nested loop
-    forloop_data = if parent_forloop do
-      Map.put(forloop_data, "parentloop", parent_forloop)
-    else
-      forloop_data
-    end
+    forloop_data =
+      if parent_forloop do
+        Map.put(forloop_data, "parentloop", parent_forloop)
+      else
+        forloop_data
+      end
 
     base_context
     |> Map.put(loop_variable, nil)

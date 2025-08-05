@@ -34,12 +34,12 @@ defmodule Mau.IntegrationTest do
       # String literals
       assert {:ok, "café"} = Mau.render(~s({{ "café" }}), %{})
       assert {:ok, "hello\nworld"} = Mau.render(~s({{ "hello\\nworld" }}), %{})
-      
+
       # Number literals
       assert {:ok, "3.14"} = Mau.render("{{ 3.14 }}", %{})
       assert {:ok, "-123"} = Mau.render("{{ -123 }}", %{})
       assert {:ok, "1.0e3"} = Mau.render("{{ 1e3 }}", %{})
-      
+
       # Boolean and null literals
       assert {:ok, "true"} = Mau.render("{{ true }}", %{})
       assert {:ok, "false"} = Mau.render("{{ false }}", %{})
@@ -55,11 +55,11 @@ defmodule Mau.IntegrationTest do
 
     test "compilation and rendering work together" do
       template = ~s(Hello {{ "world" }}!)
-      
+
       # Compile then render
       assert {:ok, ast} = Mau.compile(template)
       assert {:ok, "Hello world!"} = Mau.render(ast, %{})
-      
+
       # Direct render
       assert {:ok, "Hello world!"} = Mau.render(template, %{})
     end
@@ -73,20 +73,20 @@ defmodule Mau.IntegrationTest do
     test "complex mixed content" do
       template = """
       Welcome {{ "John" }}!
-      
+
       Your score is {{ 95 }} points.
       Premium user: {{ true }}
       Balance: {{ null }}
       """
-      
+
       expected = """
       Welcome John!
-      
+
       Your score is 95 points.
       Premium user: true
       Balance: 
       """
-      
+
       assert {:ok, ^expected} = Mau.render(template, %{})
     end
 
@@ -97,14 +97,14 @@ defmodule Mau.IntegrationTest do
         status: "Active: {{ true }}",
         plain: "No expressions here"
       }
-      
+
       expected = %{
         greeting: "Hello world!",
-        count: "Items: 42", 
+        count: "Items: 42",
         status: "Active: true",
         plain: "No expressions here"
       }
-      
+
       assert {:ok, ^expected} = Mau.render_map(data, %{})
     end
 
@@ -121,7 +121,7 @@ defmodule Mau.IntegrationTest do
           version: ~s(v{{ "2.1" }})
         }
       }
-      
+
       expected = %{
         user: %{
           name: "Alice",
@@ -134,7 +134,7 @@ defmodule Mau.IntegrationTest do
           version: "v2.1"
         }
       }
-      
+
       assert {:ok, ^expected} = Mau.render_map(data, %{})
     end
   end

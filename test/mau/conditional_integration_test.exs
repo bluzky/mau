@@ -6,27 +6,30 @@ defmodule Mau.ConditionalIntegrationTest do
     test "renders simple if tag (placeholder behavior)" do
       template = "{% if true %}Hello{% endif %}"
       context = %{}
-      
+
       # For now, conditional tags just return empty strings (placeholder)
       # The content between tags is still rendered as text
       assert {:ok, result} = Mau.render(template, context)
-      assert result == "Hello"  # Tags return empty, text content remains
+      # Tags return empty, text content remains
+      assert result == "Hello"
     end
 
     test "parses and renders if tag with variable condition" do
       template = "{% if user.active %}Welcome back!{% endif %}"
       context = %{"user" => %{"active" => true}}
-      
+
       assert {:ok, result} = Mau.render(template, context)
-      assert result == "Welcome back!"  # Text content is rendered
+      # Text content is rendered
+      assert result == "Welcome back!"
     end
 
     test "handles false condition in if tag" do
       template = "{% if false %}Hidden content{% endif %}"
       context = %{}
-      
+
       assert {:ok, result} = Mau.render(template, context)
-      assert result == ""  # Content should not render when condition is false
+      # Content should not render when condition is false
+      assert result == ""
     end
 
     test "parses multiple conditional tags" do
@@ -39,9 +42,9 @@ defmodule Mau.ConditionalIntegrationTest do
       Keep trying!
       {% endif %}
       """
-      
+
       context = %{"score" => 85}
-      
+
       assert {:ok, result} = Mau.render(template, context)
       # Only the matching elsif branch should render
       refute String.contains?(result, "Excellent!")
@@ -56,23 +59,24 @@ defmodule Mau.ConditionalIntegrationTest do
       Hello {{ name }}!
       {% endif %}
       """
-      
+
       context = %{}
-      
-      assert {:ok, result} = Mau.render(template, context)      
+
+      assert {:ok, result} = Mau.render(template, context)
       assert String.contains?(result, "Hello World!")
     end
 
     test "evaluates complex conditions" do
       template = "{% if age >= 18 and status == \"active\" %}Access granted{% endif %}"
       context = %{"age" => 25, "status" => "active"}
-      
+
       assert {:ok, result} = Mau.render(template, context)
       assert String.contains?(result, "Access granted")
     end
 
     test "handles nested variable access in conditions" do
       template = "{% if user.profile.email %}User has email{% endif %}"
+
       context = %{
         "user" => %{
           "profile" => %{
@@ -80,7 +84,7 @@ defmodule Mau.ConditionalIntegrationTest do
           }
         }
       }
-      
+
       assert {:ok, result} = Mau.render(template, context)
       assert String.contains?(result, "User has email")
     end

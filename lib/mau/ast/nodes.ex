@@ -1,7 +1,7 @@
 defmodule Mau.AST.Nodes do
   @moduledoc """
   AST node helpers for the Mau template engine.
-  
+
   Provides functions to create AST nodes that follow the 
   unified tuple format: `{type, parts, opts}`.
   """
@@ -65,7 +65,8 @@ defmodule Mau.AST.Nodes do
   @doc """
   Creates a function call node for function calls and filters.
   """
-  def call_node(function_name, args, opts \\ []) when is_binary(function_name) and is_list(args) do
+  def call_node(function_name, args, opts \\ [])
+      when is_binary(function_name) and is_list(args) do
     {:call, [function_name, args], opts}
   end
 

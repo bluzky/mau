@@ -1,7 +1,7 @@
 defmodule Mau do
   @moduledoc """
   Mau template engine for the Prana template language.
-  
+
   Provides three main functions:
   - `compile/2` - Parse template string into AST
   - `render/3` - Render template string or AST with context
@@ -15,14 +15,14 @@ defmodule Mau do
 
   @doc """
   Compiles a template string into an AST.
-  
+
   Handles text and expression blocks.
-  
+
   ## Options
   - `:strict_mode` - boolean, default `false`
-  
+
   ## Examples
-  
+
       iex> Mau.compile("Hello world")
       {:ok, [{:text, ["Hello world"], []}]}
   """
@@ -34,6 +34,7 @@ defmodule Mau do
         else
           {:ok, ast}
         end
+
       {:error, error} ->
         {:error, error}
     end
@@ -41,11 +42,11 @@ defmodule Mau do
 
   @doc """
   Renders a template string or AST with the given context.
-  
+
   For Group 1, only handles plain text templates.
-  
+
   ## Examples
-  
+
       iex> Mau.render("Hello world", %{})
       {:ok, "Hello world"}
   """
@@ -70,11 +71,11 @@ defmodule Mau do
 
   @doc """
   Recursively renders template strings in nested maps.
-  
+
   For Group 1, only handles plain text templates.
-  
+
   ## Examples
-  
+
       iex> Mau.render_map(%{message: "Hello world"}, %{})
       {:ok, %{message: "Hello world"}}
   """
@@ -100,10 +101,12 @@ defmodule Mau do
     if has_template_syntax?(value) do
       case render(value, context, opts) do
         {:ok, result} -> result
-        {:error, _} -> value  # Return original value if rendering fails
+        # Return original value if rendering fails
+        {:error, _} -> value
       end
     else
-      value  # Return as-is if no template syntax
+      # Return as-is if no template syntax
+      value
     end
   end
 
@@ -111,8 +114,8 @@ defmodule Mau do
 
   # Helper to check if a string contains template syntax
   defp has_template_syntax?(value) when is_binary(value) do
-    String.contains?(value, "{{") or 
-    String.contains?(value, "{%") or 
-    String.contains?(value, "{#")
+    String.contains?(value, "{{") or
+      String.contains?(value, "{%") or
+      String.contains?(value, "{#")
   end
 end

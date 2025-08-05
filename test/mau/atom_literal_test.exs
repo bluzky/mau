@@ -107,7 +107,9 @@ defmodule Mau.AtomLiteralTest do
         }
       }
 
-      template = "Users: {{ data[:users][0] }}, {{ data[:users][1] }}. Count: {{ data[\"count\"] }}. Active: {{ data[:active] }}"
+      template =
+        "Users: {{ data[:users][0] }}, {{ data[:users][1] }}. Count: {{ data[\"count\"] }}. Active: {{ data[:active] }}"
+
       expected = "Users: Alice, Bob. Count: 2. Active: true"
       assert {:ok, ^expected} = Mau.render(template, context)
     end
@@ -116,12 +118,26 @@ defmodule Mau.AtomLiteralTest do
   describe "Variable Index Support" do
     test "now parses templates with variable indices successfully" do
       # Variable indices are now supported (updated behavior)
-      assert {:ok, [{:expression, [{:variable, ["items", {:index, {:variable, ["index"], []}}], []}], []}]} = 
-        Parser.parse("{{ items[index] }}")
-      assert {:ok, [{:expression, [{:variable, ["user", {:index, {:variable, ["field"], []}}], []}], []}]} = 
-        Parser.parse("{{ user[field] }}")
-      assert {:ok, [{:expression, [{:variable, ["data", {:index, {:variable, ["key_var"], []}}], []}], []}]} = 
-        Parser.parse("{{ data[key_var] }}")
+      assert {:ok,
+              [
+                {:expression, [{:variable, ["items", {:index, {:variable, ["index"], []}}], []}],
+                 []}
+              ]} =
+               Parser.parse("{{ items[index] }}")
+
+      assert {:ok,
+              [
+                {:expression, [{:variable, ["user", {:index, {:variable, ["field"], []}}], []}],
+                 []}
+              ]} =
+               Parser.parse("{{ user[field] }}")
+
+      assert {:ok,
+              [
+                {:expression, [{:variable, ["data", {:index, {:variable, ["key_var"], []}}], []}],
+                 []}
+              ]} =
+               Parser.parse("{{ data[key_var] }}")
     end
 
     test "only accepts literal values in array index syntax" do

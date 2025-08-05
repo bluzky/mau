@@ -7,7 +7,9 @@ defmodule Mau.StringLiteralTest do
     test "parses double-quoted strings" do
       assert {:ok, {:literal, ["hello"], []}} = Parser.parse_string_literal("\"hello\"")
       assert {:ok, {:literal, [""], []}} = Parser.parse_string_literal("\"\"")
-      assert {:ok, {:literal, ["Hello World"], []}} = Parser.parse_string_literal("\"Hello World\"")
+
+      assert {:ok, {:literal, ["Hello World"], []}} =
+               Parser.parse_string_literal("\"Hello World\"")
     end
 
     test "parses single-quoted strings" do
@@ -17,15 +19,25 @@ defmodule Mau.StringLiteralTest do
     end
 
     test "handles escape sequences in double quotes" do
-      assert {:ok, {:literal, ["hello \"world\""], []}} = Parser.parse_string_literal("\"hello \\\"world\\\"\"")
-      assert {:ok, {:literal, ["line1\nline2"], []}} = Parser.parse_string_literal("\"line1\\nline2\"")
+      assert {:ok, {:literal, ["hello \"world\""], []}} =
+               Parser.parse_string_literal("\"hello \\\"world\\\"\"")
+
+      assert {:ok, {:literal, ["line1\nline2"], []}} =
+               Parser.parse_string_literal("\"line1\\nline2\"")
+
       assert {:ok, {:literal, ["tab\there"], []}} = Parser.parse_string_literal("\"tab\\there\"")
-      assert {:ok, {:literal, ["backslash\\here"], []}} = Parser.parse_string_literal("\"backslash\\\\here\"")
+
+      assert {:ok, {:literal, ["backslash\\here"], []}} =
+               Parser.parse_string_literal("\"backslash\\\\here\"")
     end
 
     test "handles escape sequences in single quotes" do
-      assert {:ok, {:literal, ["hello 'world'"], []}} = Parser.parse_string_literal("'hello \\'world\\''")
-      assert {:ok, {:literal, ["line1\nline2"], []}} = Parser.parse_string_literal("'line1\\nline2'")
+      assert {:ok, {:literal, ["hello 'world'"], []}} =
+               Parser.parse_string_literal("'hello \\'world\\''")
+
+      assert {:ok, {:literal, ["line1\nline2"], []}} =
+               Parser.parse_string_literal("'line1\\nline2'")
+
       assert {:ok, {:literal, ["tab\there"], []}} = Parser.parse_string_literal("'tab\\there'")
     end
 
@@ -41,8 +53,8 @@ defmodule Mau.StringLiteralTest do
     end
 
     test "handles mixed content strings" do
-      assert {:ok, {:literal, ["Mix 'single' and \"double\" quotes"], []}} = 
-        Parser.parse_string_literal("\"Mix 'single' and \\\"double\\\" quotes\"")
+      assert {:ok, {:literal, ["Mix 'single' and \"double\" quotes"], []}} =
+               Parser.parse_string_literal("\"Mix 'single' and \\\"double\\\" quotes\"")
     end
 
     test "fails on unterminated strings" do

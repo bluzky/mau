@@ -5,9 +5,9 @@ defmodule Mau.Filters.StringFilters do
 
   @doc """
   Converts a string to uppercase.
-  
+
   ## Examples
-  
+
       iex> Mau.Filters.StringFilters.upper_case("hello", [])
       {:ok, "HELLO"}
       
@@ -17,16 +17,16 @@ defmodule Mau.Filters.StringFilters do
   def upper_case(value, _args) when is_binary(value) do
     {:ok, String.upcase(value)}
   end
-  
+
   def upper_case(value, _args) do
     {:ok, value |> to_string() |> String.upcase()}
   end
 
   @doc """
   Converts a string to lowercase.
-  
+
   ## Examples
-  
+
       iex> Mau.Filters.StringFilters.lower_case("HELLO", [])
       {:ok, "hello"}
       
@@ -36,16 +36,16 @@ defmodule Mau.Filters.StringFilters do
   def lower_case(value, _args) when is_binary(value) do
     {:ok, String.downcase(value)}
   end
-  
+
   def lower_case(value, _args) do
     {:ok, value |> to_string() |> String.downcase()}
   end
 
   @doc """
   Capitalizes the first letter of a string.
-  
+
   ## Examples
-  
+
       iex> Mau.Filters.StringFilters.capitalize("hello world", [])
       {:ok, "Hello world"}
       
@@ -55,16 +55,16 @@ defmodule Mau.Filters.StringFilters do
   def capitalize(value, _args) when is_binary(value) do
     {:ok, String.capitalize(value)}
   end
-  
+
   def capitalize(value, _args) do
     {:ok, value |> to_string() |> String.capitalize()}
   end
 
   @doc """
   Truncates a string to the specified length.
-  
+
   ## Examples
-  
+
       iex> Mau.Filters.StringFilters.truncate("hello world", [5])
       {:ok, "hello"}
       
@@ -81,27 +81,27 @@ defmodule Mau.Filters.StringFilters do
     case args do
       [length] when is_integer(length) and length >= 0 ->
         {:ok, String.slice(value, 0, length)}
-      
+
       [length] when is_integer(length) ->
         {:error, "Truncate length must be non-negative"}
-      
+
       [] ->
         {:ok, value}
-      
+
       _ ->
         {:error, "Invalid truncate arguments"}
     end
   end
-  
+
   def truncate(value, args) do
     truncate(to_string(value), args)
   end
 
   @doc """
   Returns the default value if the input is nil, empty, or falsy.
-  
+
   ## Examples
-  
+
       iex> Mau.Filters.StringFilters.default(nil, ["fallback"])
       {:ok, "fallback"}
       
@@ -112,27 +112,29 @@ defmodule Mau.Filters.StringFilters do
       {:ok, "value"}
   """
   def default(value, args) do
-    fallback = case args do
-      [fallback_value] -> fallback_value
-      [] -> ""
-      _ -> ""
-    end
-    
-    result = case value do
-      nil -> fallback
-      "" -> fallback
-      false -> fallback
-      _ -> value
-    end
-    
+    fallback =
+      case args do
+        [fallback_value] -> fallback_value
+        [] -> ""
+        _ -> ""
+      end
+
+    result =
+      case value do
+        nil -> fallback
+        "" -> fallback
+        false -> fallback
+        _ -> value
+      end
+
     {:ok, result}
   end
 
   @doc """
   Removes leading and trailing whitespace from a string.
-  
+
   ## Examples
-  
+
       iex> Mau.Filters.StringFilters.strip("  hello world  ", [])
       {:ok, "hello world"}
       
@@ -145,7 +147,7 @@ defmodule Mau.Filters.StringFilters do
   def strip(value, _args) when is_binary(value) do
     {:ok, String.trim(value)}
   end
-  
+
   def strip(value, args) do
     strip(to_string(value), args)
   end

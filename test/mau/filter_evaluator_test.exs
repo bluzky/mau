@@ -12,7 +12,9 @@ defmodule Mau.FilterEvaluatorTest do
     end
 
     test "evaluates filter with arguments" do
-      call_node = {:call, ["truncate", [{:literal, ["hello world"], []}, {:literal, [5], []}]], []}
+      call_node =
+        {:call, ["truncate", [{:literal, ["hello world"], []}, {:literal, [5], []}]], []}
+
       context = %{}
 
       assert {:ok, "hello"} = Renderer.render_node({:expression, [call_node], []}, context)
@@ -27,7 +29,9 @@ defmodule Mau.FilterEvaluatorTest do
 
     test "evaluates chained filters" do
       # Nested call: upper_case(truncate("hello world", 5))
-      inner_call = {:call, ["truncate", [{:literal, ["hello world"], []}, {:literal, [5], []}]], []}
+      inner_call =
+        {:call, ["truncate", [{:literal, ["hello world"], []}, {:literal, [5], []}]], []}
+
       outer_call = {:call, ["upper_case", [inner_call]], []}
       context = %{}
 
@@ -63,14 +67,18 @@ defmodule Mau.FilterEvaluatorTest do
     end
 
     test "evaluates default filter with nil input" do
-      call_node = {:call, ["default", [{:variable, ["missing"], []}, {:literal, ["fallback"], []}]], []}
+      call_node =
+        {:call, ["default", [{:variable, ["missing"], []}, {:literal, ["fallback"], []}]], []}
+
       context = %{}
 
       assert {:ok, "fallback"} = Renderer.render_node({:expression, [call_node], []}, context)
     end
 
     test "evaluates default filter with existing value" do
-      call_node = {:call, ["default", [{:variable, ["name"], []}, {:literal, ["fallback"], []}]], []}
+      call_node =
+        {:call, ["default", [{:variable, ["name"], []}, {:literal, ["fallback"], []}]], []}
+
       context = %{"name" => "actual"}
 
       assert {:ok, "actual"} = Renderer.render_node({:expression, [call_node], []}, context)
@@ -97,7 +105,9 @@ defmodule Mau.FilterEvaluatorTest do
 
     test "evaluates filters with complex expressions as arguments" do
       # truncate(name + " world", price * 2)
-      name_plus_world = {:binary_op, ["+", {:variable, ["name"], []}, {:literal, [" world"], []}], []}
+      name_plus_world =
+        {:binary_op, ["+", {:variable, ["name"], []}, {:literal, [" world"], []}], []}
+
       price_times_two = {:binary_op, ["*", {:variable, ["price"], []}, {:literal, [2], []}], []}
       call_node = {:call, ["truncate", [name_plus_world, price_times_two]], []}
       context = %{"name" => "hello", "price" => 3}

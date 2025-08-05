@@ -8,13 +8,13 @@ defmodule Mau.NumberLiteralTest do
       assert {:ok, {:literal, [0], []}} = Parser.parse_number_literal("0")
       assert {:ok, {:literal, [42], []}} = Parser.parse_number_literal("42")
       assert {:ok, {:literal, [123], []}} = Parser.parse_number_literal("123")
-      assert {:ok, {:literal, [999999], []}} = Parser.parse_number_literal("999999")
+      assert {:ok, {:literal, [999_999], []}} = Parser.parse_number_literal("999999")
     end
 
     test "parses negative integers" do
       assert {:ok, {:literal, [-42], []}} = Parser.parse_number_literal("-42")
       assert {:ok, {:literal, [-123], []}} = Parser.parse_number_literal("-123")
-      assert {:ok, {:literal, [-999999], []}} = Parser.parse_number_literal("-999999")
+      assert {:ok, {:literal, [-999_999], []}} = Parser.parse_number_literal("-999999")
     end
 
     test "parses positive floats" do
@@ -50,13 +50,20 @@ defmodule Mau.NumberLiteralTest do
     end
 
     test "fails on invalid number formats" do
-      assert {:error, _} = Parser.parse_number_literal("01")  # Leading zero
-      assert {:error, _} = Parser.parse_number_literal("3.")   # Trailing dot without digits
-      assert {:error, _} = Parser.parse_number_literal(".5")   # No integer part
-      assert {:error, _} = Parser.parse_number_literal("1e")   # No exponent digits
-      assert {:error, _} = Parser.parse_number_literal("1e+")  # No exponent digits after sign
-      assert {:error, _} = Parser.parse_number_literal("--1")  # Double negative
-      assert {:error, _} = Parser.parse_number_literal("abc")  # Non-numeric
+      # Leading zero
+      assert {:error, _} = Parser.parse_number_literal("01")
+      # Trailing dot without digits
+      assert {:error, _} = Parser.parse_number_literal("3.")
+      # No integer part
+      assert {:error, _} = Parser.parse_number_literal(".5")
+      # No exponent digits
+      assert {:error, _} = Parser.parse_number_literal("1e")
+      # No exponent digits after sign
+      assert {:error, _} = Parser.parse_number_literal("1e+")
+      # Double negative
+      assert {:error, _} = Parser.parse_number_literal("--1")
+      # Non-numeric
+      assert {:error, _} = Parser.parse_number_literal("abc")
     end
 
     test "fails on numbers with extra characters" do
@@ -66,12 +73,13 @@ defmodule Mau.NumberLiteralTest do
 
     test "handles edge cases" do
       # Very large numbers
-      assert {:ok, {:literal, [999999999999999999], []}} = Parser.parse_number_literal("999999999999999999")
-      
+      assert {:ok, {:literal, [999_999_999_999_999_999], []}} =
+               Parser.parse_number_literal("999999999999999999")
+
       # Very small floats
       assert {:ok, {:literal, [0.000001], []}} = Parser.parse_number_literal("0.000001")
       assert {:ok, {:literal, [1.0e-300], []}} = Parser.parse_number_literal("1e-300")
-      
+
       # Very large scientific notation
       assert {:ok, {:literal, [1.0e300], []}} = Parser.parse_number_literal("1e300")
     end

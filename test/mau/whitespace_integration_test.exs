@@ -7,8 +7,9 @@ defmodule Mau.WhitespaceIntegrationTest do
       template = """
       Hello   {{- name }}   World
       """
+
       context = %{"name" => "Alice"}
-      
+
       assert {:ok, result} = Mau.render(template, context)
       # Left trim should remove trailing whitespace before the expression
       assert result == "HelloAlice   World\n"
@@ -18,8 +19,9 @@ defmodule Mau.WhitespaceIntegrationTest do
       template = """
       Hello   {{ name -}}   World
       """
+
       context = %{"name" => "Alice"}
-      
+
       assert {:ok, result} = Mau.render(template, context)
       # Right trim should remove leading whitespace after the expression
       assert result == "Hello   AliceWorld\n"
@@ -29,8 +31,9 @@ defmodule Mau.WhitespaceIntegrationTest do
       template = """
       Hello   {{- name -}}   World
       """
+
       context = %{"name" => "Alice"}
-      
+
       assert {:ok, result} = Mau.render(template, context)
       # Both trim should remove whitespace on both sides
       assert result == "HelloAliceWorld\n"
@@ -40,8 +43,9 @@ defmodule Mau.WhitespaceIntegrationTest do
       template = """
       Hello   {%- assign greeting = "Hi" %}   World
       """
+
       context = %{}
-      
+
       assert {:ok, result} = Mau.render(template, context)
       # Left trim should remove trailing whitespace before the tag
       assert result == "Hello   World\n"
@@ -51,8 +55,9 @@ defmodule Mau.WhitespaceIntegrationTest do
       template = """
       Hello   {% assign greeting = "Hi" -%}   World
       """
+
       context = %{}
-      
+
       assert {:ok, result} = Mau.render(template, context)
       # Right trim should remove leading whitespace after the tag
       assert result == "Hello   World\n"
@@ -62,8 +67,9 @@ defmodule Mau.WhitespaceIntegrationTest do
       template = """
       Hello   {%- assign greeting = "Hi" -%}   World
       """
+
       context = %{}
-      
+
       assert {:ok, result} = Mau.render(template, context)
       # Both trim should remove whitespace on both sides
       assert result == "HelloWorld\n"
@@ -73,8 +79,9 @@ defmodule Mau.WhitespaceIntegrationTest do
       template = """
       Start   {{- first -}}   Middle   {{- second -}}   End
       """
+
       context = %{"first" => "A", "second" => "B"}
-      
+
       assert {:ok, result} = Mau.render(template, context)
       # Should trim around each expression
       assert result == "StartAMiddleBEnd\n"
@@ -84,8 +91,9 @@ defmodule Mau.WhitespaceIntegrationTest do
       template = """
       Before   {%- if true -%}   Inside   {%- endif -%}   After
       """
+
       context = %{}
-      
+
       assert {:ok, result} = Mau.render(template, context)
       # Should trim around the conditional block tags
       assert result == "BeforeInsideAfter\n"
@@ -95,8 +103,9 @@ defmodule Mau.WhitespaceIntegrationTest do
       template = """
       Start   {%- for item in items -%}{{ item }}{%- endfor -%}   End
       """
+
       context = %{"items" => ["A", "B", "C"]}
-      
+
       assert {:ok, result} = Mau.render(template, context)
       # Should trim around the loop block
       assert result == "StartABCEnd\n"
@@ -106,8 +115,9 @@ defmodule Mau.WhitespaceIntegrationTest do
       template = """
       Hello   {{ name }}   World
       """
+
       context = %{"name" => "Alice"}
-      
+
       assert {:ok, result} = Mau.render(template, context)
       # Should preserve all whitespace when no trim is specified
       assert result == "Hello   Alice   World\n"
@@ -117,8 +127,9 @@ defmodule Mau.WhitespaceIntegrationTest do
       template = """
       A   {{- one }}   B   {{ two -}}   C   {{- three -}}   D
       """
+
       context = %{"one" => "1", "two" => "2", "three" => "3"}
-      
+
       assert {:ok, result} = Mau.render(template, context)
       # Should apply different trim behaviors correctly
       assert result == "A1   B   2C3D\n"
@@ -130,8 +141,9 @@ defmodule Mau.WhitespaceIntegrationTest do
         {{- indented }}
       Line 2
       """
+
       context = %{"indented" => "CONTENT"}
-      
+
       assert {:ok, result} = Mau.render(template, context)
       # Should trim the newline and indentation before the expression
       assert result == "Line 1CONTENT\nLine 2\n"
@@ -140,7 +152,7 @@ defmodule Mau.WhitespaceIntegrationTest do
     test "handles empty result after trimming" do
       template = "   {{- empty -}}   "
       context = %{"empty" => ""}
-      
+
       assert {:ok, result} = Mau.render(template, context)
       # Should result in empty string after trimming both sides
       assert result == ""

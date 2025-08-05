@@ -1,7 +1,7 @@
 defmodule Mau.Parser do
   @moduledoc """
   Parser for the Mau template engine using NimbleParsec.
-  
+
   Handles parsing of template strings into AST nodes.
   Supports plain text parsing and string literals with escape sequences.
   """
@@ -36,7 +36,7 @@ defmodule Mau.Parser do
   double_quoted_char =
     choice([
       escaped_char,
-      utf8_char([not: ?", not: ?\\])
+      utf8_char(not: ?", not: ?\\)
     ])
 
   double_quoted_string =
@@ -49,7 +49,7 @@ defmodule Mau.Parser do
   single_quoted_char =
     choice([
       escaped_char,
-      utf8_char([not: ?', not: ?\\])
+      utf8_char(not: ?', not: ?\\)
     ])
 
   single_quoted_string =
@@ -128,8 +128,12 @@ defmodule Mau.Parser do
   # Boolean literals - with word boundary check
   boolean_literal =
     choice([
-      string("true") |> concat(lookahead_not(ascii_char([?a..?z, ?A..?Z, ?0..?9, ?_]))) |> replace(true),
-      string("false") |> concat(lookahead_not(ascii_char([?a..?z, ?A..?Z, ?0..?9, ?_]))) |> replace(false)
+      string("true")
+      |> concat(lookahead_not(ascii_char([?a..?z, ?A..?Z, ?0..?9, ?_])))
+      |> replace(true),
+      string("false")
+      |> concat(lookahead_not(ascii_char([?a..?z, ?A..?Z, ?0..?9, ?_])))
+      |> replace(false)
     ])
     |> reduce(:build_boolean_literal_node)
 
@@ -152,7 +156,7 @@ defmodule Mau.Parser do
   # Must start with letter or underscore, can contain numbers after first char
   identifier_start = ascii_char([?a..?z, ?A..?Z, ?_])
   identifier_char = ascii_char([?a..?z, ?A..?Z, ?0..?9, ?_])
-  
+
   # Basic identifier (user, name, index, etc.)
   basic_identifier =
     identifier_start
@@ -190,7 +194,7 @@ defmodule Mau.Parser do
     ignore(string("["))
     |> ignore(optional_whitespace)
     |> parsec(:array_index_content)
-    |> ignore(optional_whitespace)  
+    |> ignore(optional_whitespace)
     |> ignore(string("]"))
     |> reduce(:build_array_index)
 
@@ -208,12 +212,17 @@ defmodule Mau.Parser do
     |> reduce(:build_variable_path)
 
   # Array index content - now that variable_path is defined
-  defcombinatorp(:array_index_content,
+  defcombinatorp(
+    :array_index_content,
     choice([
-      number_literal,   # Literal number index like [0], [123], [-1]
-      string_literal,   # Literal string key like ["key"], ["name"]
-      atom_literal,     # Literal atom key like [:key], [:name]
-      variable_path     # Variable expression like [key], [index], [user.id]
+      # Literal number index like [0], [123], [-1]
+      number_literal,
+      # Literal string key like ["key"], ["name"]
+      string_literal,
+      # Literal atom key like [:key], [:name]
+      atom_literal,
+      # Variable expression like [key], [index], [user.id]
+      variable_path
     ])
   )
 
@@ -234,7 +243,8 @@ defmodule Mau.Parser do
 
   # Forward declare atom expression to include parentheses and function calls
   # We avoid circular dependencies by using additive_expression instead of logical_or_expression
-  defcombinatorp(:atom_expression,
+  defcombinatorp(
+    :atom_expression,
     choice([
       # Function call syntax: func(arg1, arg2) - must come before primary_expression
       identifier
@@ -245,14 +255,14 @@ defmodule Mau.Parser do
       |> ignore(optional_whitespace)
       |> ignore(string(")"))
       |> reduce(:build_function_call),
-      
+
       # Parentheses with full expression support
       ignore(string("("))
       |> ignore(optional_whitespace)
-      |> parsec(:pipe_expression)  # Use pipe_expression for full expression support in parentheses
+      # Use pipe_expression for full expression support in parentheses
+      |> parsec(:pipe_expression)
       |> ignore(optional_whitespace)
       |> ignore(string(")")),
-      
       primary_expression
     ])
   )
@@ -262,7 +272,8 @@ defmodule Mau.Parser do
   # ============================================================================
 
   # Argument list for function calls - uses primary expressions to avoid circular dependencies
-  defcombinatorp(:argument_list,
+  defcombinatorp(
+    :argument_list,
     primary_expression
     |> repeat(
       ignore(optional_whitespace)
@@ -361,7 +372,7 @@ defmodule Mau.Parser do
       |> ignore(required_whitespace)
       |> concat(parsec(:unary_expression))
       |> reduce(:build_unary_operation),
-      
+
       # No unary operator
       relational_expression
     ])
@@ -413,7 +424,7 @@ defmodule Mau.Parser do
   #     |> reduce({:build_tag, [:include]})
 
   # Generic tag parser helpers - combinators for common patterns
-  
+
   # Assignment tag parsing - {% assign variable = expression %}
   assign_tag =
     ignore(string("assign"))
@@ -466,7 +477,7 @@ defmodule Mau.Parser do
     |> reduce({:build_tag, [:endfor]})
 
   # Tag content - assignment, conditional, and loop tags
-  tag_content = 
+  tag_content =
     choice([
       assign_tag,
       if_tag,
@@ -477,18 +488,26 @@ defmodule Mau.Parser do
       endfor_tag
     ])
 
-  # Tag block with {% %} delimiters
   # Tag block with {% %} delimiters (with optional trim)
+  # Ordered by specificity to avoid ambiguous matches
   tag_block =
     choice([
+      # Both trim: {%- tag -%} (most specific - must come first)
+      ignore(string("{%-"))
+      |> ignore(optional_whitespace)
+      |> concat(tag_content)
+      |> ignore(optional_whitespace)
+      |> ignore(string("-%}"))
+      |> reduce(:build_tag_node_with_both_trim),
+
       # Left trim: {%- tag %}
       ignore(string("{%-"))
       |> ignore(optional_whitespace)
-      |> concat(tag_content)  
+      |> concat(tag_content)
       |> ignore(optional_whitespace)
       |> ignore(string("%}"))
       |> reduce(:build_tag_node_with_left_trim),
-      
+
       # Right trim: {% tag -%}
       ignore(string("{%"))
       |> ignore(optional_whitespace)
@@ -496,15 +515,7 @@ defmodule Mau.Parser do
       |> ignore(optional_whitespace)
       |> ignore(string("-%}"))
       |> reduce(:build_tag_node_with_right_trim),
-      
-      # Both trim: {%- tag -%}
-      ignore(string("{%-"))
-      |> ignore(optional_whitespace)
-      |> concat(tag_content)
-      |> ignore(optional_whitespace)
-      |> ignore(string("-%}"))
-      |> reduce(:build_tag_node_with_both_trim),
-      
+
       # No trim: {% tag %}
       ignore(string("{%"))
       |> ignore(optional_whitespace)
@@ -525,7 +536,7 @@ defmodule Mau.Parser do
         # Match # that's not followed by }
         string("#") |> lookahead_not(string("}")),
         # Match anything that's not #
-        utf8_char([not: ?#])
+        utf8_char(not: ?#)
       ])
     )
     |> reduce(:build_comment_content)
@@ -553,13 +564,14 @@ defmodule Mau.Parser do
       |> ignore(optional_whitespace)
       |> ignore(string(")"))
       |> reduce(:build_pipe_function_call),
-      
+
       # Simple identifier: filter
       identifier
     ])
 
   # Forward declare pipe expression to break circular dependency
-  defcombinatorp(:pipe_expression,
+  defcombinatorp(
+    :pipe_expression,
     logical_or_expression
     |> repeat(
       ignore(optional_whitespace)
@@ -574,8 +586,17 @@ defmodule Mau.Parser do
   expression_value = parsec(:pipe_expression)
 
   # Expression block with {{ }} delimiters (with optional trim)
+  # Ordered by specificity to avoid ambiguous matches
   expression_block =
     choice([
+      # Both trim: {{- expr -}} (most specific - must come first)
+      ignore(string("{{-"))
+      |> ignore(optional_whitespace)
+      |> concat(expression_value)
+      |> ignore(optional_whitespace)
+      |> ignore(string("-}}"))
+      |> reduce(:build_expression_node_with_both_trim),
+
       # Left trim: {{- expr }}
       ignore(string("{{-"))
       |> ignore(optional_whitespace)
@@ -583,7 +604,7 @@ defmodule Mau.Parser do
       |> ignore(optional_whitespace)
       |> ignore(string("}}"))
       |> reduce(:build_expression_node_with_left_trim),
-      
+
       # Right trim: {{ expr -}}
       ignore(string("{{"))
       |> ignore(optional_whitespace)
@@ -591,15 +612,7 @@ defmodule Mau.Parser do
       |> ignore(optional_whitespace)
       |> ignore(string("-}}"))
       |> reduce(:build_expression_node_with_right_trim),
-      
-      # Both trim: {{- expr -}}
-      ignore(string("{{-"))
-      |> ignore(optional_whitespace)
-      |> concat(expression_value)
-      |> ignore(optional_whitespace)
-      |> ignore(string("-}}"))
-      |> reduce(:build_expression_node_with_both_trim),
-      
+
       # No trim: {{ expr }}
       ignore(string("{{"))
       |> ignore(optional_whitespace)
@@ -626,28 +639,28 @@ defmodule Mau.Parser do
 
   # Main template parser - handles mixed content
   defparsec(:parse_template, repeat(template_content))
-  
+
   # Parser for additive expressions (needed for recursive parsing)
   defparsec(:additive_expression, additive_expression)
-  
+
   # Parser for logical OR expressions (needed for recursive parsing in parentheses)
   defparsec(:logical_or_expression, logical_or_expression)
-  
+
   # Parser for unary expressions (needed for recursive parsing)
   defparsec(:unary_expression, unary_expression)
-  
+
   # Parser for testing string literals directly
   defparsec(:parse_string_literal_raw, string_literal)
-  
+
   # Parser for testing number literals directly
   defparsec(:parse_number_literal_raw, number_literal)
-  
+
   # Parser for testing boolean literals directly
   defparsec(:parse_boolean_literal_raw, boolean_literal)
-  
+
   # Parser for testing null literals directly
   defparsec(:parse_null_literal_raw, null_literal)
-  
+
   # Parser for testing expression blocks directly
   defparsec(:parse_expression_block_raw, expression_block)
 
@@ -659,9 +672,9 @@ defmodule Mau.Parser do
 
   @doc """
   Parses a string literal and returns a clean result.
-  
+
   ## Examples
-  
+
       iex> Mau.Parser.parse_string_literal(~s("hello"))
       {:ok, {:literal, ["hello"], []}}
       
@@ -672,8 +685,10 @@ defmodule Mau.Parser do
     case parse_string_literal_raw(input) do
       {:ok, [ast], "", _, _, _} ->
         {:ok, ast}
+
       {:ok, [_ast], remaining, _, _, _} ->
         {:error, "Unexpected input after string: #{remaining}"}
+
       {:error, reason, _remaining, _context, {line, column}, _offset} ->
         {:error, "Parse error at line #{line}, column #{column}: #{reason}"}
     end
@@ -681,9 +696,9 @@ defmodule Mau.Parser do
 
   @doc """
   Parses a number literal and returns a clean result.
-  
+
   ## Examples
-  
+
       iex> Mau.Parser.parse_number_literal("42")
       {:ok, {:literal, [42], []}}
       
@@ -697,8 +712,10 @@ defmodule Mau.Parser do
     case parse_number_literal_raw(input) do
       {:ok, [ast], "", _, _, _} ->
         {:ok, ast}
+
       {:ok, [_ast], remaining, _, _, _} ->
         {:error, "Unexpected input after number: #{remaining}"}
+
       {:error, reason, _remaining, _context, {line, column}, _offset} ->
         {:error, "Parse error at line #{line}, column #{column}: #{reason}"}
     end
@@ -706,9 +723,9 @@ defmodule Mau.Parser do
 
   @doc """
   Parses a boolean literal and returns a clean result.
-  
+
   ## Examples
-  
+
       iex> Mau.Parser.parse_boolean_literal("true")
       {:ok, {:literal, [true], []}}
       
@@ -719,8 +736,10 @@ defmodule Mau.Parser do
     case parse_boolean_literal_raw(input) do
       {:ok, [ast], "", _, _, _} ->
         {:ok, ast}
+
       {:ok, [_ast], remaining, _, _, _} ->
         {:error, "Unexpected input after boolean: #{remaining}"}
+
       {:error, reason, _remaining, _context, {line, column}, _offset} ->
         {:error, "Parse error at line #{line}, column #{column}: #{reason}"}
     end
@@ -728,9 +747,9 @@ defmodule Mau.Parser do
 
   @doc """
   Parses a null literal and returns a clean result.
-  
+
   ## Examples
-  
+
       iex> Mau.Parser.parse_null_literal("null")
       {:ok, {:literal, [nil], []}}
   """
@@ -738,8 +757,10 @@ defmodule Mau.Parser do
     case parse_null_literal_raw(input) do
       {:ok, [ast], "", _, _, _} ->
         {:ok, ast}
+
       {:ok, [_ast], remaining, _, _, _} ->
         {:error, "Unexpected input after null: #{remaining}"}
+
       {:error, reason, _remaining, _context, {line, column}, _offset} ->
         {:error, "Parse error at line #{line}, column #{column}: #{reason}"}
     end
@@ -747,9 +768,9 @@ defmodule Mau.Parser do
 
   @doc """
   Parses an expression block and returns a clean result.
-  
+
   ## Examples
-  
+
       iex> Mau.Parser.parse_expression_block(~s({{ "hello" }}))
       {:ok, {:expression, [{:literal, ["hello"], []}], []}}
       
@@ -763,8 +784,10 @@ defmodule Mau.Parser do
     case parse_expression_block_raw(input) do
       {:ok, [ast], "", _, _, _} ->
         {:ok, ast}
+
       {:ok, [_ast], remaining, _, _, _} ->
         {:error, "Unexpected input after expression block: #{remaining}"}
+
       {:error, reason, _remaining, _context, {line, column}, _offset} ->
         {:error, "Parse error at line #{line}, column #{column}: #{reason}"}
     end
@@ -772,9 +795,9 @@ defmodule Mau.Parser do
 
   @doc """
   Parses an identifier and returns a clean result.
-  
+
   ## Examples
-  
+
       iex> Mau.Parser.parse_identifier("user")
       {:ok, "user"}
       
@@ -788,8 +811,10 @@ defmodule Mau.Parser do
     case parse_identifier_raw(input) do
       {:ok, [identifier], "", _, _, _} ->
         {:ok, identifier}
+
       {:ok, [_identifier], remaining, _, _, _} ->
         {:error, "Unexpected input after identifier: #{remaining}"}
+
       {:error, reason, _remaining, _context, {line, column}, _offset} ->
         {:error, "Parse error at line #{line}, column #{column}: #{reason}"}
     end
@@ -797,9 +822,9 @@ defmodule Mau.Parser do
 
   @doc """
   Parses a variable path and returns a clean result.
-  
+
   ## Examples
-  
+
       iex> Mau.Parser.parse_variable_path("user")
       {:ok, {:variable, ["user"], []}}
       
@@ -813,8 +838,10 @@ defmodule Mau.Parser do
     case parse_variable_path_raw(input) do
       {:ok, [path_segments], "", _, _, _} ->
         {:ok, path_segments}
+
       {:ok, [_path_segments], remaining, _, _, _} ->
         {:error, "Unexpected input after variable path: #{remaining}"}
+
       {:error, reason, _remaining, _context, {line, column}, _offset} ->
         {:error, "Parse error at line #{line}, column #{column}: #{reason}"}
     end
@@ -822,11 +849,11 @@ defmodule Mau.Parser do
 
   @doc """
   Parses a template string into an AST.
-  
+
   Now handles mixed content: text and expression blocks.
-  
+
   ## Examples
-  
+
       iex> Mau.Parser.parse("Hello world")
       {:ok, [{:text, ["Hello world"], []}]}
       
@@ -840,15 +867,18 @@ defmodule Mau.Parser do
     case parse_template(template) do
       {:ok, nodes, "", _, _, _} ->
         {:ok, nodes}
+
       {:ok, _nodes, _remaining, _, _, _} ->
         # If there's remaining unparsed content, treat it as text
         case parse_template(template) do
           {:ok, parsed_nodes, "", _, _, _} ->
             {:ok, parsed_nodes}
+
           _ ->
             # Fallback: treat entire template as text if parsing fails
             {:ok, [Nodes.text_node(template)]}
         end
+
       {:error, reason, _remaining, _context, {line, column}, _offset} ->
         error = Mau.Error.syntax_error("Parse error: #{reason}", line: line, column: column)
         {:error, error}
@@ -876,21 +906,26 @@ defmodule Mau.Parser do
 
   # Number literal helpers
   defp parse_integer(digits) do
-    digits 
-    |> List.flatten() 
+    digits
+    |> List.flatten()
     |> :binary.list_to_bin()
     |> String.to_integer()
   end
 
   defp parse_float(parts) do
-    string_value = parts 
-    |> List.flatten() 
-    |> :binary.list_to_bin()
-    
+    string_value =
+      parts
+      |> List.flatten()
+      |> :binary.list_to_bin()
+
     case Float.parse(string_value) do
-      {float_val, ""} -> float_val
-      {float_val, _rest} -> float_val
-      :error -> 
+      {float_val, ""} ->
+        float_val
+
+      {float_val, _rest} ->
+        float_val
+
+      :error ->
         # This should never happen with valid NimbleParsec input, but if it does,
         # we should raise an error rather than silently convert to 0.0
         raise "Invalid float string encountered in parser: #{inspect(string_value)}"
@@ -909,7 +944,6 @@ defmodule Mau.Parser do
   defp build_text_node([content]) do
     Nodes.text_node(content)
   end
-
 
   # Boolean and null literal helpers
   defp build_boolean_literal_node([boolean_value]) when is_boolean(boolean_value) do
@@ -932,15 +966,20 @@ defmodule Mau.Parser do
   end
 
   defp build_expression_node_with_left_trim([expression_ast]) do
-    Nodes.expression_node(expression_ast, [trim_left: true])
+    build_expression_node_with_trim([expression_ast], trim_left: true)
   end
 
   defp build_expression_node_with_right_trim([expression_ast]) do
-    Nodes.expression_node(expression_ast, [trim_right: true])
+    build_expression_node_with_trim([expression_ast], trim_right: true)
   end
 
   defp build_expression_node_with_both_trim([expression_ast]) do
-    Nodes.expression_node(expression_ast, [trim_left: true, trim_right: true])
+    build_expression_node_with_trim([expression_ast], trim_left: true, trim_right: true)
+  end
+
+  # Helper function to build expression nodes with dynamic trim options
+  defp build_expression_node_with_trim([expression_ast], trim_opts) do
+    Nodes.expression_node(expression_ast, trim_opts)
   end
 
   # Comment node builders
@@ -1024,10 +1063,12 @@ defmodule Mau.Parser do
 
   # Function call helpers
   defp build_function_call([function_name | args]) do
-    argument_list = case args do
-      [arg_list] -> arg_list
-      [] -> []
-    end
+    argument_list =
+      case args do
+        [arg_list] -> arg_list
+        [] -> []
+      end
+
     Nodes.call_node(function_name, argument_list)
   end
 
@@ -1037,10 +1078,12 @@ defmodule Mau.Parser do
 
   # Pipe function call helpers
   defp build_pipe_function_call([function_name | args]) do
-    argument_list = case args do
-      [arg_list] -> arg_list
-      [] -> []
-    end
+    argument_list =
+      case args do
+        [arg_list] -> arg_list
+        [] -> []
+      end
+
     # Return a tuple that indicates this is a function call with arguments
     {:pipe_function_call, function_name, argument_list}
   end
@@ -1061,17 +1104,18 @@ defmodule Mau.Parser do
   end
 
   defp apply_filters_to_value(value, [filter | rest_filters]) do
-    call_node = case filter do
-      {:pipe_function_call, function_name, args} ->
-        # Function call with arguments: value | filter(arg1, arg2)
-        # The value becomes the first argument
-        Nodes.call_node(function_name, [value | args])
-      
-      filter_name when is_binary(filter_name) ->
-        # Simple filter: value | filter
-        Nodes.call_node(filter_name, [value])
-    end
-    
+    call_node =
+      case filter do
+        {:pipe_function_call, function_name, args} ->
+          # Function call with arguments: value | filter(arg1, arg2)
+          # The value becomes the first argument
+          Nodes.call_node(function_name, [value | args])
+
+        filter_name when is_binary(filter_name) ->
+          # Simple filter: value | filter
+          Nodes.call_node(filter_name, [value])
+      end
+
     apply_filters_to_value(call_node, rest_filters)
   end
 
@@ -1079,27 +1123,27 @@ defmodule Mau.Parser do
   defp build_tag(args, tag_type) do
     case {tag_type, args} do
       # Assignment tag: {% assign var = expr %}
-      {:assign, [variable_name, expression]} -> 
+      {:assign, [variable_name, expression]} ->
         {:assign, variable_name, expression}
-      
+
       # Conditional tags with expressions: {% if condition %}, {% elsif condition %}
-      {tag_type, [condition]} when tag_type in [:if, :elsif] -> 
+      {tag_type, [condition]} when tag_type in [:if, :elsif] ->
         {tag_type, condition}
-      
+
       # Conditional tags without parameters: {% else %}, {% endif %}
-      {tag_type, []} when tag_type in [:else, :endif] -> 
+      {tag_type, []} when tag_type in [:else, :endif] ->
         {tag_type}
-      
+
       # For loop tag: {% for item in collection %}
-      {:for, [loop_variable, collection_expression]} -> 
+      {:for, [loop_variable, collection_expression]} ->
         {:for, loop_variable, collection_expression}
-      
+
       # Loop termination tag: {% endfor %}
-      {:endfor, []} -> 
+      {:endfor, []} ->
         {:endfor}
-      
+
       # Fallback for unknown patterns
-      {tag_type, args} -> 
+      {tag_type, args} ->
         {tag_type, args}
     end
   end
@@ -1108,71 +1152,58 @@ defmodule Mau.Parser do
     case tag_data do
       {:assign, variable_name, expression} ->
         Nodes.tag_node(:assign, [variable_name, expression])
+
       {tag_type, condition} when tag_type in [:if, :elsif] ->
         Nodes.tag_node(tag_type, [condition])
+
       {tag_type} when tag_type in [:else, :endif, :endfor] ->
         Nodes.tag_node(tag_type, [])
+
       {:for, loop_variable, collection_expression} ->
         Nodes.tag_node(:for, [loop_variable, collection_expression])
+
       # Generic fallback for future tag types
       {tag_type, params} when is_list(params) ->
         Nodes.tag_node(tag_type, params)
+
       {tag_type, param} ->
         Nodes.tag_node(tag_type, [param])
     end
   end
 
   defp build_tag_node_with_left_trim([tag_data]) do
-    case tag_data do
-      {:assign, variable_name, expression} ->
-        Nodes.tag_node(:assign, [variable_name, expression], [trim_left: true])
-      {tag_type, condition} when tag_type in [:if, :elsif] ->
-        Nodes.tag_node(tag_type, [condition], [trim_left: true])
-      {tag_type} when tag_type in [:else, :endif, :endfor] ->
-        Nodes.tag_node(tag_type, [], [trim_left: true])
-      {:for, loop_variable, collection_expression} ->
-        Nodes.tag_node(:for, [loop_variable, collection_expression], [trim_left: true])
-      # Generic fallback for future tag types
-      {tag_type, params} when is_list(params) ->
-        Nodes.tag_node(tag_type, params, [trim_left: true])
-      {tag_type, param} ->
-        Nodes.tag_node(tag_type, [param], [trim_left: true])
-    end
+    build_tag_node_with_trim([tag_data], trim_left: true)
   end
 
   defp build_tag_node_with_right_trim([tag_data]) do
-    case tag_data do
-      {:assign, variable_name, expression} ->
-        Nodes.tag_node(:assign, [variable_name, expression], [trim_right: true])
-      {tag_type, condition} when tag_type in [:if, :elsif] ->
-        Nodes.tag_node(tag_type, [condition], [trim_right: true])
-      {tag_type} when tag_type in [:else, :endif, :endfor] ->
-        Nodes.tag_node(tag_type, [], [trim_right: true])
-      {:for, loop_variable, collection_expression} ->
-        Nodes.tag_node(:for, [loop_variable, collection_expression], [trim_right: true])
-      # Generic fallback for future tag types
-      {tag_type, params} when is_list(params) ->
-        Nodes.tag_node(tag_type, params, [trim_right: true])
-      {tag_type, param} ->
-        Nodes.tag_node(tag_type, [param], [trim_right: true])
-    end
+    build_tag_node_with_trim([tag_data], trim_right: true)
   end
 
   defp build_tag_node_with_both_trim([tag_data]) do
+    build_tag_node_with_trim([tag_data], trim_left: true, trim_right: true)
+  end
+
+  # Helper function to build tag nodes with dynamic trim options
+  defp build_tag_node_with_trim([tag_data], trim_opts) do
     case tag_data do
       {:assign, variable_name, expression} ->
-        Nodes.tag_node(:assign, [variable_name, expression], [trim_left: true, trim_right: true])
+        Nodes.tag_node(:assign, [variable_name, expression], trim_opts)
+
       {tag_type, condition} when tag_type in [:if, :elsif] ->
-        Nodes.tag_node(tag_type, [condition], [trim_left: true, trim_right: true])
+        Nodes.tag_node(tag_type, [condition], trim_opts)
+
       {tag_type} when tag_type in [:else, :endif, :endfor] ->
-        Nodes.tag_node(tag_type, [], [trim_left: true, trim_right: true])
+        Nodes.tag_node(tag_type, [], trim_opts)
+
       {:for, loop_variable, collection_expression} ->
-        Nodes.tag_node(:for, [loop_variable, collection_expression], [trim_left: true, trim_right: true])
+        Nodes.tag_node(:for, [loop_variable, collection_expression], trim_opts)
+
       # Generic fallback for future tag types
       {tag_type, params} when is_list(params) ->
-        Nodes.tag_node(tag_type, params, [trim_left: true, trim_right: true])
+        Nodes.tag_node(tag_type, params, trim_opts)
+
       {tag_type, param} ->
-        Nodes.tag_node(tag_type, [param], [trim_left: true, trim_right: true])
+        Nodes.tag_node(tag_type, [param], trim_opts)
     end
   end
 end

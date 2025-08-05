@@ -5,9 +5,9 @@ defmodule Mau.Filters.MathFilters do
 
   @doc """
   Returns the absolute value of a number.
-  
+
   ## Examples
-  
+
       iex> Mau.Filters.MathFilters.abs(-5, [])
       5
       
@@ -25,9 +25,9 @@ defmodule Mau.Filters.MathFilters do
 
   @doc """
   Returns the ceiling of a number (smallest integer greater than or equal to the number).
-  
+
   ## Examples
-  
+
       iex> Mau.Filters.MathFilters.ceil(3.14, [])
       4
       
@@ -43,9 +43,9 @@ defmodule Mau.Filters.MathFilters do
 
   @doc """
   Returns the floor of a number (largest integer less than or equal to the number).
-  
+
   ## Examples
-  
+
       iex> Mau.Filters.MathFilters.floor(3.14, [])
       3
       
@@ -61,9 +61,9 @@ defmodule Mau.Filters.MathFilters do
 
   @doc """
   Returns the maximum of the input value and the provided arguments.
-  
+
   ## Examples
-  
+
       iex> Mau.Filters.MathFilters.max(5, [10])
       10
       
@@ -75,9 +75,11 @@ defmodule Mau.Filters.MathFilters do
   """
   def max(value, args) do
     number = to_number(value)
-    
+
     case args do
-      [] -> number
+      [] ->
+        number
+
       numbers ->
         [number | Enum.map(numbers, &to_number/1)]
         |> Enum.max()
@@ -86,9 +88,9 @@ defmodule Mau.Filters.MathFilters do
 
   @doc """
   Returns the minimum of the input value and the provided arguments.
-  
+
   ## Examples
-  
+
       iex> Mau.Filters.MathFilters.min(5, [10])
       5
       
@@ -100,9 +102,11 @@ defmodule Mau.Filters.MathFilters do
   """
   def min(value, args) do
     number = to_number(value)
-    
+
     case args do
-      [] -> number
+      [] ->
+        number
+
       numbers ->
         [number | Enum.map(numbers, &to_number/1)]
         |> Enum.min()
@@ -111,9 +115,9 @@ defmodule Mau.Filters.MathFilters do
 
   @doc """
   Raises a number to the specified power.
-  
+
   ## Examples
-  
+
       iex> Mau.Filters.MathFilters.power(2, [3])
       8.0
       
@@ -122,21 +126,22 @@ defmodule Mau.Filters.MathFilters do
   """
   def power(value, args) do
     base = to_number(value)
-    
+
     case args do
       [exponent] ->
         exponent_num = to_number(exponent)
         :math.pow(base, exponent_num)
-      
-      _ -> base
+
+      _ ->
+        base
     end
   end
 
   @doc """
   Returns the square root of a number.
-  
+
   ## Examples
-  
+
       iex> Mau.Filters.MathFilters.sqrt(16, [])
       4.0
       
@@ -151,9 +156,9 @@ defmodule Mau.Filters.MathFilters do
 
   @doc """
   Returns the modulo (remainder) of dividing the input by the provided argument.
-  
+
   ## Examples
-  
+
       iex> Mau.Filters.MathFilters.mod(10, [3])
       1
       
@@ -162,21 +167,22 @@ defmodule Mau.Filters.MathFilters do
   """
   def mod(value, args) do
     number = to_number(value)
-    
+
     case args do
       [divisor] ->
         divisor_num = to_number(divisor)
         if divisor_num == 0, do: 0, else: rem(trunc(number), trunc(divisor_num))
-      
-      _ -> 0
+
+      _ ->
+        0
     end
   end
 
   @doc """
   Clamps a number between a minimum and maximum value.
-  
+
   ## Examples
-  
+
       iex> Mau.Filters.MathFilters.clamp(5, [1, 10])
       5
       
@@ -188,28 +194,31 @@ defmodule Mau.Filters.MathFilters do
   """
   def clamp(value, args) do
     number = to_number(value)
-    
+
     case args do
       [min_val, max_val] ->
         min_num = to_number(min_val)
         max_num = to_number(max_val)
-        
+
         number
         |> Kernel.max(min_num)
         |> Kernel.min(max_num)
-      
-      _ -> number
+
+      _ ->
+        number
     end
   end
 
   # Private functions
 
   defp to_number(value) when is_number(value), do: value
+
   defp to_number(value) when is_binary(value) do
     case Float.parse(value) do
       {number, _} -> number
       :error -> 0.0
     end
   end
+
   defp to_number(_), do: 0.0
 end

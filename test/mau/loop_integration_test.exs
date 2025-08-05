@@ -150,7 +150,9 @@ defmodule Mau.LoopIntegrationTest do
       context = %{"matrix" => [["a", "b"], ["x"]]}
 
       # Format: item:parent_first/parent_last,child_first/child_last
-      assert {:ok, "a:ptrue/false,ctrue/false b:ptrue/false,cfalse/true x:pfalse/true,ctrue/true "} = Mau.render(template, context)
+      assert {:ok,
+              "a:ptrue/false,ctrue/false b:ptrue/false,cfalse/true x:pfalse/true,ctrue/true "} =
+               Mau.render(template, context)
     end
   end
 

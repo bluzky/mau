@@ -8,10 +8,10 @@ defmodule Mau.FilterRegistryTest do
     test "returns built-in string filters" do
       assert {:ok, function} = FilterRegistry.get(:upper_case)
       assert is_function(function, 2)
-      
+
       assert {:ok, function} = FilterRegistry.get(:lower_case)
       assert is_function(function, 2)
-      
+
       assert {:ok, function} = FilterRegistry.get(:capitalize)
       assert is_function(function, 2)
     end
@@ -19,7 +19,7 @@ defmodule Mau.FilterRegistryTest do
     test "returns built-in number filters" do
       assert {:ok, function} = FilterRegistry.get(:round)
       assert is_function(function, 2)
-      
+
       assert {:ok, function} = FilterRegistry.get(:format_currency)
       assert is_function(function, 2)
     end
@@ -27,10 +27,10 @@ defmodule Mau.FilterRegistryTest do
     test "returns built-in collection filters" do
       assert {:ok, function} = FilterRegistry.get(:length)
       assert is_function(function, 2)
-      
+
       assert {:ok, function} = FilterRegistry.get(:first)
       assert is_function(function, 2)
-      
+
       assert {:ok, function} = FilterRegistry.get(:join)
       assert is_function(function, 2)
     end
@@ -38,10 +38,10 @@ defmodule Mau.FilterRegistryTest do
     test "returns built-in math filters" do
       assert {:ok, function} = FilterRegistry.get(:abs)
       assert is_function(function, 2)
-      
+
       assert {:ok, function} = FilterRegistry.get(:ceil)
       assert is_function(function, 2)
-      
+
       assert {:ok, function} = FilterRegistry.get(:sqrt)
       assert is_function(function, 2)
     end
@@ -59,13 +59,13 @@ defmodule Mau.FilterRegistryTest do
   describe "list/0" do
     test "returns all registered filter names sorted" do
       filters = FilterRegistry.list()
-      
+
       assert is_list(filters)
       assert "upper_case" in filters
       assert "round" in filters
       assert "length" in filters
       assert "abs" in filters
-      
+
       # Should be sorted
       assert filters == Enum.sort(filters)
     end

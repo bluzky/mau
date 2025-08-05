@@ -10,7 +10,7 @@ defmodule Mau.WhitespaceProcessorTest do
         {:expression, [{:variable, ["name"], []}], []},
         {:text, ["  after  "], []}
       ]
-      
+
       result = WhitespaceProcessor.apply_whitespace_control(nodes)
       assert result == nodes
     end
@@ -21,15 +21,15 @@ defmodule Mau.WhitespaceProcessorTest do
         {:expression, [{:variable, ["name"], []}], [trim_left: true]},
         {:text, ["  after  "], []}
       ]
-      
+
       result = WhitespaceProcessor.apply_whitespace_control(nodes)
-      
+
       expected = [
         {:text, ["  before"], []},
         {:expression, [{:variable, ["name"], []}], [trim_left: true]},
         {:text, ["  after  "], []}
       ]
-      
+
       assert result == expected
     end
 
@@ -39,15 +39,15 @@ defmodule Mau.WhitespaceProcessorTest do
         {:expression, [{:variable, ["name"], []}], [trim_right: true]},
         {:text, ["  after  "], []}
       ]
-      
+
       result = WhitespaceProcessor.apply_whitespace_control(nodes)
-      
+
       expected = [
         {:text, ["  before  "], []},
         {:expression, [{:variable, ["name"], []}], [trim_right: true]},
         {:text, ["after  "], []}
       ]
-      
+
       assert result == expected
     end
 
@@ -57,15 +57,15 @@ defmodule Mau.WhitespaceProcessorTest do
         {:expression, [{:variable, ["name"], []}], [trim_left: true, trim_right: true]},
         {:text, ["  after  "], []}
       ]
-      
+
       result = WhitespaceProcessor.apply_whitespace_control(nodes)
-      
+
       expected = [
         {:text, ["  before"], []},
         {:expression, [{:variable, ["name"], []}], [trim_left: true, trim_right: true]},
         {:text, ["after  "], []}
       ]
-      
+
       assert result == expected
     end
 
@@ -77,9 +77,9 @@ defmodule Mau.WhitespaceProcessorTest do
         {:expression, [{:variable, ["second"], []}], [trim_right: true]},
         {:text, ["  end  "], []}
       ]
-      
+
       result = WhitespaceProcessor.apply_whitespace_control(nodes)
-      
+
       expected = [
         {:text, ["  start"], []},
         {:expression, [{:variable, ["first"], []}], [trim_left: true]},
@@ -87,7 +87,7 @@ defmodule Mau.WhitespaceProcessorTest do
         {:expression, [{:variable, ["second"], []}], [trim_right: true]},
         {:text, ["end  "], []}
       ]
-      
+
       assert result == expected
     end
 
@@ -97,15 +97,15 @@ defmodule Mau.WhitespaceProcessorTest do
         {:tag, [:assign, "name", {:literal, ["value"], []}], [trim_left: true, trim_right: true]},
         {:text, ["  after  "], []}
       ]
-      
+
       result = WhitespaceProcessor.apply_whitespace_control(nodes)
-      
+
       expected = [
         {:text, ["  before"], []},
         {:tag, [:assign, "name", {:literal, ["value"], []}], [trim_left: true, trim_right: true]},
         {:text, ["after  "], []}
       ]
-      
+
       assert result == expected
     end
 
@@ -113,9 +113,9 @@ defmodule Mau.WhitespaceProcessorTest do
       nodes = [
         {:expression, [{:variable, ["name"], []}], [trim_left: true, trim_right: true]}
       ]
-      
+
       result = WhitespaceProcessor.apply_whitespace_control(nodes)
-      
+
       # Should not modify the nodes when there are no text nodes to trim
       assert result == nodes
     end
@@ -126,9 +126,9 @@ defmodule Mau.WhitespaceProcessorTest do
         {:expression, [{:variable, ["second"], []}], [trim_left: true, trim_right: true]},
         {:expression, [{:variable, ["third"], []}], []}
       ]
-      
+
       result = WhitespaceProcessor.apply_whitespace_control(nodes)
-      
+
       # Should not modify when adjacent nodes are not text nodes
       assert result == nodes
     end
@@ -139,15 +139,15 @@ defmodule Mau.WhitespaceProcessorTest do
         {:expression, [{:variable, ["name"], []}], [trim_left: true, trim_right: true]},
         {:text, ["  \n\t after \t\n  "], []}
       ]
-      
+
       result = WhitespaceProcessor.apply_whitespace_control(nodes)
-      
+
       expected = [
         {:text, ["  \n\t before"], []},
         {:expression, [{:variable, ["name"], []}], [trim_left: true, trim_right: true]},
         {:text, ["after \t\n  "], []}
       ]
-      
+
       assert result == expected
     end
 
@@ -157,15 +157,15 @@ defmodule Mau.WhitespaceProcessorTest do
         {:expression, [{:variable, ["name"], []}], [trim_left: true]},
         {:text, ["   "], []}
       ]
-      
+
       result = WhitespaceProcessor.apply_whitespace_control(nodes)
-      
+
       expected = [
         {:text, [""], []},
         {:expression, [{:variable, ["name"], []}], [trim_left: true]},
         {:text, ["   "], []}
       ]
-      
+
       assert result == expected
     end
   end
