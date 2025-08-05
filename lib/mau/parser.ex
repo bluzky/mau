@@ -9,6 +9,7 @@ defmodule Mau.Parser do
   import NimbleParsec
   alias Mau.AST.Nodes
 
+
   # ============================================================================
   # STRING LITERAL PARSING
   # ============================================================================
@@ -498,7 +499,7 @@ defmodule Mau.Parser do
       |> concat(tag_content)
       |> ignore(optional_whitespace)
       |> ignore(string("-%}"))
-      |> reduce(:build_tag_node_with_both_trim),
+      |> reduce({:build_tag_node_with_trim, [:both_trim]}),
 
       # Left trim: {%- tag %}
       ignore(string("{%-"))
@@ -506,7 +507,7 @@ defmodule Mau.Parser do
       |> concat(tag_content)
       |> ignore(optional_whitespace)
       |> ignore(string("%}"))
-      |> reduce(:build_tag_node_with_left_trim),
+      |> reduce({:build_tag_node_with_trim, [:left_trim]}),
 
       # Right trim: {% tag -%}
       ignore(string("{%"))
@@ -514,7 +515,7 @@ defmodule Mau.Parser do
       |> concat(tag_content)
       |> ignore(optional_whitespace)
       |> ignore(string("-%}"))
-      |> reduce(:build_tag_node_with_right_trim),
+      |> reduce({:build_tag_node_with_trim, [:right_trim]}),
 
       # No trim: {% tag %}
       ignore(string("{%"))
@@ -522,7 +523,7 @@ defmodule Mau.Parser do
       |> concat(tag_content)
       |> ignore(optional_whitespace)
       |> ignore(string("%}"))
-      |> reduce(:build_tag_node)
+      |> reduce({:build_tag_node_with_trim, [:no_trim]})
     ])
 
   # ============================================================================
@@ -595,7 +596,7 @@ defmodule Mau.Parser do
       |> concat(expression_value)
       |> ignore(optional_whitespace)
       |> ignore(string("-}}"))
-      |> reduce(:build_expression_node_with_both_trim),
+      |> reduce({:build_expression_node_with_trim, [:both_trim]}),
 
       # Left trim: {{- expr }}
       ignore(string("{{-"))
@@ -603,7 +604,7 @@ defmodule Mau.Parser do
       |> concat(expression_value)
       |> ignore(optional_whitespace)
       |> ignore(string("}}"))
-      |> reduce(:build_expression_node_with_left_trim),
+      |> reduce({:build_expression_node_with_trim, [:left_trim]}),
 
       # Right trim: {{ expr -}}
       ignore(string("{{"))
@@ -611,7 +612,7 @@ defmodule Mau.Parser do
       |> concat(expression_value)
       |> ignore(optional_whitespace)
       |> ignore(string("-}}"))
-      |> reduce(:build_expression_node_with_right_trim),
+      |> reduce({:build_expression_node_with_trim, [:right_trim]}),
 
       # No trim: {{ expr }}
       ignore(string("{{"))
@@ -619,7 +620,7 @@ defmodule Mau.Parser do
       |> concat(expression_value)
       |> ignore(optional_whitespace)
       |> ignore(string("}}"))
-      |> reduce(:build_expression_node)
+      |> reduce({:build_expression_node_with_trim, [:no_trim]})
     ])
 
   # ============================================================================
@@ -960,26 +961,25 @@ defmodule Mau.Parser do
     Nodes.atom_literal_node(atom_name)
   end
 
-  # Expression block helpers
-  defp build_expression_node([expression_ast]) do
-    Nodes.expression_node(expression_ast)
-  end
-
-  defp build_expression_node_with_left_trim([expression_ast]) do
-    build_expression_node_with_trim([expression_ast], trim_left: true)
-  end
-
-  defp build_expression_node_with_right_trim([expression_ast]) do
-    build_expression_node_with_trim([expression_ast], trim_right: true)
-  end
-
-  defp build_expression_node_with_both_trim([expression_ast]) do
-    build_expression_node_with_trim([expression_ast], trim_left: true, trim_right: true)
-  end
-
-  # Helper function to build expression nodes with dynamic trim options
-  defp build_expression_node_with_trim([expression_ast], trim_opts) do
+  # Unified trim handler for expression nodes
+  defp build_expression_node_with_trim([expression_ast], trim_variant) do
+    trim_opts = build_trim_opts(trim_variant)
     Nodes.expression_node(expression_ast, trim_opts)
+  end
+
+  # Helper to convert trim variant atoms to keyword lists
+  defp build_trim_opts(trim_variant) do
+    case trim_variant do
+      [:both_trim] -> [trim_left: true, trim_right: true]
+      [:left_trim] -> [trim_left: true]
+      [:right_trim] -> [trim_right: true]
+      [:no_trim] -> []
+      # Handle cases where the atom comes directly (legacy compatibility)
+      :both_trim -> [trim_left: true, trim_right: true]
+      :left_trim -> [trim_left: true]
+      :right_trim -> [trim_right: true]
+      :no_trim -> []
+    end
   end
 
   # Comment node builders
@@ -1148,43 +1148,10 @@ defmodule Mau.Parser do
     end
   end
 
-  defp build_tag_node([tag_data]) do
-    case tag_data do
-      {:assign, variable_name, expression} ->
-        Nodes.tag_node(:assign, [variable_name, expression])
-
-      {tag_type, condition} when tag_type in [:if, :elsif] ->
-        Nodes.tag_node(tag_type, [condition])
-
-      {tag_type} when tag_type in [:else, :endif, :endfor] ->
-        Nodes.tag_node(tag_type, [])
-
-      {:for, loop_variable, collection_expression} ->
-        Nodes.tag_node(:for, [loop_variable, collection_expression])
-
-      # Generic fallback for future tag types
-      {tag_type, params} when is_list(params) ->
-        Nodes.tag_node(tag_type, params)
-
-      {tag_type, param} ->
-        Nodes.tag_node(tag_type, [param])
-    end
-  end
-
-  defp build_tag_node_with_left_trim([tag_data]) do
-    build_tag_node_with_trim([tag_data], trim_left: true)
-  end
-
-  defp build_tag_node_with_right_trim([tag_data]) do
-    build_tag_node_with_trim([tag_data], trim_right: true)
-  end
-
-  defp build_tag_node_with_both_trim([tag_data]) do
-    build_tag_node_with_trim([tag_data], trim_left: true, trim_right: true)
-  end
-
-  # Helper function to build tag nodes with dynamic trim options
-  defp build_tag_node_with_trim([tag_data], trim_opts) do
+  # Unified trim handler for tag nodes
+  defp build_tag_node_with_trim([tag_data], trim_variant) do
+    trim_opts = build_trim_opts(trim_variant)
+    
     case tag_data do
       {:assign, variable_name, expression} ->
         Nodes.tag_node(:assign, [variable_name, expression], trim_opts)
