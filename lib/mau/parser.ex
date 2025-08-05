@@ -344,16 +344,6 @@ defmodule Mau.Parser do
       |> reduce({:build_tag_node_with_trim, [:no_trim]})
     ])
 
-  # ============================================================================
-  # COMMENT BLOCK PARSING
-  # ============================================================================
-
-  # Comment parsing is now handled directly by Block.template_content()
-
-  # ============================================================================
-  # EXPRESSION BLOCK PARSING
-  # ============================================================================
-
   # Pipe filter - can be either a simple identifier or a function call
   pipe_filter =
     choice([
@@ -372,7 +362,7 @@ defmodule Mau.Parser do
     ])
 
   # Forward declare pipe expression to break circular dependency
-  defcombinatorp(
+  defcombinator(
     :pipe_expression,
     logical_or_expression
     |> repeat(
@@ -387,8 +377,6 @@ defmodule Mau.Parser do
   # Any expression value (now supports pipes)
   expression_value = parsec(:pipe_expression)
 
-  # Expression block with {{ }} delimiters (with optional trim)
-  # Ordered by specificity to avoid ambiguous matches
   expression_block =
     choice([
       # Both trim: {{- expr -}} (most specific - must come first)
@@ -754,9 +742,7 @@ defmodule Mau.Parser do
   end
 
   # Text node helpers
-  defp join_chars(chars) when is_list(chars) do
-    :binary.list_to_bin(chars)
-  end
+  
 
   defp build_text_node([content]) do
     Nodes.text_node(content)

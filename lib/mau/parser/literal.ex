@@ -186,10 +186,10 @@ defmodule Mau.Parser.Literal do
   def boolean_literal do
     choice([
       string("true")
-      |> concat(lookahead_not(ascii_char([?a..?z, ?A..?Z, ?0..?9, ?_])))
+      |> lookahead_not(ascii_char([?a..?z, ?A..?Z, ?0..?9, ?_]))
       |> replace(true),
       string("false")
-      |> concat(lookahead_not(ascii_char([?a..?z, ?A..?Z, ?0..?9, ?_])))
+      |> lookahead_not(ascii_char([?a..?z, ?A..?Z, ?0..?9, ?_]))
       |> replace(false)
     ])
     |> reduce(:build_boolean_literal_node)
@@ -204,7 +204,7 @@ defmodule Mau.Parser.Literal do
   """
   def null_literal do
     string("null")
-    |> concat(lookahead_not(ascii_char([?a..?z, ?A..?Z, ?0..?9, ?_])))
+    |> lookahead_not(ascii_char([?a..?z, ?A..?Z, ?0..?9, ?_]))
     |> replace(nil)
     |> reduce(:build_null_literal_node)
   end
