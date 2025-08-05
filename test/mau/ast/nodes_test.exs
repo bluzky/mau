@@ -21,12 +21,14 @@ defmodule Mau.AST.NodesTest do
     test "expression_node/2 creates correct AST" do
       expr = {:variable, ["name"], []}
       assert {:expression, [^expr], []} = Nodes.expression_node(expr)
-      assert {:expression, [^expr], [trim_right: true]} = Nodes.expression_node(expr, trim_right: true)
+
+      assert {:expression, [^expr], [trim_right: true]} =
+               Nodes.expression_node(expr, trim_right: true)
     end
 
     test "tag_node/3 creates correct AST" do
-      assert {:tag, [:assign, "name", {:literal, ["value"], []}], []} = 
-        Nodes.tag_node(:assign, ["name", {:literal, ["value"], []}])
+      assert {:tag, [:assign, "name", {:literal, ["value"], []}], []} =
+               Nodes.tag_node(:assign, ["name", {:literal, ["value"], []}])
     end
 
     test "variable_node/2 creates correct AST" do
@@ -39,7 +41,7 @@ defmodule Mau.AST.NodesTest do
   describe "Options Handling" do
     test "all node types accept options" do
       opts = [trim_left: true, trim_right: false, line: 5]
-      
+
       assert {:text, ["hello"], ^opts} = Nodes.text_node("hello", opts)
       assert {:literal, [42], ^opts} = Nodes.literal_node(42, opts)
       assert {:variable, ["name"], ^opts} = Nodes.variable_node(["name"], opts)

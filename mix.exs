@@ -21,7 +21,11 @@ defmodule Mau.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:nimble_parsec, "~> 1.4"}
+      {:nimble_parsec, "~> 1.4"},
+      # Benchmarking dependencies
+      {:solid, "~> 1.0", only: [:dev, :test]},
+      {:liquex, "~> 0.12", only: [:dev, :test]},
+      {:benchee, "~> 1.0", only: [:dev, :test]}
     ]
   end
 end

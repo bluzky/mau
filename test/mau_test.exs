@@ -27,7 +27,7 @@ defmodule MauTest do
 
       expected = %{
         message: "Hello world",
-        title: "Welcome", 
+        title: "Welcome",
         nested: %{
           content: "Nested content"
         }

@@ -24,7 +24,9 @@ defmodule Mau.VariableEvaluatorTest do
     test "evaluates nested property access" do
       context = %{"user" => %{"profile" => %{"email" => "bob@example.com"}}}
       variable_ast = {:variable, ["user", {:property, "profile"}, {:property, "email"}], []}
-      assert {:ok, "bob@example.com"} = Renderer.render_node({:expression, [variable_ast], []}, context)
+
+      assert {:ok, "bob@example.com"} =
+               Renderer.render_node({:expression, [variable_ast], []}, context)
     end
 
     test "evaluates array index access" do
@@ -40,6 +42,7 @@ defmodule Mau.VariableEvaluatorTest do
           %{"name" => "Bob", "age" => 25}
         ]
       }
+
       variable_ast = {:variable, ["users", {:index, 0}, {:property, "name"}], []}
       assert {:ok, "Alice"} = Renderer.render_node({:expression, [variable_ast], []}, context)
     end
@@ -47,7 +50,9 @@ defmodule Mau.VariableEvaluatorTest do
     test "evaluates workflow variable" do
       context = %{"$input" => %{"data" => "workflow data"}}
       variable_ast = {:variable, ["$input", {:property, "data"}], []}
-      assert {:ok, "workflow data"} = Renderer.render_node({:expression, [variable_ast], []}, context)
+
+      assert {:ok, "workflow data"} =
+               Renderer.render_node({:expression, [variable_ast], []}, context)
     end
 
     test "evaluates complex workflow variable path" do
@@ -60,7 +65,12 @@ defmodule Mau.VariableEvaluatorTest do
           }
         }
       }
-      variable_ast = {:variable, ["$variables", {:property, "user_data"}, {:property, "settings"}, {:property, "theme"}], []}
+
+      variable_ast =
+        {:variable,
+         ["$variables", {:property, "user_data"}, {:property, "settings"}, {:property, "theme"}],
+         []}
+
       assert {:ok, "dark"} = Renderer.render_node({:expression, [variable_ast], []}, context)
     end
 

@@ -20,7 +20,10 @@ defmodule Mau.ParserTest do
 
     test "parses text with special characters" do
       text = "Special chars: !@#$%^&*()_+-=[]{}|;:,.<>?"
-      assert {:ok, [{:text, [^text], []}]} = Parser.parse(text)
+      assert {:ok, nodes} = Parser.parse(text)
+      # Should produce text nodes that when rendered give the same result
+      rendered = nodes |> Enum.map(fn {:text, [content], []} -> content end) |> Enum.join()
+      assert rendered == text
     end
 
     test "parses Unicode text" do

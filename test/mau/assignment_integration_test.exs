@@ -74,7 +74,9 @@ defmodule Mau.AssignmentIntegrationTest do
     end
 
     test "chained assignments using previous assignment" do
-      template = "{% assign name = \"John\" %}{% assign greeting = \"Hello \" + name %}{{ greeting }}"
+      template =
+        "{% assign name = \"John\" %}{% assign greeting = \"Hello \" + name %}{{ greeting }}"
+
       context = %{}
 
       assert {:ok, "Hello John"} = Mau.render(template, context)
@@ -110,6 +112,7 @@ defmodule Mau.AssignmentIntegrationTest do
         
         {{ greeting }}! You are {{ user_age }} years old.
       """
+
       context = %{"user" => %{"name" => "john", "age" => 30}}
 
       result = Mau.render(template, context)

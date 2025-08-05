@@ -1,21 +1,21 @@
 defmodule Mau.Error do
   @moduledoc """
   Error handling for the Mau template engine.
-  
+
   Provides structured error information for different types of errors
   that can occur during template compilation and rendering.
   """
 
-  defstruct [:type, :message, :line, :column, :source_file, :context]
+  defexception [:type, :message, :line, :column, :source_file, :context]
 
   @type t :: %__MODULE__{
-    type: :syntax | :runtime | :type | :undefined_variable,
-    message: String.t(),
-    line: integer() | nil,
-    column: integer() | nil,
-    source_file: String.t() | nil,
-    context: map()
-  }
+          type: :syntax | :runtime | :type | :undefined_variable,
+          message: String.t(),
+          line: integer() | nil,
+          column: integer() | nil,
+          source_file: String.t() | nil,
+          context: map()
+        }
 
   @doc """
   Creates a new syntax error.
@@ -78,15 +78,16 @@ defmodule Mau.Error do
   """
   def format(%__MODULE__{} = error) do
     type_name = error.type |> Atom.to_string() |> String.replace("_", " ") |> String.capitalize()
-    
-    location = case {error.line, error.column} do
-      {nil, nil} -> ""
-      {line, nil} -> " at line #{line}"
-      {line, column} -> " at line #{line}, column #{column}"
-    end
+
+    location =
+      case {error.line, error.column} do
+        {nil, nil} -> ""
+        {line, nil} -> " at line #{line}"
+        {line, column} -> " at line #{line}, column #{column}"
+      end
 
     source = if error.source_file, do: " in #{error.source_file}", else: ""
-    
+
     "#{type_name}: #{error.message}#{location}#{source}"
   end
 end

@@ -34,6 +34,10 @@ defmodule Mau.Renderer do
     {:ok, content, context}
   end
 
+  defp render_node_with_context({:comment, [_content], _opts}, context) do
+    {:ok, "", context}
+  end
+
   defp render_node_with_context({:expression, [expression_ast], _opts}, context) do
     case evaluate_expression(expression_ast, context) do
       {:ok, value} -> {:ok, format_value(value), context}
@@ -63,18 +67,59 @@ defmodule Mau.Renderer do
 
   Handles both single nodes and lists of nodes.
   """
-  def render(nodes, context) when is_list(nodes) and is_map(context) do
+  def render(data, context, opts \\ [])
+
+  def render(nodes, context, opts) when is_list(nodes) and is_map(context) do
     case render_nodes(nodes, context) do
-      {:ok, parts} -> {:ok, Enum.join(parts, "")}
-      {:error, error} -> {:error, error}
+      {:ok, parts} ->
+        if opts[:preserve_types] && is_single_value_template?(nodes, parts) do
+          # Extract the raw value from single expression templates
+          extract_single_value(nodes, context)
+        else
+          {:ok, IO.iodata_to_binary(parts)}
+        end
+
+      {:error, error} ->
+        {:error, error}
     end
   end
 
-  def render(ast, context) when is_map(context) do
-    render_node(ast, context)
+  def render(ast, context, opts) when is_map(context) do
+    if opts[:preserve_types] && is_single_expression?(ast) do
+      # For single expression nodes, evaluate and return the raw value
+      case ast do
+        {:expression, [expression_ast], _opts} ->
+          evaluate_expression(expression_ast, context)
+
+        _ ->
+          render_node(ast, context)
+      end
+    else
+      render_node(ast, context)
+    end
   end
 
   # Private helper functions
+
+  # Checks if AST represents a single expression (no mixed text)
+  defp is_single_expression?({:expression, _expression_ast, _opts}), do: true
+  defp is_single_expression?(_), do: false
+
+  # Checks if a list of nodes represents a single value template
+  defp is_single_value_template?(nodes, _parts) do
+    case nodes do
+      [{:expression, _expression_ast, _opts}] -> true
+      _ -> false
+    end
+  end
+
+  # Extracts the raw value from a single expression template
+  defp extract_single_value([{:expression, [expression_ast], _opts}], context) do
+    evaluate_expression(expression_ast, context)
+  end
+
+  defp extract_single_value(_, _),
+    do: {:error, Mau.Error.runtime_error("Not a single value template")}
 
   # Renders a list of nodes
   defp render_nodes(nodes, context) do
@@ -104,7 +149,7 @@ defmodule Mau.Renderer do
   end
 
   defp evaluate_expression({:variable, path, _opts}, context) do
-    extract_variable_value(path, context)
+    extract_variable_value_with_context(path, context, context)
   end
 
   defp evaluate_expression({:binary_op, [operator, left, right], _opts}, context) do
@@ -118,6 +163,10 @@ defmodule Mau.Renderer do
     evaluate_logical_operation(operator, left, right, context)
   end
 
+  defp evaluate_expression({:unary_op, [operator, operand], _opts}, context) do
+    evaluate_unary_operation(operator, operand, context)
+  end
+
   defp evaluate_expression({:call, [function_name, args], _opts}, context) do
     evaluate_call(function_name, args, context)
   end
@@ -127,62 +176,110 @@ defmodule Mau.Renderer do
     {:error, error}
   end
 
-  # Extracts variable values from context following the path
-  defp extract_variable_value([identifier], context) when is_binary(identifier) do
+  # ============================================================================
+  # VARIABLE VALUE EXTRACTION
+  # ============================================================================
+
+  # Context-aware variable value extraction with support for variable indices.
+  # This is the main entry point for resolving variable paths like:
+  # - Simple variables: "user"
+  # - Property access: "user.name"
+  # - Array access: "items[0]", "items[index]"
+  # - Complex paths: "users[0].profile.name"
+
+  defp extract_variable_value_with_context([identifier | path_rest], context, original_context)
+       when is_binary(identifier) do
     case Map.get(context, identifier) do
-      # Undefined variables return nil for now
       nil -> {:ok, nil}
-      value -> {:ok, value}
+      value when path_rest == [] -> {:ok, value}
+      value -> extract_variable_value_with_context_from_value(path_rest, value, original_context)
     end
   end
 
-  defp extract_variable_value([identifier | path_rest], context) when is_binary(identifier) do
-    case Map.get(context, identifier) do
-      nil -> {:ok, nil}
-      value -> extract_variable_value(path_rest, value)
-    end
+  # Fallback for edge cases
+  defp extract_variable_value_with_context(_path, _context, _original_context) do
+    {:ok, nil}
   end
 
-  # Helper for property access
-  defp extract_variable_value([{:property, property} | path_rest], value) when is_map(value) do
-    case Map.get(value, property) do
-      nil -> {:ok, nil}
-      new_value -> extract_variable_value(path_rest, new_value)
-    end
-  end
-
-  # Helper for array index access
-  defp extract_variable_value([{:index, index} | path_rest], value) do
-    # Extract the actual index value from literal nodes
-    actual_index =
-      case index do
-        {:literal, [literal_value], _opts} -> literal_value
-        other -> other
-      end
-
-    case get_list_element(value, actual_index) do
-      nil -> {:ok, nil}
-      new_value -> extract_variable_value(path_rest, new_value)
-    end
-  end
-
-  # Base case: empty path means we've reached the final value
-  defp extract_variable_value([], value) do
+  # Continues path traversal from a resolved value (not the initial context map)
+  defp extract_variable_value_with_context_from_value([], value, _original_context) do
     {:ok, value}
   end
 
-  # Fallback for unsupported access patterns - handle any remaining cases
-  defp extract_variable_value([{:property, _property} | _path_rest], value)
-       when not is_map(value) do
-    # Trying to access property on non-map value
+  defp extract_variable_value_with_context_from_value(
+         [access | path_rest],
+         value,
+         original_context
+       ) do
+    with {:ok, accessed_value} <- resolve_value_access(access, value, original_context) do
+      extract_variable_value_with_context_from_value(path_rest, accessed_value, original_context)
+    end
+  end
+
+  # Unified access resolution - handles both property and index access
+  defp resolve_value_access({:property, property}, value, _context) when is_map(value) do
+    case Map.fetch(value, property) do
+      {:ok, new_value} -> {:ok, new_value}
+      # Property not found, return nil
+      :error -> {:ok, Map.get(value, String.to_atom(property))}
+    end
+  end
+
+  defp resolve_value_access({:index, index}, value, context) do
+    with {:ok, resolved_index} <- resolve_index_value(index, context) do
+      {:ok, get_list_element(value, resolved_index)}
+    end
+  end
+
+  defp resolve_value_access(_access, _value, _context) do
     {:ok, nil}
   end
 
-  defp extract_variable_value(_path, _value) do
-    {:ok, nil}
+  # Resolves index values from literals, variables, or direct values
+  # This provides a clean pathway for handling different index types:
+  # - {:literal, [42], []} -> 42 (if valid)
+  # - {:variable, ["index"], []} -> evaluates variable "index" (if valid)
+  # - 42 -> 42 (direct value, if valid)
+  defp resolve_index_value({:literal, [literal_value], _opts}, _context) do
+    if is_valid_index_or_key(literal_value) do
+      {:ok, literal_value}
+    else
+      {:error,
+       Mau.Error.runtime_error("Invalid array index or map key: #{inspect(literal_value)}")}
+    end
   end
 
-  # Gets an element from list/map by literal index/key only
+  defp resolve_index_value({:variable, _path, _opts} = var_expr, context) do
+    case evaluate_expression(var_expr, context) do
+      {:ok, value} ->
+        if is_valid_index_or_key(value) do
+          {:ok, value}
+        else
+          {:error, Mau.Error.runtime_error("Invalid array index or map key: #{inspect(value)}")}
+        end
+
+      error ->
+        error
+    end
+  end
+
+  defp resolve_index_value(direct_value, _context) do
+    if is_valid_index_or_key(direct_value) do
+      {:ok, direct_value}
+    else
+      {:error,
+       Mau.Error.runtime_error("Invalid array index or map key: #{inspect(direct_value)}")}
+    end
+  end
+
+  # Helper to check if a value can be used as an index or key
+  # Allow all integers, including negative
+  defp is_valid_index_or_key(value) when is_integer(value), do: true
+  defp is_valid_index_or_key(value) when is_binary(value), do: true
+  defp is_valid_index_or_key(value) when is_atom(value), do: true
+  defp is_valid_index_or_key(_), do: false
+
+  # Gets an element from list/map by index/key - returns the value directly (nil if not found)
   defp get_list_element(list, index) when is_list(list) and is_integer(index) and index >= 0 do
     Enum.at(list, index)
   end
@@ -342,6 +439,14 @@ defmodule Mau.Renderer do
     end
   end
 
+  # Unary operation evaluation
+  defp evaluate_unary_operation("not", operand, context) do
+    case evaluate_expression(operand, context) do
+      {:ok, value} -> {:ok, !is_truthy(value)}
+      {:error, error} -> {:error, error}
+    end
+  end
+
   # Filter/function call evaluation
   defp evaluate_call(function_name, args, context) do
     with {:ok, evaluated_args} <- evaluate_arguments(args, context) do
@@ -394,7 +499,7 @@ defmodule Mau.Renderer do
   defp is_truthy(0), do: false
   defp is_truthy(value) when is_float(value) and value == 0.0, do: false
   defp is_truthy([]), do: false
-  defp is_truthy(%{}), do: false
+  defp is_truthy(map) when is_map(map), do: map_size(map) > 0
   defp is_truthy(_), do: true
 
   # Tag rendering functions
@@ -520,8 +625,11 @@ defmodule Mau.Renderer do
   # Helper to render nodes for conditional blocks
   defp render_conditional_content(nodes, context) do
     case render_nodes(nodes, context, []) do
-      {:ok, parts, updated_context} -> {:ok, Enum.join(parts, ""), updated_context}
-      {:error, error} -> {:error, error}
+      {:ok, parts, updated_context} ->
+        {:ok, parts, updated_context}
+
+      {:error, error} ->
+        {:error, error}
     end
   end
 
@@ -534,13 +642,15 @@ defmodule Mau.Renderer do
 
     with {:ok, collection} <- evaluate_expression(collection_expression, context),
          {:ok, items} <- ensure_iterable(collection),
-         {:ok, acc_result, _} <- render_loop_items(items, loop_variable, content, context) do
-      {:ok, Enum.reverse(acc_result), context}
+         {:ok, acc_result, updated_context} <-
+           render_loop_items(items, loop_variable, content, context) do
+      updated_context = Map.drop(updated_context, [loop_variable, "forloop"])
+      {:ok, Enum.reverse(acc_result), updated_context}
     end
   end
 
   defp ensure_iterable(value) when is_list(value), do: {:ok, value}
-  
+
   defp ensure_iterable(value) when is_map(value) do
     # Convert map to list of {key, value} tuples
     {:ok, Enum.to_list(value)}
@@ -563,9 +673,14 @@ defmodule Mau.Renderer do
 
       case render_nodes(content, updated_loop_context, []) do
         {:ok, parts, final_context} ->
-          rendered_content = Enum.join(parts, "")
+          restored_context =
+            Map.merge(final_context, %{
+              loop_variable => item,
+              "forloop" => updated_loop_context["forloop"]
+            })
+
           # Accumulate rendered content
-          {:cont, {:ok, [rendered_content | acc], final_context}}
+          {:cont, {:ok, [parts | acc], restored_context}}
 
         {:error, error} ->
           {:halt, {:error, error}}
@@ -594,11 +709,12 @@ defmodule Mau.Renderer do
     }
 
     # Add parent loop reference if we're in a nested loop
-    forloop_data = if parent_forloop do
-      Map.put(forloop_data, "parentloop", parent_forloop)
-    else
-      forloop_data
-    end
+    forloop_data =
+      if parent_forloop do
+        Map.put(forloop_data, "parentloop", parent_forloop)
+      else
+        forloop_data
+      end
 
     base_context
     |> Map.put(loop_variable, nil)
