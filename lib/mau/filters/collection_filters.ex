@@ -376,24 +376,34 @@ defmodule Mau.Filters.CollectionFilters do
   end
 
   @doc """
-  Extracts field values from a list of maps.
+  Extracts field values from a list of maps, filtering out nil values.
+
+  Only works with maps (including structs). Non-map entries are ignored.
+  Only returns values where the field exists and is not nil.
 
   ## Examples
 
       iex> users = [%{"name" => "Alice"}, %{"name" => "Bob"}]
       iex> Mau.Filters.CollectionFilters.map(users, ["name"])
       {:ok, ["Alice", "Bob"]}
+
+      iex> users = [%{"name" => "Alice"}, %{}, %{"name" => "Bob", "email" => nil}]
+      iex> Mau.Filters.CollectionFilters.map(users, ["name"])
+      {:ok, ["Alice"]}
   """
   def map(value, args) do
     case {value, args} do
       {list, [field]} when is_list(list) ->
         result =
-          Enum.map(list, fn item ->
-            case item do
-              map when is_map(map) -> Map.get(map, field)
-              _ -> nil
+          list
+          |> Enum.map(fn item ->
+            if is_map(item) do
+              Map.get(item, field)
+            else
+              nil
             end
           end)
+          |> Enum.filter(&(&1 != nil))
 
         {:ok, result}
 
@@ -404,6 +414,8 @@ defmodule Mau.Filters.CollectionFilters do
 
   @doc """
   Filters list of maps by field value.
+
+  Only works with maps (including structs). Non-map entries are excluded from results.
 
   ## Examples
 
@@ -416,9 +428,10 @@ defmodule Mau.Filters.CollectionFilters do
       {list, [field, filter_value]} when is_list(list) ->
         result =
           Enum.filter(list, fn item ->
-            case item do
-              map when is_map(map) -> Map.get(map, field) == filter_value
-              _ -> false
+            if is_map(item) do
+              Map.get(item, field) == filter_value
+            else
+              false
             end
           end)
 
@@ -432,6 +445,8 @@ defmodule Mau.Filters.CollectionFilters do
   @doc """
   Rejects list of maps by field value (opposite of filter).
 
+  Only works with maps (including structs). Non-map entries are excluded from results.
+
   ## Examples
 
       iex> users = [%{"name" => "Alice", "active" => true}, %{"name" => "Bob", "active" => false}]
@@ -443,9 +458,10 @@ defmodule Mau.Filters.CollectionFilters do
       {list, [field, reject_value]} when is_list(list) ->
         result =
           Enum.reject(list, fn item ->
-            case item do
-              map when is_map(map) -> Map.get(map, field) == reject_value
-              _ -> false
+            if is_map(item) do
+              Map.get(item, field) == reject_value
+            else
+              false
             end
           end)
 

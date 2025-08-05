@@ -123,6 +123,24 @@ defmodule Mau.NewFiltersTest do
       assert result == "[\"Alice\", \"Bob\"]"
     end
 
+    test "map filter filters out nil values and missing fields" do
+      template = "{{ map(users, \"email\") }}"
+
+      context = %{
+        "users" => [
+          %{"name" => "Alice", "email" => "alice@example.com"},
+          %{"name" => "Bob"},  # Missing email field
+          %{"name" => "Carol", "email" => "carol@example.com"},
+          %{"name" => "Dave", "email" => nil}  # Explicit nil email
+        ]
+      }
+
+      assert {:ok, result} = Mau.render(template, context)
+      # Should only include non-nil email values
+      assert result == "[\"alice@example.com\", \"carol@example.com\"]"
+    end
+
+
     test "filter filter filters by field value" do
       template = "{% assign filtered = filter(users, \"active\", true) %}{{ length(filtered) }}"
 
