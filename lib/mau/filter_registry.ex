@@ -1,7 +1,7 @@
 defmodule Mau.FilterRegistry do
   @moduledoc """
   Dynamic filter registry that loads filters from module specs.
-  
+
   This registry automatically discovers filters by calling spec() functions
   on filter modules, providing better organization and discoverability.
   """
@@ -17,12 +17,18 @@ defmodule Mau.FilterRegistry do
     Mau.Filters.Number
   ]
 
-  # Build filter name registry at compile time
-  @filter_names @filter_modules
-               |> Enum.flat_map(fn module ->
-                 spec = module.spec()
-                 Map.keys(spec.filters)
-               end)
+  # Build compile-time filter name to module mapping (avoid storing functions in attributes)
+  @filter_to_module_map @filter_modules
+                        |> Enum.reduce(%{}, fn module, acc ->
+                          spec = module.spec()
+
+                          filter_modules =
+                            Map.keys(spec.filters)
+                            |> Enum.map(fn name -> {name, module} end)
+                            |> Map.new()
+
+                          Map.merge(acc, filter_modules)
+                        end)
 
   @doc """
   Gets a filter function by name.
@@ -32,89 +38,25 @@ defmodule Mau.FilterRegistry do
       iex> {:ok, func} = Mau.FilterRegistry.get(:upper_case)
       iex> is_function(func, 2)
       true
-      
+
       iex> Mau.FilterRegistry.get(:unknown_filter)
       {:error, :not_found}
   """
   @spec get(filter_name()) :: {:ok, filter_function()} | {:error, :not_found}
   def get(name) when is_binary(name) do
-    # Find the filter function by searching through modules
-    result = 
-      @filter_modules
-      |> Enum.find_value(fn module ->
-        spec = module.spec()
-        case Map.get(spec.filters, name) do
-          nil -> nil
-          filter_spec -> filter_spec.function
-        end
-      end)
+    case Map.get(@filter_to_module_map, name) do
+      nil ->
+        {:error, :not_found}
 
-    case result do
-      nil -> {:error, :not_found}
-      function -> {:ok, function}
+      module ->
+        spec = module.spec()
+        filter_spec = Map.get(spec.filters, name)
+        {:ok, filter_spec.function}
     end
   end
 
   def get(name) when is_atom(name) do
     get(Atom.to_string(name))
-  end
-
-  @doc """
-  Lists all registered filter names.
-  """
-  @spec list() :: [String.t()]
-  def list do
-    @filter_names
-    |> Enum.sort()
-  end
-
-  @doc """
-  Lists filters organized by category.
-  """
-  @spec list_by_category() :: %{atom() => [%{name: String.t(), description: String.t()}]}
-  def list_by_category do
-    @filter_modules
-    |> Enum.reduce(%{}, fn module, acc ->
-      spec = module.spec()
-      
-      filters = 
-        spec.filters
-        |> Enum.map(fn {name, filter_spec} ->
-          %{name: name, description: filter_spec.description}
-        end)
-      
-      Map.put(acc, spec.category, filters)
-    end)
-  end
-
-  @doc """
-  Gets detailed information about a filter.
-  """
-  @spec get_info(filter_name()) :: {:ok, map()} | {:error, :not_found}
-  def get_info(name) when is_binary(name) do
-    result = 
-      @filter_modules
-      |> Enum.find_value(fn module ->
-        spec = module.spec()
-        case Map.get(spec.filters, name) do
-          nil -> nil
-          filter_spec -> 
-            %{
-              name: name,
-              category: spec.category,
-              description: filter_spec.description
-            }
-        end
-      end)
-
-    case result do
-      nil -> {:error, :not_found}
-      info -> {:ok, info}
-    end
-  end
-
-  def get_info(name) when is_atom(name) do
-    get_info(Atom.to_string(name))
   end
 
   @doc """
@@ -140,16 +82,5 @@ defmodule Mau.FilterRegistry do
       {:error, :not_found} ->
         {:error, :filter_not_found}
     end
-  end
-
-  @doc """
-  Returns all available categories.
-  """
-  @spec categories() :: [atom()]
-  def categories do
-    @filter_modules
-    |> Enum.map(fn module -> module.spec().category end)
-    |> Enum.uniq()
-    |> Enum.sort()
   end
 end

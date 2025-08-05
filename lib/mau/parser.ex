@@ -9,7 +9,6 @@ defmodule Mau.Parser do
   import NimbleParsec
   alias Mau.AST.Nodes
 
-
   # ============================================================================
   # STRING LITERAL PARSING
   # ============================================================================

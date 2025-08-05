@@ -56,21 +56,6 @@ defmodule Mau.FilterRegistryTest do
     end
   end
 
-  describe "list/0" do
-    test "returns all registered filter names sorted" do
-      filters = FilterRegistry.list()
-
-      assert is_list(filters)
-      assert "upper_case" in filters
-      assert "round" in filters
-      assert "length" in filters
-      assert "abs" in filters
-
-      # Should be sorted
-      assert filters == Enum.sort(filters)
-    end
-  end
-
   describe "apply/3" do
     test "applies string filters correctly" do
       assert {:ok, "HELLO"} = FilterRegistry.apply(:upper_case, "hello", [])
