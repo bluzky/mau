@@ -12,6 +12,7 @@ defmodule Mau.Parser do
   alias Mau.Parser.Variable
   alias Mau.Parser.Expression
   alias Mau.Parser.Tag
+  alias Mau.Parser.Block
 
   # ============================================================================
   # LITERAL PARSING (DELEGATED TO LITERAL MODULE)
@@ -347,24 +348,7 @@ defmodule Mau.Parser do
   # COMMENT BLOCK PARSING
   # ============================================================================
 
-  # Comment content - anything up to #}
-  comment_content =
-    repeat(
-      choice([
-        # Match # that's not followed by }
-        string("#") |> lookahead_not(string("}")),
-        # Match anything that's not #
-        utf8_char(not: ?#)
-      ])
-    )
-    |> reduce(:build_comment_content)
-
-  # Comment block with {# #} delimiters
-  comment_block =
-    ignore(string("{#"))
-    |> concat(comment_content)
-    |> ignore(string("#}"))
-    |> reduce(:build_comment_node)
+  # Comment parsing is now handled directly by Block.template_content()
 
   # ============================================================================
   # EXPRESSION BLOCK PARSING
@@ -446,27 +430,10 @@ defmodule Mau.Parser do
 
   # Legacy text content parser (unused but kept for reference)
 
-  # Text content that handles { characters not part of template constructs
-  text_content =
-    choice([
-      # Text that doesn't contain any { characters  
-      utf8_string([not: ?{], min: 1),
-      # Handle { character that's not part of a template construct
-      string("{")
-      |> lookahead_not(choice([string("%"), string("{"), string("#")]))
-      |> concat(repeat(utf8_char(not: ?{)))
-      |> reduce(:join_chars)
-    ])
-    |> reduce(:build_text_node)
+  # Text content parsing is now handled directly by Block.template_content()
 
-  # Combined content parser (text, expressions, tags, or comments)
-  template_content =
-    choice([
-      comment_block,
-      tag_block,
-      expression_block,
-      text_content
-    ])
+  # Combined content parser (delegated to Block module)
+  template_content = Block.template_content(tag_block, expression_block)
 
   # Main template parser - handles mixed content
   defparsec(:parse_template, repeat(template_content))
