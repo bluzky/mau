@@ -9,6 +9,7 @@ defmodule Mau.Parser do
   import NimbleParsec
   alias Mau.AST.Nodes
   alias Mau.Parser.Literal
+  alias Mau.Parser.Variable
 
   # ============================================================================
   # LITERAL PARSING (DELEGATED TO LITERAL MODULE)
@@ -23,41 +24,36 @@ defmodule Mau.Parser do
   null_literal = Literal.null_literal()
 
   # ============================================================================
-  # VARIABLE PARSING
+  # VARIABLE PARSING (DELEGATED TO VARIABLE MODULE)
   # ============================================================================
 
   # Whitespace handling (delegated to Literal module)
   optional_whitespace = Literal.optional_whitespace()
   required_whitespace = Literal.required_whitespace()
 
-  # Identifier parsing - supports letters, numbers, underscores
-  # Must start with letter or underscore, can contain numbers after first char
+  # Use the Variable module for identifier parsing
+  identifier = Variable.identifier()
+
+  # Keep internal identifier helpers for combinator use
   identifier_start = ascii_char([?a..?z, ?A..?Z, ?_])
   identifier_char = ascii_char([?a..?z, ?A..?Z, ?0..?9, ?_])
 
-  # Basic identifier (user, name, index, etc.)
+  # Basic identifier (user, name, index, etc.) - kept for internal combinator use
   basic_identifier =
     identifier_start
     |> repeat(identifier_char)
     |> reduce(:build_identifier)
 
-  # Workflow variable identifier (starts with $)
+  # Workflow variable identifier (starts with $) - kept for internal combinator use
   workflow_identifier =
     string("$")
     |> concat(basic_identifier)
     |> reduce(:build_workflow_identifier)
 
-  # Combined identifier parser
-  identifier =
-    choice([
-      workflow_identifier,
-      basic_identifier
-    ])
-
   # Atom literal - :atom_name (delegated to Literal module)
   atom_literal = Literal.atom_literal()
 
-  # Property access parsing
+  # Keep internal property access and array index parsing for combinator use
   property_access =
     string(".")
     |> concat(basic_identifier)
@@ -121,7 +117,7 @@ defmodule Mau.Parser do
     :atom_expression,
     choice([
       # Function call syntax: func(arg1, arg2) - must come before primary_expression
-      identifier
+      basic_identifier
       |> ignore(optional_whitespace)
       |> ignore(string("("))
       |> ignore(optional_whitespace)
@@ -303,7 +299,7 @@ defmodule Mau.Parser do
   assign_tag =
     ignore(string("assign"))
     |> ignore(required_whitespace)
-    |> concat(identifier)
+    |> concat(basic_identifier)
     |> ignore(optional_whitespace)
     |> ignore(string("="))
     |> ignore(optional_whitespace)
@@ -338,7 +334,7 @@ defmodule Mau.Parser do
   for_tag =
     ignore(string("for"))
     |> ignore(required_whitespace)
-    |> concat(identifier)
+    |> concat(basic_identifier)
     |> ignore(required_whitespace)
     |> ignore(string("in"))
     |> ignore(required_whitespace)
@@ -430,7 +426,7 @@ defmodule Mau.Parser do
   pipe_filter =
     choice([
       # Function call syntax: filter(arg1, arg2)
-      identifier
+      basic_identifier
       |> ignore(optional_whitespace)
       |> ignore(string("("))
       |> ignore(optional_whitespace)
@@ -440,7 +436,7 @@ defmodule Mau.Parser do
       |> reduce(:build_pipe_function_call),
 
       # Simple identifier: filter
-      identifier
+      basic_identifier
     ])
 
   # Forward declare pipe expression to break circular dependency
