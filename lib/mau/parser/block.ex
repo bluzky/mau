@@ -48,7 +48,7 @@ defmodule Mau.Parser.Block do
   """
   def text_content do
     choice([
-      # Text that doesn't contain any { characters  
+      # Text that doesn't contain any { characters
       utf8_string([not: ?{], min: 1),
       # Handle { character that's not part of a template construct
       string("{")
@@ -61,7 +61,7 @@ defmodule Mau.Parser.Block do
 
   @doc """
   Template content orchestration - combines all block types.
-  
+
   Requires: tag_block, expression_block from the main parser context.
   """
   def template_content(tag_block, expression_block) do
@@ -72,8 +72,4 @@ defmodule Mau.Parser.Block do
       text_content()
     ])
   end
-
-  # Note: Helper functions for block building (build_comment_content, build_comment_node,
-  # join_chars, build_text_node) remain in the main parser due to NimbleParsec's 
-  # compilation model requiring helpers to be in the same module as the combinators that use them
 end

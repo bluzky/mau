@@ -12,11 +12,6 @@ defmodule Mau.Parser.Literal do
   """
 
   import NimbleParsec
-  alias Mau.AST.Nodes
-
-  # ============================================================================
-  # WHITESPACE HANDLING
-  # ============================================================================
 
   @doc """
   Parses optional whitespace (spaces, tabs, newlines, carriage returns).
@@ -31,10 +26,6 @@ defmodule Mau.Parser.Literal do
   def required_whitespace do
     times(ascii_char([?\s, ?\t]), min: 1)
   end
-
-  # ============================================================================
-  # STRING LITERAL PARSING
-  # ============================================================================
 
   # Escape sequence handling
   defp escaped_char do
@@ -71,7 +62,7 @@ defmodule Mau.Parser.Literal do
     |> reduce(:build_string_from_chars)
   end
 
-  # Single-quoted string content  
+  # Single-quoted string content
   defp single_quoted_char do
     choice([
       escaped_char(),
@@ -231,76 +222,5 @@ defmodule Mau.Parser.Literal do
     |> concat(ascii_char([?a..?z, ?A..?Z, ?_]))
     |> repeat(ascii_char([?a..?z, ?A..?Z, ?0..?9, ?_]))
     |> reduce(:build_atom_literal)
-  end
-
-
-  # ============================================================================
-  # HELPER FUNCTIONS
-  # ============================================================================
-
-  # String literal helpers
-  defp parse_unicode_escape(["u", d1, d2, d3, d4]) do
-    hex_string = <<d1, d2, d3, d4>>
-    {code_point, ""} = Integer.parse(hex_string, 16)
-    <<code_point::utf8>>
-  end
-
-  defp build_string_from_chars(chars) do
-    chars |> List.to_string()
-  end
-
-  defp build_string_literal_node([string_value]) do
-    Nodes.literal_node(string_value)
-  end
-
-  # Number literal helpers
-  defp parse_integer(digits) do
-    digits
-    |> List.flatten()
-    |> :binary.list_to_bin()
-    |> String.to_integer()
-  end
-
-  defp parse_float(parts) do
-    string_value =
-      parts
-      |> List.flatten()
-      |> :binary.list_to_bin()
-
-    case Float.parse(string_value) do
-      {float_val, ""} ->
-        float_val
-
-      {float_val, _rest} ->
-        float_val
-
-      :error ->
-        # This should never happen with valid NimbleParsec input, but if it does,
-        # we should raise an error rather than silently convert to 0.0
-        raise "Invalid float string encountered in parser: #{inspect(string_value)}"
-    end
-  end
-
-  defp negate_number([number]) when is_number(number) do
-    -number
-  end
-
-  defp build_number_literal_node([number_value]) when is_number(number_value) do
-    Nodes.literal_node(number_value)
-  end
-
-  # Boolean and null literal helpers
-  defp build_boolean_literal_node([boolean_value]) when is_boolean(boolean_value) do
-    Nodes.literal_node(boolean_value)
-  end
-
-  defp build_null_literal_node([nil]) do
-    Nodes.literal_node(nil)
-  end
-
-  # Atom literal helpers
-  defp build_atom_literal([":" | atom_chars]) do
-    atom_name = atom_chars |> List.to_string()
-    Nodes.atom_literal_node(atom_name)
   end
 end

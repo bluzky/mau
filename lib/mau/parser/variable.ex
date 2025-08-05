@@ -3,15 +3,11 @@ defmodule Mau.Parser.Variable do
   Variable and identifier parsing for the Mau template engine.
 
   Handles parsing of:
-  - Basic identifiers (user, name, index)  
+  - Basic identifiers (user, name, index)
   - Workflow identifiers ($input, $nodes, $variables)
   """
 
   import NimbleParsec
-
-  # ============================================================================
-  # IDENTIFIER PARSING
-  # ============================================================================
 
   # Identifier character definitions
   defp identifier_start, do: ascii_char([?a..?z, ?A..?Z, ?_])
@@ -37,7 +33,7 @@ defmodule Mau.Parser.Variable do
   ## Examples
 
       * `user` -> basic identifier
-      * `$input` -> workflow identifier  
+      * `$input` -> workflow identifier
       * `user_name` -> basic identifier
   """
   def identifier do
@@ -45,18 +41,5 @@ defmodule Mau.Parser.Variable do
       workflow_identifier(),
       basic_identifier()
     ])
-  end
-
-  # ============================================================================
-  # HELPER FUNCTIONS
-  # ============================================================================
-
-  # Variable identifier helpers
-  defp build_identifier(chars) do
-    chars |> List.to_string()
-  end
-
-  defp build_workflow_identifier(["$", identifier]) do
-    "$" <> identifier
   end
 end

@@ -64,8 +64,4 @@ defmodule Mau.Parser.Expression do
       string("<")
     ])
   end
-
-  # Note: Helper functions for expression building remain in the main parser
-  # due to NimbleParsec's compilation model requiring helpers to be in the
-  # same module as the combinators that use them
 end
