@@ -1,60 +1,28 @@
 defmodule Mau.FilterRegistry do
   @moduledoc """
-  Static registry for template filters with compile-time filter storage.
-
-  The filter registry manages filter functions that can be applied to values in templates
-  using either pipe syntax (`{{ value | filter }}`) or function call syntax (`{{ filter(value) }}`).
+  Dynamic filter registry that loads filters from module specs.
+  
+  This registry automatically discovers filters by calling spec() functions
+  on filter modules, providing better organization and discoverability.
   """
 
   @type filter_function :: (any(), list() -> any())
   @type filter_name :: atom() | String.t()
 
-  # Built-in filters stored as module attribute at compile time
-  @built_in_filters %{
-    # String filters
-    "upper_case" => &Mau.Filters.StringFilters.upper_case/2,
-    "lower_case" => &Mau.Filters.StringFilters.lower_case/2,
-    "capitalize" => &Mau.Filters.StringFilters.capitalize/2,
-    "truncate" => &Mau.Filters.StringFilters.truncate/2,
-    "default" => &Mau.Filters.StringFilters.default/2,
-    "strip" => &Mau.Filters.StringFilters.strip/2,
+  # Filter modules to load
+  @filter_modules [
+    Mau.Filters.String,
+    Mau.Filters.Collection,
+    Mau.Filters.Math,
+    Mau.Filters.Number
+  ]
 
-    # Number filters
-    "round" => &Mau.Filters.NumberFilters.round/2,
-    "format_currency" => &Mau.Filters.NumberFilters.format_currency/2,
-
-    # Collection filters
-    "length" => &Mau.Filters.CollectionFilters.length/2,
-    "first" => &Mau.Filters.CollectionFilters.first/2,
-    "last" => &Mau.Filters.CollectionFilters.last/2,
-    "join" => &Mau.Filters.CollectionFilters.join/2,
-    "sort" => &Mau.Filters.CollectionFilters.sort/2,
-    "reverse" => &Mau.Filters.CollectionFilters.reverse/2,
-    "uniq" => &Mau.Filters.CollectionFilters.uniq/2,
-    "slice" => &Mau.Filters.CollectionFilters.slice/2,
-    "contains" => &Mau.Filters.CollectionFilters.contains/2,
-    "compact" => &Mau.Filters.CollectionFilters.compact/2,
-    "flatten" => &Mau.Filters.CollectionFilters.flatten/2,
-    "sum" => &Mau.Filters.CollectionFilters.sum/2,
-    "keys" => &Mau.Filters.CollectionFilters.keys/2,
-    "values" => &Mau.Filters.CollectionFilters.values/2,
-    "group_by" => &Mau.Filters.CollectionFilters.group_by/2,
-    "map" => &Mau.Filters.CollectionFilters.map/2,
-    "filter" => &Mau.Filters.CollectionFilters.filter/2,
-    "reject" => &Mau.Filters.CollectionFilters.reject/2,
-    "dump" => &Mau.Filters.CollectionFilters.dump/2,
-
-    # Math filters
-    "abs" => &Mau.Filters.MathFilters.abs/2,
-    "ceil" => &Mau.Filters.MathFilters.ceil/2,
-    "floor" => &Mau.Filters.MathFilters.floor/2,
-    "max" => &Mau.Filters.MathFilters.max/2,
-    "min" => &Mau.Filters.MathFilters.min/2,
-    "power" => &Mau.Filters.MathFilters.power/2,
-    "sqrt" => &Mau.Filters.MathFilters.sqrt/2,
-    "mod" => &Mau.Filters.MathFilters.mod/2,
-    "clamp" => &Mau.Filters.MathFilters.clamp/2
-  }
+  # Build filter name registry at compile time
+  @filter_names @filter_modules
+               |> Enum.flat_map(fn module ->
+                 spec = module.spec()
+                 Map.keys(spec.filters)
+               end)
 
   @doc """
   Gets a filter function by name.
@@ -70,7 +38,18 @@ defmodule Mau.FilterRegistry do
   """
   @spec get(filter_name()) :: {:ok, filter_function()} | {:error, :not_found}
   def get(name) when is_binary(name) do
-    case Map.get(@built_in_filters, name) do
+    # Find the filter function by searching through modules
+    result = 
+      @filter_modules
+      |> Enum.find_value(fn module ->
+        spec = module.spec()
+        case Map.get(spec.filters, name) do
+          nil -> nil
+          filter_spec -> filter_spec.function
+        end
+      end)
+
+    case result do
       nil -> {:error, :not_found}
       function -> {:ok, function}
     end
@@ -82,32 +61,64 @@ defmodule Mau.FilterRegistry do
 
   @doc """
   Lists all registered filter names.
-
-  ## Examples
-
-      iex> Mau.FilterRegistry.list()
-      ["abs", "capitalize", "ceil", "clamp", "compact", "contains", "default", "dump", "filter", "first", "flatten", "floor", "format_currency", "group_by", "join", "keys", "last", "length", "lower_case", "map", "max", "min", "mod", "power", "reject", "reverse", "round", "slice", "sort", "sqrt", "strip", "sum", "truncate", "uniq", "upper_case", "values"]
   """
   @spec list() :: [String.t()]
   def list do
-    @built_in_filters
-    |> Map.keys()
+    @filter_names
     |> Enum.sort()
   end
 
   @doc """
+  Lists filters organized by category.
+  """
+  @spec list_by_category() :: %{atom() => [%{name: String.t(), description: String.t()}]}
+  def list_by_category do
+    @filter_modules
+    |> Enum.reduce(%{}, fn module, acc ->
+      spec = module.spec()
+      
+      filters = 
+        spec.filters
+        |> Enum.map(fn {name, filter_spec} ->
+          %{name: name, description: filter_spec.description}
+        end)
+      
+      Map.put(acc, spec.category, filters)
+    end)
+  end
+
+  @doc """
+  Gets detailed information about a filter.
+  """
+  @spec get_info(filter_name()) :: {:ok, map()} | {:error, :not_found}
+  def get_info(name) when is_binary(name) do
+    result = 
+      @filter_modules
+      |> Enum.find_value(fn module ->
+        spec = module.spec()
+        case Map.get(spec.filters, name) do
+          nil -> nil
+          filter_spec -> 
+            %{
+              name: name,
+              category: spec.category,
+              description: filter_spec.description
+            }
+        end
+      end)
+
+    case result do
+      nil -> {:error, :not_found}
+      info -> {:ok, info}
+    end
+  end
+
+  def get_info(name) when is_atom(name) do
+    get_info(Atom.to_string(name))
+  end
+
+  @doc """
   Applies a filter to a value with the given arguments.
-
-  ## Examples
-
-      iex> Mau.FilterRegistry.apply(:upper_case, "hello", [])
-      {:ok, "HELLO"}
-      
-      iex> Mau.FilterRegistry.apply(:truncate, "hello world", [5])
-      {:ok, "hello"}
-      
-      iex> Mau.FilterRegistry.apply(:unknown, "value", [])
-      {:error, :filter_not_found}
   """
   @spec apply(filter_name(), any(), list()) ::
           {:ok, any()} | {:error, :filter_not_found | :filter_error}
@@ -118,7 +129,7 @@ defmodule Mau.FilterRegistry do
           case filter_function.(value, args) do
             {:ok, result} -> {:ok, result}
             {:error, reason} -> {:error, {:filter_error, reason}}
-            # Support legacy filters that return direct values (for backward compatibility)
+            # Support legacy filters that return direct values
             result -> {:ok, result}
           end
         rescue
@@ -129,5 +140,16 @@ defmodule Mau.FilterRegistry do
       {:error, :not_found} ->
         {:error, :filter_not_found}
     end
+  end
+
+  @doc """
+  Returns all available categories.
+  """
+  @spec categories() :: [atom()]
+  def categories do
+    @filter_modules
+    |> Enum.map(fn module -> module.spec().category end)
+    |> Enum.uniq()
+    |> Enum.sort()
   end
 end
