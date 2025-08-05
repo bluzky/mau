@@ -742,7 +742,9 @@ defmodule Mau.Parser do
   end
 
   # Text node helpers
-  
+  defp join_chars(chars) when is_list(chars) do
+    :binary.list_to_bin(chars)
+  end
 
   defp build_text_node([content]) do
     Nodes.text_node(content)

@@ -47,7 +47,15 @@ defmodule Mau.Parser.Block do
   Text content parsing that handles { characters not part of template constructs.
   """
   def text_content do
-    utf8_string([not: ?{], min: 1)
+    choice([
+      # Text that doesn't contain any { characters  
+      utf8_string([not: ?{], min: 1),
+      # Handle { character that's not part of a template construct
+      string("{")
+      |> lookahead_not(choice([string("%"), string("{"), string("#")]))
+      |> concat(repeat(utf8_char(not: ?{)))
+      |> reduce(:join_chars)
+    ])
     |> reduce(:build_text_node)
   end
 
