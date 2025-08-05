@@ -446,7 +446,7 @@ defmodule Mau.Renderer do
   defp is_truthy(0), do: false
   defp is_truthy(value) when is_float(value) and value == 0.0, do: false
   defp is_truthy([]), do: false
-  defp is_truthy(%{}), do: false
+  defp is_truthy(map) when is_map(map), do: map_size(map) > 0
   defp is_truthy(_), do: true
 
   # Tag rendering functions

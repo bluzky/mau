@@ -162,6 +162,34 @@ defmodule Mau.BlockProcessor do
   end
 
   defp collect_conditional_block(
+         [{:tag, [:if, nested_condition], _nested_opts} | rest],
+         if_condition,
+         if_content,
+         elsif_branches,
+         else_content,
+         current_content,
+         current_tag
+       ) do
+    # Found nested if - recursively process it as a complete conditional block
+    case collect_conditional_block(rest, nested_condition, [], [], nil) do
+      {:ok, {nested_block, remaining_nodes}} ->
+        # Add the processed nested block to current content
+        collect_conditional_block(
+          remaining_nodes,
+          if_condition,
+          if_content,
+          elsif_branches,
+          else_content,
+          [nested_block | current_content],
+          current_tag
+        )
+
+      {:error, error} ->
+        {:error, error}
+    end
+  end
+
+  defp collect_conditional_block(
          [node | rest],
          if_condition,
          if_content,
