@@ -500,7 +500,6 @@ defmodule Mau.WhitespaceControlConditionalsTest do
       }
 
       assert {:ok, result} = Mau.render(template, context)
-      IO.inspect(result, label: "Rendered JSON")
       assert String.contains?(result, "\"status\": \"active\"")
       assert String.contains?(result, "\"name\": \"Alice\"")
       assert String.contains?(result, "\"email\": \"alice@example.com\"")

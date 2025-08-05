@@ -233,20 +233,43 @@ defmodule Mau.Renderer do
 
   # Resolves index values from literals, variables, or direct values
   # This provides a clean pathway for handling different index types:
-  # - {:literal, [42], []} -> 42
-  # - {:variable, ["index"], []} -> evaluates variable "index"
-  # - 42 -> 42 (direct value)
+  # - {:literal, [42], []} -> 42 (if valid)
+  # - {:variable, ["index"], []} -> evaluates variable "index" (if valid)
+  # - 42 -> 42 (direct value, if valid)
   defp resolve_index_value({:literal, [literal_value], _opts}, _context) do
-    {:ok, literal_value}
+    if is_valid_index_or_key(literal_value) do
+      {:ok, literal_value}
+    else
+      {:error, Mau.Error.runtime_error("Invalid array index or map key: #{inspect(literal_value)}")}
+    end
   end
 
   defp resolve_index_value({:variable, _path, _opts} = var_expr, context) do
-    evaluate_expression(var_expr, context)
+    case evaluate_expression(var_expr, context) do
+      {:ok, value} ->
+        if is_valid_index_or_key(value) do
+          {:ok, value}
+        else
+          {:error, Mau.Error.runtime_error("Invalid array index or map key: #{inspect(value)}")}
+        end
+      error ->
+        error
+    end
   end
 
   defp resolve_index_value(direct_value, _context) do
-    {:ok, direct_value}
+    if is_valid_index_or_key(direct_value) do
+      {:ok, direct_value}
+    else
+      {:error, Mau.Error.runtime_error("Invalid array index or map key: #{inspect(direct_value)}")}
+    end
   end
+
+  # Helper to check if a value can be used as an index or key
+  defp is_valid_index_or_key(value) when is_integer(value), do: true  # Allow all integers, including negative
+  defp is_valid_index_or_key(value) when is_binary(value), do: true
+  defp is_valid_index_or_key(value) when is_atom(value), do: true
+  defp is_valid_index_or_key(_), do: false
 
   # Gets an element from list/map by index/key - returns the value directly (nil if not found)
   defp get_list_element(list, index) when is_list(list) and is_integer(index) and index >= 0 do

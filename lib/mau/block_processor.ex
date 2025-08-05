@@ -6,6 +6,19 @@ defmodule Mau.BlockProcessor do
   (if/elsif/else/endif) into proper block structures for rendering.
   """
 
+  # State management for conditional block collection
+  defmodule ConditionalBlockState do
+    @moduledoc false
+    defstruct [
+      :if_condition,
+      if_content: [],
+      elsif_branches: [],
+      else_content: nil,
+      current_content: [],
+      current_branch: :if
+    ]
+  end
+
   @doc """
   Processes an AST to convert individual conditional tags into block structures.
 
@@ -65,95 +78,54 @@ defmodule Mau.BlockProcessor do
 
   # Collects nodes from if to endif, building a conditional block structure
   defp collect_conditional_block(nodes, if_condition, if_content, elsif_branches, else_content) do
-    collect_conditional_block(nodes, if_condition, if_content, elsif_branches, else_content, [], :if)
+    state = %ConditionalBlockState{
+      if_condition: if_condition,
+      if_content: if_content,
+      elsif_branches: elsif_branches,
+      else_content: else_content,
+      current_content: [],
+      current_branch: :if
+    }
+    collect_conditional_block(nodes, state)
   end
 
-  defp collect_conditional_block(
-         [],
-         _if_condition,
-         _if_content,
-         _elsif_branches,
-         _else_content,
-         _current_content,
-         _current_tag
-       ) do
+  defp collect_conditional_block([], _state) do
     {:error, "Unclosed if statement - missing endif"}
   end
 
-  defp collect_conditional_block(
-         [{:tag, [:elsif, condition], _opts} | rest],
-         if_condition,
-         if_content,
-         elsif_branches,
-         else_content,
-         current_content,
-         current_tag
-       ) do
-    # Save current_content to the appropriate branch based on current_tag
-    {updated_if_content, updated_elsif_branches, _} =
-      save_current_content(if_content, elsif_branches, current_content, current_tag)
-
-    # Add new elsif branch and switch to it
-    new_elsif_branches = updated_elsif_branches ++ [{condition, []}]
-
-    collect_conditional_block(
-      rest,
-      if_condition,
-      updated_if_content,
-      new_elsif_branches,
-      else_content,
-      [],
-      {:elsif, condition}
-    )
+  defp collect_conditional_block([{:tag, [:elsif, condition], _opts} | rest], state) do
+    # Save current content and switch to new elsif branch
+    updated_state = 
+      state
+      |> save_current_branch_content()
+      |> add_elsif_branch(condition)
+    
+    collect_conditional_block(rest, updated_state)
   end
 
-  defp collect_conditional_block(
-         [{:tag, [:else], _opts} | rest],
-         if_condition,
-         if_content,
-         elsif_branches,
-         else_content,
-         current_content,
-         current_tag
-       ) do
-    # Save current_content to the appropriate branch based on current_tag
-    {updated_if_content, updated_elsif_branches, _} =
-      save_current_content(if_content, elsif_branches, current_content, current_tag)
-
-    # Switch to else phase
-    collect_conditional_block(
-      rest,
-      if_condition,
-      updated_if_content,
-      updated_elsif_branches,
-      else_content,
-      [],
-      :else
-    )
+  defp collect_conditional_block([{:tag, [:else], _opts} | rest], state) do
+    # Save current content and switch to else branch
+    updated_state = 
+      state
+      |> save_current_branch_content()
+      |> switch_to_else_branch()
+    
+    collect_conditional_block(rest, updated_state)
   end
 
-  defp collect_conditional_block(
-         [{:tag, [:endif], _opts} | rest],
-         if_condition,
-         if_content,
-         elsif_branches,
-         _else_content,
-         current_content,
-         current_tag
-       ) do
-    # Save current_content to the appropriate branch based on current_tag
-    {final_if_content, final_elsif_branches, final_else_content} =
-      save_current_content(if_content, elsif_branches, current_content, current_tag)
-
+  defp collect_conditional_block([{:tag, [:endif], _opts} | rest], state) do
+    # Finalize the conditional block
+    final_state = save_current_branch_content(state)
+    
     # Build the conditional block node
     final_else_branch =
-      if final_else_content != nil and final_else_content != [],
-        do: process_blocks(final_else_content),
+      if final_state.else_content != nil and final_state.else_content != [],
+        do: process_blocks(final_state.else_content),
         else: nil
 
     block_data = [
-      if_branch: {if_condition, process_blocks(final_if_content)},
-      elsif_branches: process_elsif_branches(final_elsif_branches),
+      if_branch: {final_state.if_condition, process_blocks(final_state.if_content)},
+      elsif_branches: process_elsif_branches(final_state.elsif_branches),
       else_branch: final_else_branch
     ]
 
@@ -161,47 +133,23 @@ defmodule Mau.BlockProcessor do
     {:ok, {block_node, rest}}
   end
 
-  defp collect_conditional_block(
-         [{:tag, [:if, nested_condition], _nested_opts} | rest],
-         if_condition,
-         if_content,
-         elsif_branches,
-         else_content,
-         current_content,
-         current_tag
-       ) do
+  defp collect_conditional_block([{:tag, [:if, nested_condition], _nested_opts} | rest], state) do
     # Found nested if - recursively process it as a complete conditional block
     case collect_conditional_block(rest, nested_condition, [], [], nil) do
       {:ok, {nested_block, remaining_nodes}} ->
         # Add the processed nested block to current content
-        collect_conditional_block(
-          remaining_nodes,
-          if_condition,
-          if_content,
-          elsif_branches,
-          else_content,
-          [nested_block | current_content],
-          current_tag
-        )
+        updated_state = add_node_to_current_content(state, nested_block)
+        collect_conditional_block(remaining_nodes, updated_state)
 
       {:error, error} ->
         {:error, error}
     end
   end
 
-  defp collect_conditional_block(
-         [node | rest],
-         if_condition,
-         if_content,
-         elsif_branches,
-         else_content,
-         current_content,
-         current_tag
-       ) do
+  defp collect_conditional_block([node | rest], state) do
     # Regular node - add to current content
-    collect_conditional_block(rest, if_condition, if_content, elsif_branches, else_content, [
-      node | current_content
-    ], current_tag)
+    updated_state = add_node_to_current_content(state, node)
+    collect_conditional_block(rest, updated_state)
   end
 
   # Collects nodes from for to endfor, building a loop block structure
@@ -255,27 +203,38 @@ defmodule Mau.BlockProcessor do
     collect_loop_block(rest, loop_variable, collection_expression, [node | content], depth)
   end
 
-  # Helper to save current_content to the appropriate branch based on current_tag
-  defp save_current_content(if_content, elsif_branches, current_content, current_tag) do
-    case current_tag do
+  # State management helpers for conditional block collection
+  
+  defp save_current_branch_content(%ConditionalBlockState{} = state) do
+    reversed_content = Enum.reverse(state.current_content)
+    
+    case state.current_branch do
       :if ->
-        # Current content belongs to if branch
-        updated_if_content = if_content ++ Enum.reverse(current_content)
-        {updated_if_content, elsif_branches, nil}
+        %{state | if_content: state.if_content ++ reversed_content, current_content: []}
 
-      {:elsif, _} ->
-        # Current content belongs to last elsif branch
+      {:elsif, _condition} ->
         updated_elsif_branches =
-          List.update_at(elsif_branches, -1, fn {cond, content} ->
-            {cond, content ++ Enum.reverse(current_content)}
+          List.update_at(state.elsif_branches, -1, fn {cond, content} ->
+            {cond, content ++ reversed_content}
           end)
-
-        {if_content, updated_elsif_branches, nil}
+        %{state | elsif_branches: updated_elsif_branches, current_content: []}
 
       :else ->
-        # Current content is else content
-        {if_content, elsif_branches, Enum.reverse(current_content)}
+        %{state | else_content: reversed_content, current_content: []}
     end
+  end
+
+  defp add_elsif_branch(%ConditionalBlockState{} = state, condition) do
+    new_elsif_branches = state.elsif_branches ++ [{condition, []}]
+    %{state | elsif_branches: new_elsif_branches, current_branch: {:elsif, condition}}
+  end
+
+  defp switch_to_else_branch(%ConditionalBlockState{} = state) do
+    %{state | current_branch: :else}
+  end
+
+  defp add_node_to_current_content(%ConditionalBlockState{} = state, node) do
+    %{state | current_content: [node | state.current_content]}
   end
 
   # Helper to recursively process elsif branches content

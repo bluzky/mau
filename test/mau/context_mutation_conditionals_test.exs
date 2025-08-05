@@ -182,7 +182,6 @@ defmodule Mau.ContextMutationConditionalsTest do
       context_neither = %{"outer_condition" => false, "inner_condition" => false}
       assert {:ok, result_neither} = Mau.render(template, context_neither)
       # both undefined
-      IO.inspect(result_neither)
       assert String.contains?(result_neither, "Level: , Status:")
     end
 

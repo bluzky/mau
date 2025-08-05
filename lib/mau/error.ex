@@ -6,7 +6,7 @@ defmodule Mau.Error do
   that can occur during template compilation and rendering.
   """
 
-  defstruct [:type, :message, :line, :column, :source_file, :context]
+  defexception [:type, :message, :line, :column, :source_file, :context]
 
   @type t :: %__MODULE__{
           type: :syntax | :runtime | :type | :undefined_variable,
