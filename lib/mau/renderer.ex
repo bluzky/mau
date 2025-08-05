@@ -135,98 +135,83 @@ defmodule Mau.Renderer do
     {:error, error}
   end
 
-  # Context-aware variable value extraction with support for variable indices
-  # All extract_variable_value_with_context/3 clauses grouped together
+  # ============================================================================
+  # VARIABLE VALUE EXTRACTION
+  # ============================================================================
 
-  # Context-based lookup (start of path with identifier)
-  defp extract_variable_value_with_context([identifier], context, _original_context)
-       when is_binary(identifier) do
-    case Map.get(context, identifier) do
-      nil -> {:ok, nil}
-      value -> {:ok, value}
-    end
-  end
+  # Context-aware variable value extraction with support for variable indices.
+  # This is the main entry point for resolving variable paths like:
+  # - Simple variables: "user"
+  # - Property access: "user.name"
+  # - Array access: "items[0]", "items[index]"
+  # - Complex paths: "users[0].profile.name"
 
   defp extract_variable_value_with_context([identifier | path_rest], context, original_context)
        when is_binary(identifier) do
     case Map.get(context, identifier) do
       nil -> {:ok, nil}
+      value when path_rest == [] -> {:ok, value}
       value -> extract_variable_value_with_context_from_value(path_rest, value, original_context)
     end
   end
 
-  # Base case for context version
-  defp extract_variable_value_with_context([], value, _original_context) do
-    {:ok, value}
-  end
-
-  # Fallback for context version
-  defp extract_variable_value_with_context(_path, _value, _original_context) do
+  # Fallback for edge cases
+  defp extract_variable_value_with_context(_path, _context, _original_context) do
     {:ok, nil}
   end
 
-  # Continue extraction from a value (not context map)
+  # Continues path traversal from a resolved value (not the initial context map)
   defp extract_variable_value_with_context_from_value([], value, _original_context) do
     {:ok, value}
   end
 
-  # Property access from value with context available
   defp extract_variable_value_with_context_from_value(
-         [{:property, property} | path_rest],
-         value,
-         original_context
-       )
-       when is_map(value) do
-    case Map.get(value, property) do
-      nil ->
-        {:ok, nil}
-
-      new_value ->
-        extract_variable_value_with_context_from_value(path_rest, new_value, original_context)
-    end
-  end
-
-  # Array index access from value with context - supports variable indices
-  defp extract_variable_value_with_context_from_value(
-         [{:index, index} | path_rest],
+         [access | path_rest],
          value,
          original_context
        ) do
-    # Extract the actual index value from literal nodes or evaluate variable expressions
-
-    actual_index_result =
-      case index do
-        {:literal, [literal_value], _opts} ->
-          {:ok, literal_value}
-
-        {:variable, _path, _opts} = var_expr ->
-          evaluate_expression(var_expr, original_context)
-
-        other ->
-          {:ok, other}
-      end
-
-    case actual_index_result do
-      {:ok, actual_index} ->
-        case get_list_element(value, actual_index) do
-          nil ->
-            {:ok, nil}
-
-          new_value ->
-            extract_variable_value_with_context_from_value(path_rest, new_value, original_context)
-        end
-
-      {:error, error} ->
-        {:error, error}
+    with {:ok, accessed_value} <- resolve_value_access(access, value, original_context) do
+      extract_variable_value_with_context_from_value(path_rest, accessed_value, original_context)
     end
   end
 
-  # Fallback for unsupported access patterns
-  defp extract_variable_value_with_context_from_value(_path, _value, _original_context) do
+  # Unified access resolution - handles both property and index access
+  defp resolve_value_access({:property, property}, value, _context) when is_map(value) do
+    case Map.fetch(value, property) do
+      {:ok, new_value} -> {:ok, new_value}
+      # Property not found, return nil
+      :error -> {:ok, Map.get(value, String.to_atom(property))}
+    end
+  end
+
+  defp resolve_value_access({:index, index}, value, context) do
+    with {:ok, resolved_index} <- resolve_index_value(index, context) do
+      {:ok, get_list_element(value, resolved_index)}
+    end
+  end
+
+  defp resolve_value_access(_access, _value, _context) do
     {:ok, nil}
   end
 
-  # Gets an element from list/map by literal index/key only
+  # Resolves index values from literals, variables, or direct values
+  # This provides a clean pathway for handling different index types:
+  # - {:literal, [42], []} -> 42
+  # - {:variable, ["index"], []} -> evaluates variable "index"
+  # - 42 -> 42 (direct value)
+  defp resolve_index_value({:literal, [literal_value], _opts}, _context) do
+    {:ok, literal_value}
+  end
+
+  defp resolve_index_value({:variable, _path, _opts} = var_expr, context) do
+    evaluate_expression(var_expr, context)
+  end
+
+  defp resolve_index_value(direct_value, _context) do
+    {:ok, direct_value}
+  end
+
+  # Gets an element from list/map by index/key - returns the value directly (nil if not found)
   defp get_list_element(list, index) when is_list(list) and is_integer(index) and index >= 0 do
     Enum.at(list, index)
   end
