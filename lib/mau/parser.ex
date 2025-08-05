@@ -10,6 +10,7 @@ defmodule Mau.Parser do
   alias Mau.AST.Nodes
   alias Mau.Parser.Literal
   alias Mau.Parser.Variable
+  alias Mau.Parser.Expression
 
   # ============================================================================
   # LITERAL PARSING (DELEGATED TO LITERAL MODULE)
@@ -155,12 +156,7 @@ defmodule Mau.Parser do
   )
 
   # Multiplicative expressions - *, /, % (highest arithmetic precedence)
-  multiplicative_operator =
-    choice([
-      string("*"),
-      string("/"),
-      string("%")
-    ])
+  multiplicative_operator = Expression.multiplicative_operator()
 
   multiplicative_expression =
     parsec(:atom_expression)
@@ -173,11 +169,7 @@ defmodule Mau.Parser do
     |> reduce(:build_binary_operation)
 
   # Additive expressions - +, - (lowest arithmetic precedence)
-  additive_operator =
-    choice([
-      string("+"),
-      string("-")
-    ])
+  additive_operator = Expression.additive_operator()
 
   additive_expression =
     multiplicative_expression
@@ -194,11 +186,7 @@ defmodule Mau.Parser do
   # ============================================================================
 
   # Equality operators - ==, !=
-  equality_operator =
-    choice([
-      string("=="),
-      string("!=")
-    ])
+  equality_operator = Expression.equality_operator()
 
   equality_expression =
     additive_expression
@@ -211,13 +199,7 @@ defmodule Mau.Parser do
     |> reduce(:build_binary_operation)
 
   # Relational operators - >, >=, <, <=
-  relational_operator =
-    choice([
-      string(">="),
-      string("<="),
-      string(">"),
-      string("<")
-    ])
+  relational_operator = Expression.relational_operator()
 
   relational_expression =
     equality_expression

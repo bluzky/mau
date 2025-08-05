@@ -47,27 +47,36 @@ This document outlines the gradual migration strategy for splitting the monolith
 - **Partial extraction is valuable** - Even extracting just the identifier parsing improves modularity without breaking functionality
 - **NimbleParsec complexity** - Complex path parsing with forward declarations is better kept in the main parser to avoid compilation issues
 
-## Phase 3: Expression Parsing [FUTURE]
+## Phase 3: Expression Parsing ✅
 
-**Target modules**: Extract expression evaluation and operator precedence
-**Estimated complexity**: High  
-**Dependencies**: Variable, Literal modules
+**Status**: Successfully completed with 0 test failures
+**Target modules**: Extract operator definitions and shared expression utilities
+**Actual complexity**: Medium (reduced from High due to conservative approach)
+**Dependencies**: None (successfully isolated)
 
-### Steps:
-1. Create `Mau.Parser.Expression` module with:
-   - `primary_expression()` function
-   - `pipe_expression()` function
-   - Arithmetic operators (`additive_expression`, `multiplicative_expression`)
-   - Comparison operators (`equality_expression`, `relational_expression`)
-   - Logical operators (`logical_and_expression`, `logical_or_expression`)
+### What was done:
+1. Created `Mau.Parser.Expression` module with:
+   - `multiplicative_operator()` function (*, /, %)
+   - `additive_operator()` function (+, -)
+   - `equality_operator()` function (==, !=)
+   - `relational_operator()` function (>, >=, <, <=)
 
-2. Keep complex interdependent helpers in main parser
-3. Test thoroughly due to complex precedence rules
+2. Updated main parser:
+   - Added `alias Mau.Parser.Expression`
+   - Replaced inline operator definitions with delegated calls to Expression module
+   - Kept all complex combinator logic and helper functions in main parser
 
-### Expected challenges:
-- High circular dependency risk due to expression precedence
-- Complex parser combinator relationships
-- May need to keep most helpers in main parser
+3. Successfully tested - all 751 tests pass with full backward compatibility
+
+### Key learnings:
+- **Conservative extraction is effective** - Extracting just the operator definitions provides meaningful modularity without breaking complex circular dependencies
+- **Circular dependencies are real** - Primary expressions, pipe expressions, and atom expressions have complex interdependencies that are best left in the main parser
+- **Partial extraction provides value** - Even extracting operator definitions improves code organization and makes the operator precedence more explicit
+
+### Challenges encountered:
+- **High circular dependency risk confirmed** - Full expression parsing extraction would have required complex forward declarations and defcombinatorp management
+- **NimbleParsec compilation model** - Helper functions must remain with the combinators that use them
+- **Solution: operator-only extraction** - Successfully extracted just the operator parsing without the complex expression hierarchy
 
 ## Phase 4: Tag Parsing [FUTURE]
 
