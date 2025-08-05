@@ -6,7 +6,7 @@ defmodule Mau.FilterRegistry do
   on filter modules, providing better organization and discoverability.
   """
 
-  @type filter_function :: (any(), list() -> any())
+  @type filter_mfa :: {module(), atom()}
   @type filter_name :: atom() | String.t()
 
   # Filter modules to load
@@ -17,41 +17,38 @@ defmodule Mau.FilterRegistry do
     Mau.Filters.Number
   ]
 
-  # Build compile-time filter name to module mapping (avoid storing functions in attributes)
-  @filter_to_module_map @filter_modules
-                        |> Enum.reduce(%{}, fn module, acc ->
-                          spec = module.spec()
+  # Build compile-time filter name to {module, function} mapping for fast runtime lookups
+  @filter_function_map @filter_modules
+                       |> Enum.reduce(%{}, fn module, acc ->
+                         spec = module.spec()
 
-                          filter_modules =
-                            Map.keys(spec.filters)
-                            |> Enum.map(fn name -> {name, module} end)
-                            |> Map.new()
+                         filter_functions =
+                           spec.filters
+                           |> Enum.map(fn {name, filter_spec} -> 
+                             {name, filter_spec.function}
+                           end)
+                           |> Map.new()
 
-                          Map.merge(acc, filter_modules)
-                        end)
+                         Map.merge(acc, filter_functions)
+                       end)
 
   @doc """
   Gets a filter function by name.
 
   ## Examples
 
-      iex> {:ok, func} = Mau.FilterRegistry.get(:upper_case)
-      iex> is_function(func, 2)
+      iex> {:ok, {module, function}} = Mau.FilterRegistry.get(:upper_case)
+      iex> is_atom(module) and is_atom(function)
       true
 
       iex> Mau.FilterRegistry.get(:unknown_filter)
       {:error, :not_found}
   """
-  @spec get(filter_name()) :: {:ok, filter_function()} | {:error, :not_found}
+  @spec get(filter_name()) :: {:ok, filter_mfa()} | {:error, :not_found}
   def get(name) when is_binary(name) do
-    case Map.get(@filter_to_module_map, name) do
-      nil ->
-        {:error, :not_found}
-
-      module ->
-        spec = module.spec()
-        filter_spec = Map.get(spec.filters, name)
-        {:ok, filter_spec.function}
+    case Map.get(@filter_function_map, name) do
+      nil -> {:error, :not_found}
+      mfa -> {:ok, mfa}
     end
   end
 
@@ -66,9 +63,9 @@ defmodule Mau.FilterRegistry do
           {:ok, any()} | {:error, :filter_not_found | :filter_error}
   def apply(name, value, args \\ []) do
     case get(name) do
-      {:ok, filter_function} ->
+      {:ok, {module, function}} ->
         try do
-          case filter_function.(value, args) do
+          case Kernel.apply(module, function, [value, args]) do
             {:ok, result} -> {:ok, result}
             {:error, reason} -> {:error, {:filter_error, reason}}
             # Support legacy filters that return direct values

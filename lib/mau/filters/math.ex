@@ -13,43 +13,43 @@ defmodule Mau.Filters.Math do
       filters: %{
         "abs" => %{
           description: "Returns absolute value",
-          function: &abs/2
+          function: {__MODULE__, :abs}
         },
         "ceil" => %{
           description: "Rounds up to nearest integer",
-          function: &ceil/2
+          function: {__MODULE__, :ceil}
         },
         "floor" => %{
           description: "Rounds down to nearest integer",
-          function: &floor/2
+          function: {__MODULE__, :floor}
         },
         "round" => %{
           description: "Rounds to nearest integer or specified decimals",
-          function: &round/2
+          function: {__MODULE__, :round}
         },
         "max" => %{
           description: "Returns maximum value from list or compares two values",
-          function: &max_value/2
+          function: {__MODULE__, :max_value}
         },
         "min" => %{
           description: "Returns minimum value from list or compares two values",
-          function: &min_value/2
+          function: {__MODULE__, :min_value}
         },
         "power" => %{
           description: "Raises number to a power",
-          function: &power/2
+          function: {__MODULE__, :power}
         },
         "sqrt" => %{
           description: "Returns square root",
-          function: &sqrt/2
+          function: {__MODULE__, :sqrt}
         },
         "mod" => %{
           description: "Returns remainder of division",
-          function: &mod/2
+          function: {__MODULE__, :mod}
         },
         "clamp" => %{
           description: "Clamps value between min and max",
-          function: &clamp/2
+          function: {__MODULE__, :clamp}
         }
       }
     }

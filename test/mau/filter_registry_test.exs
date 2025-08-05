@@ -6,44 +6,44 @@ defmodule Mau.FilterRegistryTest do
 
   describe "get/1" do
     test "returns built-in string filters" do
-      assert {:ok, function} = FilterRegistry.get(:upper_case)
-      assert is_function(function, 2)
+      assert {:ok, {module, function}} = FilterRegistry.get(:upper_case)
+      assert is_atom(module) and is_atom(function)
 
-      assert {:ok, function} = FilterRegistry.get(:lower_case)
-      assert is_function(function, 2)
+      assert {:ok, {module, function}} = FilterRegistry.get(:lower_case)
+      assert is_atom(module) and is_atom(function)
 
-      assert {:ok, function} = FilterRegistry.get(:capitalize)
-      assert is_function(function, 2)
+      assert {:ok, {module, function}} = FilterRegistry.get(:capitalize)
+      assert is_atom(module) and is_atom(function)
     end
 
     test "returns built-in number filters" do
-      assert {:ok, function} = FilterRegistry.get(:round)
-      assert is_function(function, 2)
+      assert {:ok, {module, function}} = FilterRegistry.get(:round)
+      assert is_atom(module) and is_atom(function)
 
-      assert {:ok, function} = FilterRegistry.get(:format_currency)
-      assert is_function(function, 2)
+      assert {:ok, {module, function}} = FilterRegistry.get(:format_currency)
+      assert is_atom(module) and is_atom(function)
     end
 
     test "returns built-in collection filters" do
-      assert {:ok, function} = FilterRegistry.get(:length)
-      assert is_function(function, 2)
+      assert {:ok, {module, function}} = FilterRegistry.get(:length)
+      assert is_atom(module) and is_atom(function)
 
-      assert {:ok, function} = FilterRegistry.get(:first)
-      assert is_function(function, 2)
+      assert {:ok, {module, function}} = FilterRegistry.get(:first)
+      assert is_atom(module) and is_atom(function)
 
-      assert {:ok, function} = FilterRegistry.get(:join)
-      assert is_function(function, 2)
+      assert {:ok, {module, function}} = FilterRegistry.get(:join)
+      assert is_atom(module) and is_atom(function)
     end
 
     test "returns built-in math filters" do
-      assert {:ok, function} = FilterRegistry.get(:abs)
-      assert is_function(function, 2)
+      assert {:ok, {module, function}} = FilterRegistry.get(:abs)
+      assert is_atom(module) and is_atom(function)
 
-      assert {:ok, function} = FilterRegistry.get(:ceil)
-      assert is_function(function, 2)
+      assert {:ok, {module, function}} = FilterRegistry.get(:ceil)
+      assert is_atom(module) and is_atom(function)
 
-      assert {:ok, function} = FilterRegistry.get(:sqrt)
-      assert is_function(function, 2)
+      assert {:ok, {module, function}} = FilterRegistry.get(:sqrt)
+      assert is_atom(module) and is_atom(function)
     end
 
     test "returns error for unknown filter" do
@@ -51,8 +51,8 @@ defmodule Mau.FilterRegistryTest do
     end
 
     test "normalizes string filter names to atoms" do
-      assert {:ok, function} = FilterRegistry.get("upper_case")
-      assert is_function(function, 2)
+      assert {:ok, {module, function}} = FilterRegistry.get("upper_case")
+      assert is_atom(module) and is_atom(function)
     end
   end
 

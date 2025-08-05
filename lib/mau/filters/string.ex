@@ -13,27 +13,27 @@ defmodule Mau.Filters.String do
       filters: %{
         "upper_case" => %{
           description: "Converts string to uppercase",
-          function: &upper_case/2
+          function: {__MODULE__, :upper_case}
         },
         "lower_case" => %{
           description: "Converts string to lowercase",
-          function: &lower_case/2
+          function: {__MODULE__, :lower_case}
         },
         "capitalize" => %{
           description: "Capitalizes the first letter of each word",
-          function: &capitalize/2
+          function: {__MODULE__, :capitalize}
         },
         "strip" => %{
           description: "Removes whitespace from beginning and end",
-          function: &strip/2
+          function: {__MODULE__, :strip}
         },
         "truncate" => %{
           description: "Truncates string to specified length",
-          function: &truncate/2
+          function: {__MODULE__, :truncate}
         },
         "default" => %{
           description: "Returns default value if input is nil or empty",
-          function: &default/2
+          function: {__MODULE__, :default}
         }
       }
     }

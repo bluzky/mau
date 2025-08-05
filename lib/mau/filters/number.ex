@@ -13,7 +13,7 @@ defmodule Mau.Filters.Number do
       filters: %{
         "format_currency" => %{
           description: "Formats number as currency",
-          function: &format_currency/2
+          function: {__MODULE__, :format_currency}
         }
       }
     }

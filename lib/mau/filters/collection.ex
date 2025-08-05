@@ -13,79 +13,79 @@ defmodule Mau.Filters.Collection do
       filters: %{
         "length" => %{
           description: "Returns the length of a collection",
-          function: &length/2
+          function: {__MODULE__, :length}
         },
         "first" => %{
           description: "Returns the first element of a collection",
-          function: &first/2
+          function: {__MODULE__, :first}
         },
         "last" => %{
           description: "Returns the last element of a collection",
-          function: &last/2
+          function: {__MODULE__, :last}
         },
         "join" => %{
           description: "Joins collection elements with a separator",
-          function: &join/2
+          function: {__MODULE__, :join}
         },
         "sort" => %{
           description: "Sorts a collection",
-          function: &sort/2
+          function: {__MODULE__, :sort}
         },
         "reverse" => %{
           description: "Reverses a collection",
-          function: &reverse/2
+          function: {__MODULE__, :reverse}
         },
         "uniq" => %{
           description: "Returns unique elements from collection",
-          function: &uniq/2
+          function: {__MODULE__, :uniq}
         },
         "slice" => %{
           description: "Returns a slice of the collection",
-          function: &slice/2
+          function: {__MODULE__, :slice}
         },
         "contains" => %{
           description: "Checks if collection contains a value",
-          function: &contains/2
+          function: {__MODULE__, :contains}
         },
         "compact" => %{
           description: "Removes nil values from collection",
-          function: &compact/2
+          function: {__MODULE__, :compact}
         },
         "flatten" => %{
           description: "Flattens nested lists",
-          function: &flatten/2
+          function: {__MODULE__, :flatten}
         },
         "sum" => %{
           description: "Sums numeric values in collection",
-          function: &sum/2
+          function: {__MODULE__, :sum}
         },
         "keys" => %{
           description: "Returns keys from a map",
-          function: &keys/2
+          function: {__MODULE__, :keys}
         },
         "values" => %{
           description: "Returns values from a map",
-          function: &values/2
+          function: {__MODULE__, :values}
         },
         "group_by" => %{
           description: "Groups collection items by field value",
-          function: &group_by/2
+          function: {__MODULE__, :group_by}
         },
         "map" => %{
           description: "Extracts field values from maps, filtering out nils",
-          function: &map/2
+          function: {__MODULE__, :map}
         },
         "filter" => %{
           description: "Filters collection by field value",
-          function: &filter/2
+          function: {__MODULE__, :filter}
         },
         "reject" => %{
           description: "Rejects items from collection by field value",
-          function: &reject/2
+          function: {__MODULE__, :reject}
         },
         "dump" => %{
           description: "Formats data structures for display",
-          function: &dump/2
+          function: {__MODULE__, :dump}
         }
       }
     }
