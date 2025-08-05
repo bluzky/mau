@@ -24,7 +24,7 @@ defmodule Mau.FilterRegistry do
 
                          filter_functions =
                            spec.filters
-                           |> Enum.map(fn {name, filter_spec} -> 
+                           |> Enum.map(fn {name, filter_spec} ->
                              {name, filter_spec.function}
                            end)
                            |> Map.new()
