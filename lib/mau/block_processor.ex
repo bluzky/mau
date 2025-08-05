@@ -65,7 +65,7 @@ defmodule Mau.BlockProcessor do
 
   # Collects nodes from if to endif, building a conditional block structure
   defp collect_conditional_block(nodes, if_condition, if_content, elsif_branches, else_content) do
-    collect_conditional_block(nodes, if_condition, if_content, elsif_branches, else_content, [])
+    collect_conditional_block(nodes, if_condition, if_content, elsif_branches, else_content, [], :if)
   end
 
   defp collect_conditional_block(
@@ -74,7 +74,8 @@ defmodule Mau.BlockProcessor do
          _if_content,
          _elsif_branches,
          _else_content,
-         _remaining
+         _current_content,
+         _current_tag
        ) do
     {:error, "Unclosed if statement - missing endif"}
   end
@@ -85,30 +86,24 @@ defmodule Mau.BlockProcessor do
          if_content,
          elsif_branches,
          else_content,
-         current_content
+         current_content,
+         current_tag
        ) do
-    # Found elsif - save current content to appropriate branch and start new elsif
-    updated_branches =
-      if current_content != [] do
-        case elsif_branches do
-          [] ->
-            [{if_condition, Enum.reverse(current_content)}]
+    # Save current_content to the appropriate branch based on current_tag
+    {updated_if_content, updated_elsif_branches, _} =
+      save_current_content(if_content, elsif_branches, current_content, current_tag)
 
-          _ ->
-            elsif_branches ++
-              [{List.last(elsif_branches) |> elem(0), Enum.reverse(current_content)}]
-        end
-      else
-        [{if_condition, Enum.reverse(if_content)} | elsif_branches]
-      end
+    # Add new elsif branch and switch to it
+    new_elsif_branches = updated_elsif_branches ++ [{condition, []}]
 
     collect_conditional_block(
       rest,
       if_condition,
-      if_content,
-      updated_branches ++ [{condition, []}],
+      updated_if_content,
+      new_elsif_branches,
       else_content,
-      []
+      [],
+      {:elsif, condition}
     )
   end
 
@@ -117,37 +112,24 @@ defmodule Mau.BlockProcessor do
          if_condition,
          if_content,
          elsif_branches,
-         _else_content,
-         current_content
+         else_content,
+         current_content,
+         current_tag
        ) do
-    # Found else - save current content appropriately and start collecting else content
-    {updated_if_content, updated_branches} =
-      case {elsif_branches, current_content, if_content} do
-        # No content anywhere
-        {[], [], []} ->
-          {[], []}
+    # Save current_content to the appropriate branch based on current_tag
+    {updated_if_content, updated_elsif_branches, _} =
+      save_current_content(if_content, elsif_branches, current_content, current_tag)
 
-        # No elsif, current content is if content
-        {[], content, []} ->
-          {Enum.reverse(content), []}
-
-        # No elsif, no current content, keep existing if content
-        {[], [], if_cont} ->
-          {if_cont, []}
-
-        # Have elsif branches, no current content
-        {branches, [], if_cont} ->
-          {if_cont, branches}
-
-        {branches, content, if_cont} ->
-          # Have elsif branches and current content - add current content to last elsif
-          updated_branches =
-            List.update_at(branches, -1, fn {cond, _} -> {cond, Enum.reverse(content)} end)
-
-          {if_cont, updated_branches}
-      end
-
-    collect_conditional_block(rest, if_condition, updated_if_content, updated_branches, [], [])
+    # Switch to else phase
+    collect_conditional_block(
+      rest,
+      if_condition,
+      updated_if_content,
+      updated_elsif_branches,
+      else_content,
+      [],
+      :else
+    )
   end
 
   defp collect_conditional_block(
@@ -155,32 +137,23 @@ defmodule Mau.BlockProcessor do
          if_condition,
          if_content,
          elsif_branches,
-         else_content,
-         current_content
+         _else_content,
+         current_content,
+         current_tag
        ) do
-    # Found endif - build the final conditional block
-    final_if_content = if if_content != [], do: if_content, else: current_content
-
-    final_else_content =
-      if else_content != [] do
-        else_content
-      else
-        case {elsif_branches, current_content} do
-          # No elsif, current content is else
-          {[], [_ | _] = content} -> content
-          # Have elsif, current content is else
-          {_branches, [_ | _] = content} -> content
-          _ -> nil
-        end
-      end
+    # Save current_content to the appropriate branch based on current_tag
+    {final_if_content, final_elsif_branches, final_else_content} =
+      save_current_content(if_content, elsif_branches, current_content, current_tag)
 
     # Build the conditional block node
     final_else_branch =
-      if final_else_content, do: process_blocks(Enum.reverse(final_else_content)), else: nil
+      if final_else_content != nil and final_else_content != [],
+        do: process_blocks(final_else_content),
+        else: nil
 
     block_data = [
-      if_branch: {if_condition, process_blocks(Enum.reverse(final_if_content))},
-      elsif_branches: process_elsif_branches(elsif_branches),
+      if_branch: {if_condition, process_blocks(final_if_content)},
+      elsif_branches: process_elsif_branches(final_elsif_branches),
       else_branch: final_else_branch
     ]
 
@@ -194,12 +167,13 @@ defmodule Mau.BlockProcessor do
          if_content,
          elsif_branches,
          else_content,
-         current_content
+         current_content,
+         current_tag
        ) do
     # Regular node - add to current content
     collect_conditional_block(rest, if_condition, if_content, elsif_branches, else_content, [
       node | current_content
-    ])
+    ], current_tag)
   end
 
   # Collects nodes from for to endfor, building a loop block structure
@@ -251,6 +225,29 @@ defmodule Mau.BlockProcessor do
   defp collect_loop_block([node | rest], loop_variable, collection_expression, content, depth) do
     # Regular node - add to loop content
     collect_loop_block(rest, loop_variable, collection_expression, [node | content], depth)
+  end
+
+  # Helper to save current_content to the appropriate branch based on current_tag
+  defp save_current_content(if_content, elsif_branches, current_content, current_tag) do
+    case current_tag do
+      :if ->
+        # Current content belongs to if branch
+        updated_if_content = if_content ++ Enum.reverse(current_content)
+        {updated_if_content, elsif_branches, nil}
+
+      {:elsif, _} ->
+        # Current content belongs to last elsif branch
+        updated_elsif_branches =
+          List.update_at(elsif_branches, -1, fn {cond, content} ->
+            {cond, content ++ Enum.reverse(current_content)}
+          end)
+
+        {if_content, updated_elsif_branches, nil}
+
+      :else ->
+        # Current content is else content
+        {if_content, elsif_branches, Enum.reverse(current_content)}
+    end
   end
 
   # Helper to recursively process elsif branches content
