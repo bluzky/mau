@@ -126,9 +126,9 @@ Each migration phase must achieve:
 
 ## Risk Assessment
 
-**Low Risk**: Literal parsing (✅ completed successfully), Basic identifier parsing (✅ completed successfully)
+**Low Risk**: Literal parsing (✅ completed successfully), Basic identifier parsing (✅ completed successfully), Expression operator extraction (✅ completed successfully)
 **Medium Risk**: Variable path parsing (partially extracted), Tag parsing, Block parsing
-**High Risk**: Expression parsing (complex precedence and circular dependencies)
+**High Risk**: Full expression parsing (complex precedence and circular dependencies remain)
 
 ## Rollback Strategy
 
@@ -140,10 +140,11 @@ If any migration step fails:
 
 ## Conclusion
 
-The gradual migration approach has proven successful with both the literal parsing module (Phase 1) and identifier parsing module (Phase 2). The key insights are:
+The gradual migration approach has proven successful with three completed phases: literal parsing (Phase 1), identifier parsing (Phase 2), and expression operator extraction (Phase 3). The key insights are:
 
 1. **Working software is better than perfect architecture** - some duplication of helper functions is acceptable to maintain the robustness and testability of the parser
 2. **Partial extraction provides value** - even extracting portions of complex parsing logic improves modularity and maintainability
-3. **NimbleParsec circular dependencies are challenging** - complex forward declarations with defcombinatorp may require keeping functionality in the main parser
+3. **Conservative extraction is effective** - focusing on well-isolated functions (operators, literals, identifiers) avoids NimbleParsec circular dependency issues
+4. **NimbleParsec circular dependencies are challenging** - complex forward declarations with defcombinatorp may require keeping functionality in the main parser
 
-**Current Status**: 2 phases completed successfully, 751 tests passing consistently. Continue with this methodical, test-driven approach for the remaining modules.
+**Current Status**: 3 phases completed successfully, 751 tests passing consistently. The parser is now significantly more modular while maintaining full functionality and backward compatibility. Continue with this methodical, test-driven approach for the remaining modules.
