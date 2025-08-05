@@ -8,7 +8,6 @@ defmodule Mau.Parser.Variable do
   """
 
   import NimbleParsec
-  alias Mau.AST.Nodes
 
   # ============================================================================
   # IDENTIFIER PARSING

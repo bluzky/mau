@@ -11,6 +11,7 @@ defmodule Mau.Parser do
   alias Mau.Parser.Literal
   alias Mau.Parser.Variable
   alias Mau.Parser.Expression
+  alias Mau.Parser.Tag
 
   # ============================================================================
   # LITERAL PARSING (DELEGATED TO LITERAL MODULE)
@@ -45,11 +46,6 @@ defmodule Mau.Parser do
     |> repeat(identifier_char)
     |> reduce(:build_identifier)
 
-  # Workflow variable identifier (starts with $) - kept for internal combinator use
-  workflow_identifier =
-    string("$")
-    |> concat(basic_identifier)
-    |> reduce(:build_workflow_identifier)
 
   # Atom literal - :atom_name (delegated to Literal module)
   atom_literal = Literal.atom_literal()
@@ -277,56 +273,26 @@ defmodule Mau.Parser do
 
   # Generic tag parser helpers - combinators for common patterns
 
-  # Assignment tag parsing - {% assign variable = expression %}
-  assign_tag =
-    ignore(string("assign"))
-    |> ignore(required_whitespace)
-    |> concat(basic_identifier)
-    |> ignore(optional_whitespace)
-    |> ignore(string("="))
-    |> ignore(optional_whitespace)
-    |> concat(parsec(:pipe_expression))
-    |> reduce({:build_tag, [:assign]})
+  # Assignment tag parsing - {% assign variable = expression %} (delegated to Tag module)
+  assign_tag = Tag.assign_tag(basic_identifier, parsec(:pipe_expression), optional_whitespace, required_whitespace)
 
-  # If tag parsing - {% if condition %}
-  if_tag =
-    ignore(string("if"))
-    |> ignore(required_whitespace)
-    |> concat(parsec(:pipe_expression))
-    |> reduce({:build_tag, [:if]})
+  # If tag parsing - {% if condition %} (delegated to Tag module)
+  if_tag = Tag.if_tag(parsec(:pipe_expression), required_whitespace)
 
-  # Elsif tag parsing - {% elsif condition %}
-  elsif_tag =
-    ignore(string("elsif"))
-    |> ignore(required_whitespace)
-    |> concat(parsec(:pipe_expression))
-    |> reduce({:build_tag, [:elsif]})
+  # Elsif tag parsing - {% elsif condition %} (delegated to Tag module)
+  elsif_tag = Tag.elsif_tag(parsec(:pipe_expression), required_whitespace)
 
-  # Else tag parsing - {% else %}
-  else_tag =
-    ignore(string("else"))
-    |> reduce({:build_tag, [:else]})
+  # Else tag parsing - {% else %} (delegated to Tag module)
+  else_tag = Tag.else_tag()
 
-  # Endif tag parsing - {% endif %}
-  endif_tag =
-    ignore(string("endif"))
-    |> reduce({:build_tag, [:endif]})
+  # Endif tag parsing - {% endif %} (delegated to Tag module)
+  endif_tag = Tag.endif_tag()
 
-  # For tag parsing - {% for item in collection %}
-  for_tag =
-    ignore(string("for"))
-    |> ignore(required_whitespace)
-    |> concat(basic_identifier)
-    |> ignore(required_whitespace)
-    |> ignore(string("in"))
-    |> ignore(required_whitespace)
-    |> concat(parsec(:pipe_expression))
-    |> reduce({:build_tag, [:for]})
+  # For tag parsing - {% for item in collection %} (delegated to Tag module)
+  for_tag = Tag.for_tag(basic_identifier, parsec(:pipe_expression), required_whitespace)
 
-  # Endfor tag parsing - {% endfor %}
-  endfor_tag =
-    ignore(string("endfor"))
-    |> reduce({:build_tag, [:endfor]})
+  # Endfor tag parsing - {% endfor %} (delegated to Tag module)
+  endfor_tag = Tag.endfor_tag()
 
   # Tag content - assignment, conditional, and loop tags
   tag_content =

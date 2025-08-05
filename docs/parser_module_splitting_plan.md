@@ -78,16 +78,30 @@ This document outlines the gradual migration strategy for splitting the monolith
 - **NimbleParsec compilation model** - Helper functions must remain with the combinators that use them
 - **Solution: operator-only extraction** - Successfully extracted just the operator parsing without the complex expression hierarchy
 
-## Phase 4: Tag Parsing [FUTURE]
+## Phase 4: Tag Parsing ✅
 
+**Status**: Successfully completed with 0 test failures
 **Target modules**: Extract tag parsing (`{% %}` blocks)
-**Estimated complexity**: Medium
-**Dependencies**: Expression, Variable, Literal modules
+**Actual complexity**: Medium (as estimated)
+**Dependencies**: Expression, Variable, Literal modules (successfully handled)
 
-### Steps:
-1. Create `Mau.Parser.Tag` module
-2. Extract assignment, conditional, and loop tag parsing
-3. Keep tag evaluation helpers in main parser
+### What was done:
+1. Created `Mau.Parser.Tag` module with:
+   - `assign_tag()` function for assignment parsing
+   - `if_tag()`, `elsif_tag()`, `else_tag()`, `endif_tag()` functions for conditional parsing
+   - `for_tag()`, `endfor_tag()` functions for loop parsing
+
+2. Updated main parser:
+   - Added `alias Mau.Parser.Tag`
+   - Replaced inline tag definitions with delegated calls to Tag module
+   - Kept all complex helper functions and trim handling in main parser
+
+3. Successfully tested - all 751 tests pass with full backward compatibility
+
+### Key learnings:
+- **Dependency management success** - Successfully handled dependencies on `basic_identifier`, `pipe_expression`, and whitespace parsing
+- **Conservative extraction effective** - Extracting tag parsing functions while keeping helper functions in main parser avoided compilation issues
+- **Parameter passing pattern** - Successfully used parameter passing to provide necessary combinators to Tag module functions
 
 ## Phase 5: Block Parsing [FUTURE]
 
@@ -126,8 +140,8 @@ Each migration phase must achieve:
 
 ## Risk Assessment
 
-**Low Risk**: Literal parsing (✅ completed successfully), Basic identifier parsing (✅ completed successfully), Expression operator extraction (✅ completed successfully)
-**Medium Risk**: Variable path parsing (partially extracted), Tag parsing, Block parsing
+**Low Risk**: Literal parsing (✅ completed successfully), Basic identifier parsing (✅ completed successfully), Expression operator extraction (✅ completed successfully), Tag parsing (✅ completed successfully)
+**Medium Risk**: Variable path parsing (partially extracted), Block parsing
 **High Risk**: Full expression parsing (complex precedence and circular dependencies remain)
 
 ## Rollback Strategy
@@ -147,4 +161,4 @@ The gradual migration approach has proven successful with three completed phases
 3. **Conservative extraction is effective** - focusing on well-isolated functions (operators, literals, identifiers) avoids NimbleParsec circular dependency issues
 4. **NimbleParsec circular dependencies are challenging** - complex forward declarations with defcombinatorp may require keeping functionality in the main parser
 
-**Current Status**: 3 phases completed successfully, 751 tests passing consistently. The parser is now significantly more modular while maintaining full functionality and backward compatibility. Continue with this methodical, test-driven approach for the remaining modules.
+**Current Status**: 4 phases completed successfully, 751 tests passing consistently. The parser is now highly modular with dedicated modules for Literal (306 lines), Variable (63 lines), Expression (86 lines), and Tag (86 lines) parsing, while the main parser (1,016 lines) maintains coordination and complex helper functions. Continue with this methodical, test-driven approach for the remaining modules.
