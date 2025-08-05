@@ -8,149 +8,27 @@ defmodule Mau.Parser do
 
   import NimbleParsec
   alias Mau.AST.Nodes
+  alias Mau.Parser.Literal
 
   # ============================================================================
-  # STRING LITERAL PARSING
+  # LITERAL PARSING (DELEGATED TO LITERAL MODULE)
   # ============================================================================
 
-  # Escape sequence handling
-  escaped_char =
-    ignore(string("\\"))
-    |> choice([
-      string("\"") |> replace(?"),
-      string("'") |> replace(?'),
-      string("\\") |> replace(?\\),
-      string("/") |> replace(?/),
-      string("b") |> replace(?\b),
-      string("f") |> replace(?\f),
-      string("n") |> replace(?\n),
-      string("r") |> replace(?\r),
-      string("t") |> replace(?\t),
-      # Unicode escape sequences \uXXXX
-      string("u")
-      |> concat(times(ascii_char([?0..?9, ?A..?F, ?a..?f]), 4))
-      |> reduce(:parse_unicode_escape)
-    ])
+  # Use the Literal module for all literal parsing
+  string_literal = Literal.string_literal()
 
-  # Double-quoted string content
-  double_quoted_char =
-    choice([
-      escaped_char,
-      utf8_char(not: ?", not: ?\\)
-    ])
+  number_literal = Literal.number_literal()
 
-  double_quoted_string =
-    ignore(string("\""))
-    |> repeat(double_quoted_char)
-    |> ignore(string("\""))
-    |> reduce(:build_string_from_chars)
-
-  # Single-quoted string content  
-  single_quoted_char =
-    choice([
-      escaped_char,
-      utf8_char(not: ?', not: ?\\)
-    ])
-
-  single_quoted_string =
-    ignore(string("'"))
-    |> repeat(single_quoted_char)
-    |> ignore(string("'"))
-    |> reduce(:build_string_from_chars)
-
-  # Combined string literal parser
-  string_literal =
-    choice([
-      double_quoted_string,
-      single_quoted_string
-    ])
-    |> reduce(:build_string_literal_node)
-
-  # ============================================================================
-  # NUMBER LITERAL PARSING
-  # ============================================================================
-
-  # Integer part (required for all numbers)
-  integer_part =
-    choice([
-      string("0"),
-      concat(ascii_char([?1..?9]), repeat(ascii_char([?0..?9])))
-    ])
-
-  # Fractional part for floats
-  fractional_part =
-    string(".")
-    |> concat(times(ascii_char([?0..?9]), min: 1))
-
-  # Exponent part for scientific notation
-  exponent_part =
-    choice([string("e"), string("E")])
-    |> optional(choice([string("+"), string("-")]))
-    |> concat(times(ascii_char([?0..?9]), min: 1))
-
-  # Float number: integer.fractional or integer.fractionalE±exponent or integerE±exponent
-  float_number =
-    choice([
-      # integer.fractional[E±exponent]
-      integer_part
-      |> concat(fractional_part)
-      |> optional(exponent_part),
-      # integerE±exponent (no fractional part)
-      integer_part
-      |> concat(exponent_part)
-    ])
-    |> reduce(:parse_float)
-
-  # Integer number
-  integer_number =
-    integer_part
-    |> reduce(:parse_integer)
-
-  # Positive number (integer or float)
-  positive_number =
-    choice([
-      float_number,
-      integer_number
-    ])
-
-  # Number with optional negative sign
-  number_literal =
-    choice([
-      ignore(string("-")) |> concat(positive_number) |> reduce(:negate_number),
-      positive_number
-    ])
-    |> reduce(:build_number_literal_node)
-
-  # ============================================================================
-  # BOOLEAN AND NULL LITERAL PARSING
-  # ============================================================================
-
-  # Boolean literals - with word boundary check
-  boolean_literal =
-    choice([
-      string("true")
-      |> concat(lookahead_not(ascii_char([?a..?z, ?A..?Z, ?0..?9, ?_])))
-      |> replace(true),
-      string("false")
-      |> concat(lookahead_not(ascii_char([?a..?z, ?A..?Z, ?0..?9, ?_])))
-      |> replace(false)
-    ])
-    |> reduce(:build_boolean_literal_node)
-
-  # Null literal - with word boundary check
-  null_literal =
-    string("null")
-    |> concat(lookahead_not(ascii_char([?a..?z, ?A..?Z, ?0..?9, ?_])))
-    |> replace(nil)
-    |> reduce(:build_null_literal_node)
+  boolean_literal = Literal.boolean_literal()
+  null_literal = Literal.null_literal()
 
   # ============================================================================
   # VARIABLE PARSING
   # ============================================================================
 
-  # Whitespace handling (moved up for use in variable parsing)
-  optional_whitespace = repeat(ascii_char([?\s, ?\t, ?\n, ?\r]))
-  required_whitespace = times(ascii_char([?\s, ?\t]), min: 1)
+  # Whitespace handling (delegated to Literal module)
+  optional_whitespace = Literal.optional_whitespace()
+  required_whitespace = Literal.required_whitespace()
 
   # Identifier parsing - supports letters, numbers, underscores
   # Must start with letter or underscore, can contain numbers after first char
@@ -176,12 +54,8 @@ defmodule Mau.Parser do
       basic_identifier
     ])
 
-  # Atom literal - :atom_name (defined after identifier parsers)
-  atom_literal =
-    string(":")
-    |> concat(identifier_start)
-    |> repeat(identifier_char)
-    |> reduce(:build_atom_literal)
+  # Atom literal - :atom_name (delegated to Literal module)
+  atom_literal = Literal.atom_literal()
 
   # Property access parsing
   property_access =
@@ -902,7 +776,7 @@ defmodule Mau.Parser do
   # HELPER FUNCTIONS
   # ============================================================================
 
-  # String literal helpers
+  # String literal helpers (kept for internal combinator use)
   defp parse_unicode_escape(["u", d1, d2, d3, d4]) do
     hex_string = <<d1, d2, d3, d4>>
     {code_point, ""} = Integer.parse(hex_string, 16)
@@ -917,7 +791,7 @@ defmodule Mau.Parser do
     Nodes.literal_node(string_value)
   end
 
-  # Number literal helpers
+  # Number literal helpers (kept for internal combinator use)
   defp parse_integer(digits) do
     digits
     |> List.flatten()
@@ -953,6 +827,21 @@ defmodule Mau.Parser do
     Nodes.literal_node(number_value)
   end
 
+  # Boolean and null literal helpers (kept for internal combinator use)
+  defp build_boolean_literal_node([boolean_value]) when is_boolean(boolean_value) do
+    Nodes.literal_node(boolean_value)
+  end
+
+  defp build_null_literal_node([nil]) do
+    Nodes.literal_node(nil)
+  end
+
+  # Atom literal helpers (kept for internal combinator use)
+  defp build_atom_literal([":" | atom_chars]) do
+    atom_name = atom_chars |> List.to_string()
+    Nodes.atom_literal_node(atom_name)
+  end
+
   # Text node helpers
   defp join_chars(chars) when is_list(chars) do
     :binary.list_to_bin(chars)
@@ -962,20 +851,6 @@ defmodule Mau.Parser do
     Nodes.text_node(content)
   end
 
-  # Boolean and null literal helpers
-  defp build_boolean_literal_node([boolean_value]) when is_boolean(boolean_value) do
-    Nodes.literal_node(boolean_value)
-  end
-
-  defp build_null_literal_node([nil]) do
-    Nodes.literal_node(nil)
-  end
-
-  # Atom literal helpers
-  defp build_atom_literal([":" | atom_chars]) do
-    atom_name = atom_chars |> List.to_string()
-    Nodes.atom_literal_node(atom_name)
-  end
 
   # Unified trim handler for expression nodes
   defp build_expression_node_with_trim([expression_ast], trim_variant) do
