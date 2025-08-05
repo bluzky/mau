@@ -11,6 +11,7 @@ defmodule Mau do
   alias Mau.Parser
   alias Mau.Renderer
   alias Mau.BlockProcessor
+  alias Mau.WhitespaceProcessor
 
   @doc """
   Compiles a template string into an AST.
@@ -52,7 +53,8 @@ defmodule Mau do
 
   def render(template, context, _opts) when is_binary(template) and is_map(context) do
     with {:ok, ast} <- Parser.parse(template),
-         processed_ast <- BlockProcessor.process_blocks(ast),
+         trimmed_ast <- WhitespaceProcessor.apply_whitespace_control(ast),
+         processed_ast <- BlockProcessor.process_blocks(trimmed_ast),
          {:ok, result} <- Renderer.render(processed_ast, context) do
       {:ok, result}
     end

@@ -381,29 +381,34 @@
 
 ---
 
-## Group 10: Whitespace Control
+## Group 10: Whitespace Control ✅ COMPLETED
 
-### Task 10.1: Trim Token Parser
-- [ ] Add trim detection to expression delimiters
-- [ ] Parse `{{-` and `-}}` variants
-- [ ] Parse `{%-` and `-%}` variants
-- [ ] Write tests for trim token parsing
+### Task 10.1: Trim Token Parser ✅
+- [x] Add trim detection to expression delimiters (`{{-`, `-}}`)
+- [x] Parse `{{-` and `-}}` variants for left and right trim
+- [x] Parse `{%-` and `-%}` variants for tag trim
+- [x] Write tests for trim token parsing (12 comprehensive tests)
 
-### Task 10.2: Trim Options in AST
-- [ ] Add `trim_left` and `trim_right` to AST options
-- [ ] Update all expression and tag node builders
-- [ ] Write tests for trim options in AST
+### Task 10.2: Trim Options in AST ✅
+- [x] Add `trim_left` and `trim_right` to AST options
+- [x] Update all expression and tag node builder functions
+- [x] Maintain unified AST structure convention
+- [x] Write tests for trim options in AST nodes
 
-### Task 10.3: Whitespace Processor
-- [ ] Create `apply_whitespace_control/1` function
-- [ ] Implement trim logic for adjacent text nodes
-- [ ] Handle complex trim scenarios
-- [ ] Write tests for whitespace processing
+### Task 10.3: Whitespace Processor ✅
+- [x] Create `Mau.WhitespaceProcessor` module
+- [x] Implement `apply_whitespace_control/1` function
+- [x] Implement trim logic for adjacent text nodes
+- [x] Handle complex trim scenarios (newlines, tabs, multiple spaces)
+- [x] Handle edge cases (empty nodes, non-text adjacent nodes)
+- [x] Write tests for whitespace processing (11 comprehensive tests)
 
-### Task 10.4: Trim Integration
-- [ ] Add whitespace processing to main rendering pipeline
-- [ ] Ensure trim works with all expression and tag types
-- [ ] Write comprehensive whitespace control tests
+### Task 10.4: Trim Integration ✅
+- [x] Add whitespace processing to main rendering pipeline
+- [x] Integrate before block processing to preserve tag trim options
+- [x] Ensure trim works with all expression and tag types
+- [x] Write comprehensive whitespace control tests (13 integration scenarios)
+- [x] Verify compatibility with conditionals, loops, and all existing features
 
 ---
 
