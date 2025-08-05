@@ -1167,7 +1167,7 @@ defmodule Mau.Parser do
   # Unified trim handler for tag nodes
   defp build_tag_node_with_trim([tag_data], trim_variant) do
     trim_opts = build_trim_opts(trim_variant)
-    
+
     case tag_data do
       {:assign, variable_name, expression} ->
         Nodes.tag_node(:assign, [variable_name, expression], trim_opts)

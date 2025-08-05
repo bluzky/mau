@@ -16,7 +16,7 @@ defmodule Mau.Filters.String do
           function: &upper_case/2
         },
         "lower_case" => %{
-          description: "Converts string to lowercase", 
+          description: "Converts string to lowercase",
           function: &lower_case/2
         },
         "capitalize" => %{

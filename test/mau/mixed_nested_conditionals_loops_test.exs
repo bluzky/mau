@@ -1,11 +1,11 @@
 defmodule Mau.MixedNestedConditionalsLoopsTest do
   @moduledoc """
   Tests for mixed nested conditionals with loops.
-  
+
   These tests ensure proper interaction between conditional blocks
   and loop blocks in various nested configurations.
   """
-  
+
   use ExUnit.Case
   doctest Mau
 
@@ -79,9 +79,27 @@ defmodule Mau.MixedNestedConditionalsLoopsTest do
 
       context = %{
         "products" => [
-          %{"name" => "Laptop", "available" => true, "sale" => true, "price" => 999, "discount" => 25},
-          %{"name" => "Mouse", "available" => true, "sale" => false, "price" => 25, "discount" => 0},
-          %{"name" => "Monitor", "available" => false, "sale" => true, "price" => 300, "discount" => 15}
+          %{
+            "name" => "Laptop",
+            "available" => true,
+            "sale" => true,
+            "price" => 999,
+            "discount" => 25
+          },
+          %{
+            "name" => "Mouse",
+            "available" => true,
+            "sale" => false,
+            "price" => 25,
+            "discount" => 0
+          },
+          %{
+            "name" => "Monitor",
+            "available" => false,
+            "sale" => true,
+            "price" => 300,
+            "discount" => 15
+          }
         ]
       }
 
@@ -384,7 +402,7 @@ defmodule Mau.MixedNestedConditionalsLoopsTest do
       assert String.contains?(result, "Inner: 5.1")
 
       # Should complete within reasonable time
-      assert (end_time - start_time) < 100
+      assert end_time - start_time < 100
     end
   end
 

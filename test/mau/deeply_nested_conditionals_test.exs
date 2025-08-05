@@ -1,11 +1,11 @@
 defmodule Mau.DeeplyNestedConditionalsTest do
   @moduledoc """
   Tests for deeply nested conditional structures (3+ levels deep).
-  
+
   These tests ensure that the template engine can handle complex nested
   conditional logic without stack overflow or performance degradation.
   """
-  
+
   use ExUnit.Case
   doctest Mau
 
@@ -309,7 +309,7 @@ defmodule Mau.DeeplyNestedConditionalsTest do
 
       assert String.contains?(result, "6: SUCCESS")
       # Should complete within reasonable time (less than 100ms)
-      assert (end_time - start_time) < 100
+      assert end_time - start_time < 100
     end
   end
 

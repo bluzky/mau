@@ -257,10 +257,13 @@ defmodule Mau.Filters.Collection do
   def sum(value, _args) do
     case value do
       list when is_list(list) ->
-        result = Enum.reduce(list, 0, fn
-          x, acc when is_number(x) -> acc + x
-          _, acc -> acc  # Skip non-numeric values
-        end)
+        result =
+          Enum.reduce(list, 0, fn
+            x, acc when is_number(x) -> acc + x
+            # Skip non-numeric values
+            _, acc -> acc
+          end)
+
         {:ok, result}
 
       _ ->

@@ -198,7 +198,8 @@ defmodule Mau.Filters.Math do
   """
   def clamp(value, args) do
     case {value, args} do
-      {num, [min_val, max_val]} when is_number(num) and is_number(min_val) and is_number(max_val) ->
+      {num, [min_val, max_val]}
+      when is_number(num) and is_number(min_val) and is_number(max_val) ->
         clamped = num |> Kernel.max(min_val) |> Kernel.min(max_val)
         {:ok, clamped}
 

@@ -1,11 +1,11 @@
 defmodule Mau.ConditionalsArrayAccessTest do
   @moduledoc """
   Tests for conditionals with array/list access patterns.
-  
+
   These tests ensure that conditional expressions can properly
   access array elements and object properties in various contexts.
   """
-  
+
   use ExUnit.Case
   doctest Mau
 
@@ -177,7 +177,7 @@ defmodule Mau.ConditionalsArrayAccessTest do
         Score declined from {{ scores[2] }} to {{ scores[3] }}
       {% endif %}
       """
-      
+
       assert {:ok, result_decline} = Mau.render(template_decline, context)
       assert String.contains?(result_decline, "Score declined from 90 to 75")
     end
@@ -444,9 +444,10 @@ defmodule Mau.ConditionalsArrayAccessTest do
       """
 
       # Generate test data
-      data = Enum.map(0..99, fn i ->
-        %{"name" => "Item#{i}", "active" => rem(i, 2) == 0}
-      end)
+      data =
+        Enum.map(0..99, fn i ->
+          %{"name" => "Item#{i}", "active" => rem(i, 2) == 0}
+        end)
 
       context = %{
         "range" => 0..49,
@@ -462,13 +463,13 @@ defmodule Mau.ConditionalsArrayAccessTest do
       # Note: Check for Item1 as a substring, might match Item10, Item12, etc.
       # Let's check for specific patterns instead
       assert String.contains?(result, "Item0")
-      assert String.contains?(result, "Item2") 
+      assert String.contains?(result, "Item2")
       assert String.contains?(result, "Item4")
       # Items with odd indices should not appear (Item1, Item3, Item5)
       # But be careful about Item10, Item12 which contain "1" but are even indices
 
       # Should complete within reasonable time
-      assert (end_time - start_time) < 200
+      assert end_time - start_time < 200
     end
   end
 end

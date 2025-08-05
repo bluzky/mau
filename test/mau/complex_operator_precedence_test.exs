@@ -1,12 +1,12 @@
 defmodule Mau.ComplexOperatorPrecedenceTest do
   @moduledoc """
   Tests for complex operator precedence in conditional expressions.
-  
+
   These tests ensure that logical operators (and, or), comparison operators,
   arithmetic operators, and parentheses are evaluated in the correct order
   according to standard precedence rules.
   """
-  
+
   use ExUnit.Case
   doctest Mau
 
@@ -424,6 +424,7 @@ defmodule Mau.ComplexOperatorPrecedenceTest do
       }
 
       assert {:ok, admin_result} = Mau.render(template, admin_context)
+
       # (user.active and user.role == "admin") or (user.role == "moderator" and user.permissions.moderate)
       # = (true and true) or (false and false) = true or false = true
       assert String.contains?(admin_result, "Access granted")
@@ -432,7 +433,7 @@ defmodule Mau.ComplexOperatorPrecedenceTest do
       mod_context = %{
         "user" => %{
           "active" => false,
-          "role" => "moderator", 
+          "role" => "moderator",
           "permissions" => %{"moderate" => true}
         }
       }
@@ -506,6 +507,7 @@ defmodule Mau.ComplexOperatorPrecedenceTest do
       }
 
       assert {:ok, result} = Mau.render(template, context)
+
       # ((score * multiplier) > threshold) and ((bonus_points + base_score) >= min_score) or vip_status
       # = ((85 * 1.2) > 100) and ((20 + 75) >= 90) or false
       # = (102.0 > 100) and (95 >= 90) or false = true and true or false = true

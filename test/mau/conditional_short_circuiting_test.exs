@@ -1,12 +1,12 @@
 defmodule Mau.ConditionalShortCircuitingTest do
   @moduledoc """
   Tests for conditional short-circuiting behavior.
-  
+
   These tests ensure that logical operators (and, or) properly
   short-circuit evaluation and don't evaluate unnecessary expressions
   that could cause errors or side effects.
   """
-  
+
   use ExUnit.Case
   doctest Mau
 
@@ -455,7 +455,7 @@ defmodule Mau.ConditionalShortCircuitingTest do
 
       assert String.contains?(result, "Expensive operation avoided")
       # Should complete very quickly since expensive operation is skipped
-      assert (end_time - start_time) < 10
+      assert end_time - start_time < 10
     end
 
     test "multiple short-circuits in sequence" do
@@ -494,7 +494,8 @@ defmodule Mau.ConditionalShortCircuitingTest do
           %{"name" => "Alice", "active" => true, "permissions" => %{"admin" => true}},
           %{"name" => "Bob", "active" => false, "guest" => true},
           %{"name" => "Charlie", "active" => false, "guest" => false},
-          %{"name" => "Dave", "active" => true}  # No permissions object
+          # No permissions object
+          %{"name" => "Dave", "active" => true}
         ]
       }
 
@@ -502,7 +503,8 @@ defmodule Mau.ConditionalShortCircuitingTest do
       assert String.contains?(result, "Admin: Alice")
       assert String.contains?(result, "User: Bob")
       assert String.contains?(result, "Inactive: Charlie")
-      assert String.contains?(result, "User: Dave")  # active=true or guest is short-circuited
+      # active=true or guest is short-circuited
+      assert String.contains?(result, "User: Dave")
     end
   end
 end

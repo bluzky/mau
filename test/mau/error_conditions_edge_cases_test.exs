@@ -1,11 +1,11 @@
 defmodule Mau.ErrorConditionsEdgeCasesTest do
   @moduledoc """
   Tests for error conditions and edge cases in template parsing and rendering.
-  
+
   These tests ensure that the template engine handles malformed templates,
   missing tags, and other error conditions gracefully.
   """
-  
+
   use ExUnit.Case
   doctest Mau
 
@@ -18,6 +18,7 @@ defmodule Mau.ErrorConditionsEdgeCasesTest do
         {:error, _error} ->
           # Expected - should fail to parse
           assert true
+
         {:ok, _result} ->
           # If it somehow succeeds, that's also acceptable behavior
           assert true
@@ -31,6 +32,7 @@ defmodule Mau.ErrorConditionsEdgeCasesTest do
       case Mau.render(template, context) do
         {:error, _error} ->
           assert true
+
         {:ok, _result} ->
           assert true
       end
@@ -44,6 +46,7 @@ defmodule Mau.ErrorConditionsEdgeCasesTest do
         {:error, _error} ->
           # Expected - should fail due to unclosed tag
           assert true
+
         {:ok, result} ->
           # If it treats as text, that's also acceptable
           assert is_binary(result)
@@ -57,6 +60,7 @@ defmodule Mau.ErrorConditionsEdgeCasesTest do
       case Mau.render(template, context) do
         {:error, _error} ->
           assert true
+
         {:ok, result} ->
           # Should either error or treat as text
           assert is_binary(result)
@@ -70,6 +74,7 @@ defmodule Mau.ErrorConditionsEdgeCasesTest do
       case Mau.render(template, context) do
         {:error, _error} ->
           assert true
+
         {:ok, result} ->
           assert is_binary(result)
       end
@@ -83,12 +88,13 @@ defmodule Mau.ErrorConditionsEdgeCasesTest do
           Inner content
         {% endif %}
       """
-      
+
       context = %{"outer" => true, "inner" => true}
 
       case Mau.render(template, context) do
         {:error, _error} ->
           assert true
+
         {:ok, result} ->
           assert is_binary(result)
       end
@@ -101,6 +107,7 @@ defmodule Mau.ErrorConditionsEdgeCasesTest do
       case Mau.render(template, context) do
         {:error, _error} ->
           assert true
+
         {:ok, result} ->
           assert is_binary(result)
       end
@@ -113,6 +120,7 @@ defmodule Mau.ErrorConditionsEdgeCasesTest do
       case Mau.render(template, context) do
         {:error, _error} ->
           assert true
+
         {:ok, result} ->
           assert is_binary(result)
       end
@@ -128,12 +136,13 @@ defmodule Mau.ErrorConditionsEdgeCasesTest do
         Second else
       {% endif %}
       """
-      
+
       context = %{"condition" => false}
 
       case Mau.render(template, context) do
         {:error, _error} ->
           assert true
+
         {:ok, result} ->
           # Should either error or handle gracefully
           assert is_binary(result)
@@ -149,6 +158,7 @@ defmodule Mau.ErrorConditionsEdgeCasesTest do
       case Mau.render(template, context) do
         {:error, _error} ->
           assert true
+
         {:ok, result} ->
           assert is_binary(result)
       end
@@ -161,6 +171,7 @@ defmodule Mau.ErrorConditionsEdgeCasesTest do
       case Mau.render(template, context) do
         {:error, _error} ->
           assert true
+
         {:ok, result} ->
           assert is_binary(result)
       end
@@ -173,6 +184,7 @@ defmodule Mau.ErrorConditionsEdgeCasesTest do
       case Mau.render(template, context) do
         {:error, _error} ->
           assert true
+
         {:ok, result} ->
           assert is_binary(result)
       end
@@ -185,6 +197,7 @@ defmodule Mau.ErrorConditionsEdgeCasesTest do
       case Mau.render(template, context) do
         {:error, _error} ->
           assert true
+
         {:ok, result} ->
           assert is_binary(result)
       end
@@ -197,6 +210,7 @@ defmodule Mau.ErrorConditionsEdgeCasesTest do
       case Mau.render(template, context) do
         {:error, _error} ->
           assert true
+
         {:ok, result} ->
           assert is_binary(result)
       end
@@ -209,6 +223,7 @@ defmodule Mau.ErrorConditionsEdgeCasesTest do
       case Mau.render(template, context) do
         {:error, _error} ->
           assert true
+
         {:ok, result} ->
           assert is_binary(result)
       end
@@ -276,6 +291,7 @@ defmodule Mau.ErrorConditionsEdgeCasesTest do
         {:error, error} ->
           # Should properly handle division by zero
           assert String.contains?(error.message, "zero")
+
         {:ok, result} ->
           # If it handles gracefully, should not show content
           refute String.contains?(result, "Should not appear")
@@ -289,6 +305,7 @@ defmodule Mau.ErrorConditionsEdgeCasesTest do
       case Mau.render(template, context) do
         {:error, error} ->
           assert String.contains?(error.message, "zero")
+
         {:ok, result} ->
           refute String.contains?(result, "Should not appear")
       end
@@ -302,13 +319,14 @@ defmodule Mau.ErrorConditionsEdgeCasesTest do
         Comparison handled
       {% endif %}
       """
-      
+
       context = %{}
 
       case Mau.render(template, context) do
         {:error, _error} ->
           # May error on invalid comparison
           assert true
+
         {:ok, result} ->
           # May handle gracefully
           assert is_binary(result)
@@ -338,7 +356,7 @@ defmodule Mau.ErrorConditionsEdgeCasesTest do
 
       assert String.contains?(result, long_content)
       # Should complete within reasonable time even with long content
-      assert (end_time - start_time) < 1000
+      assert end_time - start_time < 1000
     end
 
     test "many nested parentheses in expression" do
@@ -359,9 +377,16 @@ defmodule Mau.ErrorConditionsEdgeCasesTest do
 
     test "many variables in expression" do
       template = "{% if a and b and c and d and e and f and g and h %}All true{% endif %}"
+
       context = %{
-        "a" => true, "b" => true, "c" => true, "d" => true,
-        "e" => true, "f" => true, "g" => true, "h" => true
+        "a" => true,
+        "b" => true,
+        "c" => true,
+        "d" => true,
+        "e" => true,
+        "f" => true,
+        "g" => true,
+        "h" => true
       }
 
       assert {:ok, result} = Mau.render(template, context)
@@ -379,6 +404,7 @@ defmodule Mau.ErrorConditionsEdgeCasesTest do
         {:error, _error} ->
           # Unicode variables not supported
           assert true
+
         {:ok, result} ->
           # Unicode variables supported
           assert is_binary(result)
@@ -428,7 +454,9 @@ defmodule Mau.ErrorConditionsEdgeCasesTest do
         }
       }
 
-      template = "{% if data.level1.level2.level3.level4.level5.value %}Found: {{ data.level1.level2.level3.level4.level5.value }}{% endif %}"
+      template =
+        "{% if data.level1.level2.level3.level4.level5.value %}Found: {{ data.level1.level2.level3.level4.level5.value }}{% endif %}"
+
       context = %{"data" => deeply_nested}
 
       assert {:ok, result} = Mau.render(template, context)
@@ -437,9 +465,10 @@ defmodule Mau.ErrorConditionsEdgeCasesTest do
 
     test "large data structure performance" do
       # Create large data structure
-      large_data = Enum.reduce(1..1000, %{}, fn i, acc ->
-        Map.put(acc, "key#{i}", %{"value" => i, "active" => rem(i, 2) == 0})
-      end)
+      large_data =
+        Enum.reduce(1..1000, %{}, fn i, acc ->
+          Map.put(acc, "key#{i}", %{"value" => i, "active" => rem(i, 2) == 0})
+        end)
 
       template = "{% if data.key500.active %}Key 500 is active{% endif %}"
       context = %{"data" => large_data}
@@ -450,7 +479,7 @@ defmodule Mau.ErrorConditionsEdgeCasesTest do
 
       assert String.contains?(result, "Key 500 is active")
       # Should handle large data structures efficiently
-      assert (end_time - start_time) < 100
+      assert end_time - start_time < 100
     end
   end
 
@@ -471,6 +500,7 @@ defmodule Mau.ErrorConditionsEdgeCasesTest do
         {:error, _error} ->
           # May require whitespace
           assert true
+
         {:ok, result} ->
           # May handle no whitespace
           assert is_binary(result)

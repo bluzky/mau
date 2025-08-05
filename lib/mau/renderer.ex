@@ -71,15 +71,16 @@ defmodule Mau.Renderer do
 
   def render(nodes, context, opts) when is_list(nodes) and is_map(context) do
     case render_nodes(nodes, context) do
-      {:ok, parts} -> 
-        result = Enum.join(parts, "")
+      {:ok, parts} ->
         if opts[:preserve_types] && is_single_value_template?(nodes, parts) do
           # Extract the raw value from single expression templates
           extract_single_value(nodes, context)
         else
-          {:ok, result}
+          {:ok, IO.iodata_to_binary(parts)}
         end
-      {:error, error} -> {:error, error}
+
+      {:error, error} ->
+        {:error, error}
     end
   end
 
@@ -89,6 +90,7 @@ defmodule Mau.Renderer do
       case ast do
         {:expression, [expression_ast], _opts} ->
           evaluate_expression(expression_ast, context)
+
         _ ->
           render_node(ast, context)
       end
@@ -115,7 +117,9 @@ defmodule Mau.Renderer do
   defp extract_single_value([{:expression, [expression_ast], _opts}], context) do
     evaluate_expression(expression_ast, context)
   end
-  defp extract_single_value(_, _), do: {:error, Mau.Error.runtime_error("Not a single value template")}
+
+  defp extract_single_value(_, _),
+    do: {:error, Mau.Error.runtime_error("Not a single value template")}
 
   # Renders a list of nodes
   defp render_nodes(nodes, context) do
@@ -240,7 +244,8 @@ defmodule Mau.Renderer do
     if is_valid_index_or_key(literal_value) do
       {:ok, literal_value}
     else
-      {:error, Mau.Error.runtime_error("Invalid array index or map key: #{inspect(literal_value)}")}
+      {:error,
+       Mau.Error.runtime_error("Invalid array index or map key: #{inspect(literal_value)}")}
     end
   end
 
@@ -252,6 +257,7 @@ defmodule Mau.Renderer do
         else
           {:error, Mau.Error.runtime_error("Invalid array index or map key: #{inspect(value)}")}
         end
+
       error ->
         error
     end
@@ -261,12 +267,14 @@ defmodule Mau.Renderer do
     if is_valid_index_or_key(direct_value) do
       {:ok, direct_value}
     else
-      {:error, Mau.Error.runtime_error("Invalid array index or map key: #{inspect(direct_value)}")}
+      {:error,
+       Mau.Error.runtime_error("Invalid array index or map key: #{inspect(direct_value)}")}
     end
   end
 
   # Helper to check if a value can be used as an index or key
-  defp is_valid_index_or_key(value) when is_integer(value), do: true  # Allow all integers, including negative
+  # Allow all integers, including negative
+  defp is_valid_index_or_key(value) when is_integer(value), do: true
   defp is_valid_index_or_key(value) when is_binary(value), do: true
   defp is_valid_index_or_key(value) when is_atom(value), do: true
   defp is_valid_index_or_key(_), do: false
@@ -665,8 +673,6 @@ defmodule Mau.Renderer do
 
       case render_nodes(content, updated_loop_context, []) do
         {:ok, parts, final_context} ->
-          rendered_content = Enum.join(parts, "")
-
           restored_context =
             Map.merge(final_context, %{
               loop_variable => item,
@@ -674,7 +680,7 @@ defmodule Mau.Renderer do
             })
 
           # Accumulate rendered content
-          {:cont, {:ok, [rendered_content | acc], restored_context}}
+          {:cont, {:ok, [parts | acc], restored_context}}
 
         {:error, error} ->
           {:halt, {:error, error}}

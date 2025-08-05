@@ -129,9 +129,11 @@ defmodule Mau.NewFiltersTest do
       context = %{
         "users" => [
           %{"name" => "Alice", "email" => "alice@example.com"},
-          %{"name" => "Bob"},  # Missing email field
+          # Missing email field
+          %{"name" => "Bob"},
           %{"name" => "Carol", "email" => "carol@example.com"},
-          %{"name" => "Dave", "email" => nil}  # Explicit nil email
+          # Explicit nil email
+          %{"name" => "Dave", "email" => nil}
         ]
       }
 
@@ -139,7 +141,6 @@ defmodule Mau.NewFiltersTest do
       # Should only include non-nil email values
       assert result == "[\"alice@example.com\", \"carol@example.com\"]"
     end
-
 
     test "filter filter filters by field value" do
       template = "{% assign filtered = filter(users, \"active\", true) %}{{ length(filtered) }}"

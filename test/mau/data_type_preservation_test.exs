@@ -19,7 +19,7 @@ defmodule Mau.DataTypePreservationTest do
     test "preserves float values" do
       assert {:ok, 3.14} = Mau.render("{{ 3.14 }}", %{}, preserve_types: true)
       assert {:ok, -2.5} = Mau.render("{{ -2.5 }}", %{}, preserve_types: true)
-      assert {:ok, 0.0} = Mau.render("{{ 0.0 }}", %{}, preserve_types: true)
+      assert {:ok, +0.0} = Mau.render("{{ 0.0 }}", %{}, preserve_types: true)
     end
 
     test "preserves boolean values" do

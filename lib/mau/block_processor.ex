@@ -86,6 +86,7 @@ defmodule Mau.BlockProcessor do
       current_content: [],
       current_branch: :if
     }
+
     collect_conditional_block(nodes, state)
   end
 
@@ -95,28 +96,28 @@ defmodule Mau.BlockProcessor do
 
   defp collect_conditional_block([{:tag, [:elsif, condition], _opts} | rest], state) do
     # Save current content and switch to new elsif branch
-    updated_state = 
+    updated_state =
       state
       |> save_current_branch_content()
       |> add_elsif_branch(condition)
-    
+
     collect_conditional_block(rest, updated_state)
   end
 
   defp collect_conditional_block([{:tag, [:else], _opts} | rest], state) do
     # Save current content and switch to else branch
-    updated_state = 
+    updated_state =
       state
       |> save_current_branch_content()
       |> switch_to_else_branch()
-    
+
     collect_conditional_block(rest, updated_state)
   end
 
   defp collect_conditional_block([{:tag, [:endif], _opts} | rest], state) do
     # Finalize the conditional block
     final_state = save_current_branch_content(state)
-    
+
     # Build the conditional block node
     final_else_branch =
       if final_state.else_content != nil and final_state.else_content != [],
@@ -204,10 +205,10 @@ defmodule Mau.BlockProcessor do
   end
 
   # State management helpers for conditional block collection
-  
+
   defp save_current_branch_content(%ConditionalBlockState{} = state) do
     reversed_content = Enum.reverse(state.current_content)
-    
+
     case state.current_branch do
       :if ->
         %{state | if_content: state.if_content ++ reversed_content, current_content: []}
@@ -217,6 +218,7 @@ defmodule Mau.BlockProcessor do
           List.update_at(state.elsif_branches, -1, fn {cond, content} ->
             {cond, content ++ reversed_content}
           end)
+
         %{state | elsif_branches: updated_elsif_branches, current_content: []}
 
       :else ->

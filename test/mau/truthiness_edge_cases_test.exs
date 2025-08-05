@@ -1,12 +1,12 @@
 defmodule Mau.TruthinessEdgeCasesTest do
   @moduledoc """
   Tests for truthiness evaluation edge cases.
-  
+
   These tests ensure that the template engine properly evaluates
   truthiness for various data types and edge cases according to
   template language conventions.
   """
-  
+
   use ExUnit.Case
   doctest Mau
 
@@ -520,7 +520,8 @@ defmodule Mau.TruthinessEdgeCasesTest do
       context3 = %{
         "user" => %{"active" => false},
         "score" => 0,
-        "items" => [0]  # items is truthy but items[0] is falsy
+        # items is truthy but items[0] is falsy
+        "items" => [0]
       }
 
       assert {:ok, result3} = Mau.render(template, context3)
@@ -597,7 +598,8 @@ defmodule Mau.TruthinessEdgeCasesTest do
       assert String.contains?(result, "Truthy: 1")
       assert String.contains?(result, "Falsy: 0")
       assert String.contains?(result, "Truthy: hello")
-      assert String.contains?(result, "Falsy: ")  # empty string
+      # empty string
+      assert String.contains?(result, "Falsy: ")
       assert String.contains?(result, "Truthy: true")
       assert String.contains?(result, "Falsy: false")
       # Note: nil might render as empty string
@@ -674,7 +676,8 @@ defmodule Mau.TruthinessEdgeCasesTest do
       """
 
       # Use a very small positive float
-      context = %{"result" => 1.0e-308}  # Very small but non-zero
+      # Very small but non-zero
+      context = %{"result" => 1.0e-308}
 
       assert {:ok, result} = Mau.render(template, context)
       assert String.contains?(result, "Result exists")
@@ -714,14 +717,19 @@ defmodule Mau.TruthinessEdgeCasesTest do
       """
 
       # Create mix of truthy and falsy values
-      items = Enum.map(0..999, fn i -> 
-        case rem(i, 4) do
-          0 -> 0        # falsy
-          1 -> ""       # falsy  
-          2 -> nil      # falsy
-          3 -> i        # truthy
-        end
-      end)
+      items =
+        Enum.map(0..999, fn i ->
+          case rem(i, 4) do
+            # falsy
+            0 -> 0
+            # falsy  
+            1 -> ""
+            # falsy
+            2 -> nil
+            # truthy
+            3 -> i
+          end
+        end)
 
       context = %{
         "range" => 0..999,
@@ -735,9 +743,9 @@ defmodule Mau.TruthinessEdgeCasesTest do
       # Should contain mix of T and F
       assert String.contains?(result, "T")
       assert String.contains?(result, "F")
-      
+
       # Should complete within reasonable time
-      assert (end_time - start_time) < 500
+      assert end_time - start_time < 500
     end
   end
 end
