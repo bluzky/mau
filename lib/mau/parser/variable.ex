@@ -42,4 +42,17 @@ defmodule Mau.Parser.Variable do
       basic_identifier()
     ])
   end
+
+  # ============================================================================
+  # HELPER FUNCTIONS
+  # ============================================================================
+
+  # Optimized reduce functions to avoid external dependencies
+  defp build_identifier(chars) do
+    :binary.list_to_bin(chars)
+  end
+
+  defp build_workflow_identifier(["$", identifier]) do
+    "$" <> identifier
+  end
 end

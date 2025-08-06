@@ -683,11 +683,11 @@ defmodule Mau.Parser do
   end
 
   defp build_string_from_chars(chars) do
-    chars |> List.to_string()
+    List.to_string(chars)
   end
 
   defp build_string_literal_node([string_value]) do
-    Nodes.literal_node(string_value)
+    {:literal, [string_value], []}
   end
 
   # Number literal helpers (kept for internal combinator use)
@@ -723,22 +723,22 @@ defmodule Mau.Parser do
   end
 
   defp build_number_literal_node([number_value]) when is_number(number_value) do
-    Nodes.literal_node(number_value)
+    {:literal, [number_value], []}
   end
 
   # Boolean and null literal helpers (kept for internal combinator use)
   defp build_boolean_literal_node([boolean_value]) when is_boolean(boolean_value) do
-    Nodes.literal_node(boolean_value)
+    {:literal, [boolean_value], []}
   end
 
   defp build_null_literal_node([nil]) do
-    Nodes.literal_node(nil)
+    {:literal, [nil], []}
   end
 
   # Atom literal helpers (kept for internal combinator use)
   defp build_atom_literal([":" | atom_chars]) do
-    atom_name = atom_chars |> List.to_string()
-    Nodes.atom_literal_node(atom_name)
+    atom_name = :binary.list_to_bin(atom_chars)
+    {:literal, [String.to_atom(atom_name)], []}
   end
 
   # Text node helpers
@@ -747,14 +747,14 @@ defmodule Mau.Parser do
   end
 
   defp build_text_node([content]) do
-    Nodes.text_node(content)
+    {:text, [content], []}
   end
 
 
   # Unified trim handler for expression nodes
   defp build_expression_node_with_trim([expression_ast], trim_variant) do
     trim_opts = build_trim_opts(trim_variant)
-    Nodes.expression_node(expression_ast, trim_opts)
+    {:expression, [expression_ast], trim_opts}
   end
 
   # Helper to convert trim variant atoms to keyword lists
@@ -772,18 +772,18 @@ defmodule Mau.Parser do
     end
   end
 
-  # Comment node builders
+  # Text and comment node builders
   defp build_comment_content(chars) do
-    IO.iodata_to_binary(chars)
+    :binary.list_to_bin(chars)
   end
 
   defp build_comment_node([content]) do
-    Nodes.comment_node(content, [])
+    {:comment, [content], []}
   end
 
   # Variable identifier helpers
   defp build_identifier(chars) do
-    chars |> List.to_string()
+    :binary.list_to_bin(chars)
   end
 
   defp build_workflow_identifier(["$", identifier]) do
@@ -802,8 +802,7 @@ defmodule Mau.Parser do
 
   # Variable path helpers
   defp build_variable_path([identifier | accesses]) do
-    path_segments = [identifier | accesses]
-    Nodes.variable_node(path_segments)
+    {:variable, [identifier | accesses], []}
   end
 
   # Arithmetic expression helpers
@@ -822,7 +821,7 @@ defmodule Mau.Parser do
   end
 
   defp build_left_associative_ops(left, [operator, right | rest]) do
-    binary_op = Nodes.binary_op_node(operator, left, right)
+    binary_op = {:binary_op, [operator, left, right], []}
     build_left_associative_ops(binary_op, rest)
   end
 
@@ -842,13 +841,13 @@ defmodule Mau.Parser do
   end
 
   defp build_left_associative_logical_ops(left, [operator, right | rest]) do
-    logical_op = Nodes.logical_op_node(operator, left, right)
+    logical_op = {:logical_op, [operator, left, right], []}
     build_left_associative_logical_ops(logical_op, rest)
   end
 
   # Unary operation helpers
   defp build_unary_operation(["not", operand]) do
-    Nodes.unary_op_node("not", operand)
+    {:unary_op, ["not", operand], []}
   end
 
   # Function call helpers
@@ -859,7 +858,7 @@ defmodule Mau.Parser do
         [] -> []
       end
 
-    Nodes.call_node(function_name, argument_list)
+    {:call, [function_name, argument_list], []}
   end
 
   defp build_argument_list([first_arg | rest_args]) do
@@ -899,11 +898,11 @@ defmodule Mau.Parser do
         {:pipe_function_call, function_name, args} ->
           # Function call with arguments: value | filter(arg1, arg2)
           # The value becomes the first argument
-          Nodes.call_node(function_name, [value | args])
+          {:call, [function_name, [value | args]], []}
 
         filter_name when is_binary(filter_name) ->
           # Simple filter: value | filter
-          Nodes.call_node(filter_name, [value])
+          {:call, [filter_name, [value]], []}
       end
 
     apply_filters_to_value(call_node, rest_filters)
@@ -944,23 +943,23 @@ defmodule Mau.Parser do
 
     case tag_data do
       {:assign, variable_name, expression} ->
-        Nodes.tag_node(:assign, [variable_name, expression], trim_opts)
+        {:tag, [:assign, variable_name, expression], trim_opts}
 
       {tag_type, condition} when tag_type in [:if, :elsif] ->
-        Nodes.tag_node(tag_type, [condition], trim_opts)
+        {:tag, [tag_type, condition], trim_opts}
 
       {tag_type} when tag_type in [:else, :endif, :endfor] ->
-        Nodes.tag_node(tag_type, [], trim_opts)
+        {:tag, [tag_type], trim_opts}
 
       {:for, loop_variable, collection_expression} ->
-        Nodes.tag_node(:for, [loop_variable, collection_expression], trim_opts)
+        {:tag, [:for, loop_variable, collection_expression], trim_opts}
 
       # Generic fallback for future tag types
       {tag_type, params} when is_list(params) ->
-        Nodes.tag_node(tag_type, params, trim_opts)
+        {:tag, [tag_type | params], trim_opts}
 
       {tag_type, param} ->
-        Nodes.tag_node(tag_type, [param], trim_opts)
+        {:tag, [tag_type, param], trim_opts}
     end
   end
 end

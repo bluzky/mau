@@ -223,4 +223,69 @@ defmodule Mau.Parser.Literal do
     |> repeat(ascii_char([?a..?z, ?A..?Z, ?0..?9, ?_]))
     |> reduce(:build_atom_literal)
   end
+
+  # ============================================================================
+  # HELPER FUNCTIONS
+  # ============================================================================
+
+  # Optimized reduce functions to avoid external module calls
+  defp parse_unicode_escape(["u", d1, d2, d3, d4]) do
+    hex_string = <<d1, d2, d3, d4>>
+    {code_point, ""} = Integer.parse(hex_string, 16)
+    <<code_point::utf8>>
+  end
+
+  defp build_string_from_chars(chars) do
+    List.to_string(chars)
+  end
+
+  defp build_string_literal_node([string_value]) do
+    {:literal, [string_value], []}
+  end
+
+  defp parse_integer(digits) do
+    digits
+    |> List.flatten()
+    |> :binary.list_to_bin()
+    |> String.to_integer()
+  end
+
+  defp parse_float(parts) do
+    string_value =
+      parts
+      |> List.flatten()
+      |> :binary.list_to_bin()
+
+    case Float.parse(string_value) do
+      {float_val, ""} ->
+        float_val
+
+      {float_val, _rest} ->
+        float_val
+
+      :error ->
+        raise "Invalid float string encountered in parser: #{inspect(string_value)}"
+    end
+  end
+
+  defp negate_number([number]) when is_number(number) do
+    -number
+  end
+
+  defp build_number_literal_node([number_value]) when is_number(number_value) do
+    {:literal, [number_value], []}
+  end
+
+  defp build_boolean_literal_node([boolean_value]) when is_boolean(boolean_value) do
+    {:literal, [boolean_value], []}
+  end
+
+  defp build_null_literal_node([nil]) do
+    {:literal, [nil], []}
+  end
+
+  defp build_atom_literal([":" | atom_chars]) do
+    atom_name = :binary.list_to_bin(atom_chars)
+    {:literal, [String.to_atom(atom_name)], []}
+  end
 end
