@@ -689,54 +689,51 @@ defmodule Mau.Renderer do
   defp render_loop_items(items, loop_variable, content, context, opts) do
     # Check max_loop_iterations limit (default 10000)
     max_iterations = opts[:max_loop_iterations] || 10000
-    items_to_process = 
-      if length(items) > max_iterations do
-        Enum.take(items, max_iterations)
-      else
-        items
-      end
+    item_count = length(items)
+    
+    if item_count > max_iterations do
+      {:error, Mau.Error.runtime_error("Loop iteration count #{item_count} exceeds maximum #{max_iterations}")}
+    else
+      loop_context = create_loop_context(context, loop_variable, items, item_count)
 
-    loop_context = create_loop_context(context, loop_variable, items_to_process)
+      Enum.reduce_while(items, {:ok, [], loop_context}, fn item, {:ok, acc, loop_context} ->
+        # Update loop context with current item
+        updated_loop_context = update_loop_context(loop_context, loop_variable, item)
 
-    Enum.reduce_while(items_to_process, {:ok, [], loop_context}, fn item, {:ok, acc, loop_context} ->
-      # Update loop context with current item
-      updated_loop_context = update_loop_context(loop_context, loop_variable, item)
+        case render_nodes(content, updated_loop_context, [], opts) do
+          {:ok, parts, final_context} ->
+            restored_context =
+              Map.merge(final_context, %{
+                loop_variable => item,
+                "forloop" => updated_loop_context["forloop"]
+              })
 
-      case render_nodes(content, updated_loop_context, [], opts) do
-        {:ok, parts, final_context} ->
-          restored_context =
-            Map.merge(final_context, %{
-              loop_variable => item,
-              "forloop" => updated_loop_context["forloop"]
-            })
+            # Accumulate rendered content
+            {:cont, {:ok, [parts | acc], restored_context}}
 
-          # Accumulate rendered content
-          {:cont, {:ok, [parts | acc], restored_context}}
-
-        {:error, error} ->
-          {:halt, {:error, error}}
-      end
-    end)
+          {:error, error} ->
+            {:halt, {:error, error}}
+        end
+      end)
+    end
   end
 
-  defp create_loop_context(base_context, loop_variable, items) do
-    length = length(items)
-
+  defp create_loop_context(base_context, loop_variable, _items, item_count) do
     # Preserve parent forloop context if exists
     parent_forloop = Map.get(base_context, "forloop")
 
     # Initialize forloop data
-    # set index to -1 (0-based), rindex to length - 1
+    # set index to -1 (0-based), rindex to item_count - 1
     # because we will increment index before first item render
     forloop_data = %{
       # 0-based index
       "index" => -1,
       # Reverse index (remaining items + 1)
-      "rindex" => length - 1,
+      "rindex" => item_count - 1,
       # Reverse 0-based index
       "first" => false,
       "last" => false,
-      "length" => length
+      "length" => item_count
     }
 
     # Add parent loop reference if we're in a nested loop

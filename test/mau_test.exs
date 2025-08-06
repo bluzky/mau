@@ -81,8 +81,9 @@ defmodule MauTest do
       # Should render all items with default limit (10000)
       assert {:ok, "12345678910"} = Mau.render(template, context)
       
-      # Should render only first 3 items with custom limit
-      assert {:ok, "123"} = Mau.render(template, context, max_loop_iterations: 3)
+      # Should fail when custom limit is exceeded
+      assert {:error, error} = Mau.render(template, context, max_loop_iterations: 3)
+      assert error.message =~ "Loop iteration count 10 exceeds maximum 3"
       
       # Should handle limit larger than collection
       assert {:ok, "12345678910"} = Mau.render(template, context, max_loop_iterations: 20)
@@ -94,15 +95,26 @@ defmodule MauTest do
       template = "{% for item in items %}{{ item }},{% endfor %}"
       context = %{"items" => large_items}
       
-      # Should stop at 10000 items with default limit
-      {:ok, result} = Mau.render(template, context)
-      item_count = (result |> String.split(",") |> length()) - 1  # -1 for empty string at end
-      assert item_count == 10000
+      # Should fail with default limit (10000) when collection exceeds limit
+      assert {:error, error} = Mau.render(template, context)
+      assert error.message =~ "Loop iteration count 15000 exceeds maximum 10000"
       
       # Should render all items when limit is explicitly set higher
       {:ok, result_unlimited} = Mau.render(template, context, max_loop_iterations: 20000)
       item_count_unlimited = (result_unlimited |> String.split(",") |> length()) - 1
       assert item_count_unlimited == 15000
+    end
+
+    test "loops within default limit work correctly" do
+      # Create a collection within the default limit
+      items = Enum.to_list(1..5000)
+      template = "{% for item in items %}{{ item }},{% endfor %}"
+      context = %{"items" => items}
+      
+      # Should render successfully with default limit
+      {:ok, result} = Mau.render(template, context)
+      item_count = (result |> String.split(",") |> length()) - 1  # -1 for empty string at end
+      assert item_count == 5000
     end
 
     test "max_template_size accepts zero and negative values gracefully" do
