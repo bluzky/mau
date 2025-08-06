@@ -86,17 +86,16 @@ defmodule Mau.LoopIntegrationTest do
       template = "{% for pair in data %}{{ pair }} {% endfor %}"
       context = %{"data" => %{"a" => 1, "b" => 2}}
 
-      assert {:ok, result} = Mau.render(template, context)
-      # Maps convert to tuples, order may vary
-      assert result =~ "{"
-      assert result =~ "}"
+      assert {:error, error} = Mau.render(template, context)
+      assert error.message == "For loop iterable must be a list"
     end
 
     test "iterates over string as characters" do
       template = "{% for char in word %}{{ char }}-{% endfor %}"
       context = %{"word" => "abc"}
 
-      assert {:ok, "a-b-c-"} = Mau.render(template, context)
+      assert {:error, error} = Mau.render(template, context)
+      assert error.message == "For loop iterable must be a list"
     end
 
     test "handles complex nested data" do

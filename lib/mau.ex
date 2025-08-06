@@ -42,7 +42,7 @@ defmodule Mau do
   Renders a template string or AST with the given context.
 
   ## Options
-  - `:preserve_types` - boolean, default `false`. When `true`, preserves data types 
+  - `:preserve_types` - boolean, default `false`. When `true`, preserves data types
     for single-value templates (templates that render to a single expression result).
   - `:max_template_size` - integer, maximum template size in bytes (no limit by default)
   - `:max_loop_iterations` - integer, maximum loop iterations (default 10000)
@@ -94,6 +94,8 @@ defmodule Mau do
       {:ok, %{message: "Hello world"}}
   """
   def render_map(nested_map, context, opts \\ []) when is_map(nested_map) and is_map(context) do
+    opts = Keyword.put_new(opts, :preserve_types, true)
+
     try do
       result = render_map_recursive(nested_map, context, opts)
       {:ok, result}
@@ -134,16 +136,23 @@ defmodule Mau do
   end
 
   # Validates template size against max_template_size option
+  @max_template_size 100_000
   defp validate_template_size(template, opts) when is_binary(template) do
-    case opts[:max_template_size] do
-      nil -> :ok
+    max_size = opts[:max_template_size] || @max_template_size
+
+    case max_size do
       max_size when is_integer(max_size) and max_size > 0 ->
         if byte_size(template) <= max_size do
           :ok
         else
-          {:error, Mau.Error.runtime_error("Template size #{byte_size(template)} exceeds maximum #{max_size} bytes")}
+          {:error,
+           Mau.Error.runtime_error(
+             "Template size #{byte_size(template)} exceeds maximum #{max_size} bytes"
+           )}
         end
-      _ -> :ok
+
+      _ ->
+        :ok
     end
   end
 end

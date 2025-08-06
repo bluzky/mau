@@ -450,7 +450,7 @@ defmodule Mau.ConditionalsArrayAccessTest do
         end)
 
       context = %{
-        "range" => 0..49,
+        "range" => Enum.to_list(0..49),
         "data" => data
       }
 

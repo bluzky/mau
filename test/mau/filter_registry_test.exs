@@ -19,9 +19,6 @@ defmodule Mau.FilterRegistryTest do
     test "returns built-in number filters" do
       assert {:ok, {module, function}} = FilterRegistry.get(:round)
       assert is_atom(module) and is_atom(function)
-
-      assert {:ok, {module, function}} = FilterRegistry.get(:format_currency)
-      assert is_atom(module) and is_atom(function)
     end
 
     test "returns built-in collection filters" do
@@ -78,6 +75,50 @@ defmodule Mau.FilterRegistryTest do
       assert {:ok, 5} = FilterRegistry.apply(:abs, -5, [])
       assert {:ok, 4} = FilterRegistry.apply(:ceil, 3.14, [])
       assert {:ok, 4.0} = FilterRegistry.apply(:sqrt, 16, [])
+    end
+
+    test "ceil filter handles integers correctly" do
+      assert {:ok, 10} = FilterRegistry.apply(:ceil, 10, [])
+      assert {:ok, 4} = FilterRegistry.apply(:ceil, 3.14, [])
+      assert {:ok, -3} = FilterRegistry.apply(:ceil, -3.14, [])
+    end
+
+    test "floor filter handles integers correctly" do
+      assert {:ok, 10} = FilterRegistry.apply(:floor, 10, [])
+      assert {:ok, 3} = FilterRegistry.apply(:floor, 3.14, [])
+      assert {:ok, -4} = FilterRegistry.apply(:floor, -3.14, [])
+    end
+
+    test "clamp filter validates min <= max" do
+      assert {:ok, 7} = FilterRegistry.apply(:clamp, 7, [5, 10])
+      assert {:ok, 5} = FilterRegistry.apply(:clamp, 3, [5, 10])
+      assert {:ok, 10} = FilterRegistry.apply(:clamp, 12, [5, 10])
+      
+      # Should error when min > max
+      assert {:error, {:filter_error, "clamp min value must be less than or equal to max value"}} = 
+        FilterRegistry.apply(:clamp, 7, [10, 5])
+    end
+
+    test "sum filter requires all numeric values" do
+      assert {:ok, 10} = FilterRegistry.apply(:sum, [1, 2, 3, 4], [])
+      assert {:ok, 6.5} = FilterRegistry.apply(:sum, [1.5, 2, 3.0], [])
+      
+      # Should error with mixed types
+      assert {:error, {:filter_error, "sum filter requires all elements to be numeric"}} = 
+        FilterRegistry.apply(:sum, [1, "hello", 2], [])
+    end
+
+    test "sort filter only works with lists" do
+      assert {:ok, [1, 2, 3]} = FilterRegistry.apply(:sort, [3, 1, 2], [])
+      assert {:ok, ["a", "b", "c"]} = FilterRegistry.apply(:sort, ["c", "a", "b"], [])
+      
+      # Should error with strings
+      assert {:error, {:filter_error, "sort filter only supports lists"}} = 
+        FilterRegistry.apply(:sort, "hello", [])
+        
+      # Should error with other types
+      assert {:error, {:filter_error, "sort filter only supports lists"}} = 
+        FilterRegistry.apply(:sort, 42, [])
     end
 
     test "returns error for unknown filter" do

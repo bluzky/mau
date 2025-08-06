@@ -65,13 +65,7 @@ defmodule Mau.Filters.String do
   def capitalize(value, _args) do
     case value do
       str when is_binary(str) ->
-        result =
-          str
-          |> String.split(" ")
-          |> Enum.map(&String.capitalize/1)
-          |> Enum.join(" ")
-
-        {:ok, result}
+        {:ok, String.capitalize(str)}
 
       _ ->
         result = to_string(value) |> capitalize([])
@@ -92,20 +86,29 @@ defmodule Mau.Filters.String do
   @doc """
   Truncates a string to the specified length.
   """
-  def truncate(value, args) do
-    case args do
-      [length] when is_integer(length) and length >= 0 ->
-        str = to_string(value)
+  @spec truncate(String.t(), list()) :: {:ok, String.t()} | {:error, String.t()}
+  def truncate(value, [length]) when is_binary(value) and is_integer(length) do
+    truncate(value, [length, "..."])
+  end
 
-        if String.length(str) <= length do
-          {:ok, str}
-        else
-          {:ok, String.slice(str, 0, length)}
-        end
+  def truncate(value, [length, suffix])
+      when is_binary(value) and is_integer(length) and is_binary(suffix) do
+    if String.length(value) <= length do
+      {:ok, value}
+    else
+      suffix_length = String.length(suffix)
 
-      _ ->
-        {:error, "truncate requires a positive integer length"}
+      if length > suffix_length do
+        truncate_length = length - suffix_length
+        {:ok, String.slice(value, 0, truncate_length) <> suffix}
+      else
+        {:ok, String.slice(suffix, 0, length)}
+      end
     end
+  end
+
+  def truncate(_value, _args) do
+    {:error, "truncate filter requires a string and a length parameter"}
   end
 
   @doc """

@@ -134,21 +134,19 @@ defmodule Mau.Filters.Collection do
   @doc """
   Joins elements of a list with a separator.
   """
+  @default_join_separator ", "
   def join(value, args) do
     case {value, args} do
       {list, [separator]} when is_list(list) ->
         result =
           list
-          |> Enum.map(&to_string/1)
           |> Enum.join(separator)
 
         {:ok, result}
 
       {list, []} when is_list(list) ->
         result =
-          list
-          |> Enum.map(&to_string/1)
-          |> Enum.join("")
+          list |> Enum.join(@default_join_separator)
 
         {:ok, result}
 
@@ -163,8 +161,7 @@ defmodule Mau.Filters.Collection do
   def sort(value, _args) do
     case value do
       list when is_list(list) -> {:ok, Enum.sort(list)}
-      str when is_binary(str) -> {:ok, str |> String.graphemes() |> Enum.sort() |> Enum.join()}
-      _ -> {:error, "sort can only be applied to lists or strings"}
+      _ -> {:error, "sort filter only supports lists"}
     end
   end
 
@@ -257,14 +254,12 @@ defmodule Mau.Filters.Collection do
   def sum(value, _args) do
     case value do
       list when is_list(list) ->
-        result =
-          Enum.reduce(list, 0, fn
-            x, acc when is_number(x) -> acc + x
-            # Skip non-numeric values
-            _, acc -> acc
-          end)
-
-        {:ok, result}
+        if Enum.all?(list, &is_number/1) do
+          result = Enum.sum(list)
+          {:ok, result}
+        else
+          {:error, "sum filter requires all elements to be numeric"}
+        end
 
       _ ->
         {:error, "sum can only be applied to lists"}

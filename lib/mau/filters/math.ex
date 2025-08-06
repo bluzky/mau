@@ -70,7 +70,11 @@ defmodule Mau.Filters.Math do
   """
   def ceil(value, _args) do
     case value do
-      num when is_number(num) -> {:ok, Float.ceil(num) |> trunc()}
+      # Integer is already "ceiled"
+      num when is_integer(num) -> {:ok, num}
+      num when is_float(num) -> {:ok, Float.ceil(num) |> trunc()}
+      # Convert to float first
+      num when is_number(num) -> {:ok, Float.ceil(num / 1) |> trunc()}
       _ -> {:error, "ceil can only be applied to numbers"}
     end
   end
@@ -80,7 +84,11 @@ defmodule Mau.Filters.Math do
   """
   def floor(value, _args) do
     case value do
-      num when is_number(num) -> {:ok, Float.floor(num) |> trunc()}
+      # Integer is already "floored"
+      num when is_integer(num) -> {:ok, num}
+      num when is_float(num) -> {:ok, Float.floor(num) |> trunc()}
+      # Convert to float first
+      num when is_number(num) -> {:ok, Float.floor(num / 1) |> trunc()}
       _ -> {:error, "floor can only be applied to numbers"}
     end
   end
@@ -94,10 +102,10 @@ defmodule Mau.Filters.Math do
         {:ok, Kernel.round(num)}
 
       {num, [precision]} when is_number(num) and is_integer(precision) and precision >= 0 ->
-        {:ok, Float.round(num * :math.pow(10, precision)) / :math.pow(10, precision)}
+        {:ok, Float.round(num, precision)}
 
       {num, _} when is_number(num) ->
-        {:error, "round precision must be a non-negative integer"}
+        {:ok, round(num)}
 
       _ ->
         {:error, "round can only be applied to numbers"}
@@ -200,8 +208,12 @@ defmodule Mau.Filters.Math do
     case {value, args} do
       {num, [min_val, max_val]}
       when is_number(num) and is_number(min_val) and is_number(max_val) ->
-        clamped = num |> Kernel.max(min_val) |> Kernel.min(max_val)
-        {:ok, clamped}
+        if min_val <= max_val do
+          clamped = num |> Kernel.max(min_val) |> Kernel.min(max_val)
+          {:ok, clamped}
+        else
+          {:error, "clamp min value must be less than or equal to max value"}
+        end
 
       _ ->
         {:error, "clamp requires a number and min/max values"}

@@ -17,7 +17,7 @@ defmodule Mau.FilterEvaluatorTest do
 
       context = %{}
 
-      assert {:ok, "hello"} = Renderer.render_node({:expression, [call_node], []}, context)
+      assert {:ok, "he..."} = Renderer.render_node({:expression, [call_node], []}, context)
     end
 
     test "evaluates filter with variable input" do
@@ -35,7 +35,7 @@ defmodule Mau.FilterEvaluatorTest do
       outer_call = {:call, ["upper_case", [inner_call]], []}
       context = %{}
 
-      assert {:ok, "HELLO"} = Renderer.render_node({:expression, [outer_call], []}, context)
+      assert {:ok, "HE..."} = Renderer.render_node({:expression, [outer_call], []}, context)
     end
 
     test "evaluates number filters" do
@@ -112,7 +112,7 @@ defmodule Mau.FilterEvaluatorTest do
       call_node = {:call, ["truncate", [name_plus_world, price_times_two]], []}
       context = %{"name" => "hello", "price" => 3}
 
-      assert {:ok, "hello "} = Renderer.render_node({:expression, [call_node], []}, context)
+      assert {:ok, "hel..."} = Renderer.render_node({:expression, [call_node], []}, context)
     end
 
     test "evaluates nested arithmetic with filters" do

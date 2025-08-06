@@ -30,7 +30,8 @@ defmodule Mau.Renderer do
   end
 
   # Renders a node and returns {result, updated_context} - main rendering pipeline
-  defp render_node_with_context({:text, [content], _opts}, context, _render_opts) when is_binary(content) do
+  defp render_node_with_context({:text, [content], _opts}, context, _render_opts)
+       when is_binary(content) do
     {:ok, content, context}
   end
 
@@ -444,6 +445,10 @@ defmodule Mau.Renderer do
     end
   end
 
+  defp evaluate_logical_operation("&&", left, right, context) do
+    evaluate_logical_operation("and", left, right, context)
+  end
+
   defp evaluate_logical_operation("or", left, right, context) do
     case evaluate_expression(left, context) do
       {:ok, left_value} ->
@@ -459,6 +464,10 @@ defmodule Mau.Renderer do
       {:error, error} ->
         {:error, error}
     end
+  end
+
+  defp evaluate_logical_operation("||", left, right, context) do
+    evaluate_logical_operation("or", left, right, context)
   end
 
   # Unary operation evaluation
@@ -671,28 +680,22 @@ defmodule Mau.Renderer do
     end
   end
 
+  defp ensure_iterable(nil), do: {:ok, []}
   defp ensure_iterable(value) when is_list(value), do: {:ok, value}
 
-  defp ensure_iterable(value) when is_map(value) do
-    # Convert map to list of {key, value} tuples
-    {:ok, Enum.to_list(value)}
-  end
-
-  defp ensure_iterable(value) when is_binary(value) do
-    # Convert string to list of characters
-    {:ok, String.graphemes(value)}
-  end
-
-  defp ensure_iterable(nil), do: {:ok, []}
-  defp ensure_iterable(_), do: {:error, Mau.Error.runtime_error("Collection is not iterable")}
+  defp ensure_iterable(_),
+    do: {:error, Mau.Error.runtime_error("For loop iterable must be a list")}
 
   defp render_loop_items(items, loop_variable, content, context, opts) do
     # Check max_loop_iterations limit (default 10000)
     max_iterations = opts[:max_loop_iterations] || 10000
     item_count = length(items)
-    
+
     if item_count > max_iterations do
-      {:error, Mau.Error.runtime_error("Loop iteration count #{item_count} exceeds maximum #{max_iterations}")}
+      {:error,
+       Mau.Error.runtime_error(
+         "Loop iteration count #{item_count} exceeds maximum #{max_iterations}"
+       )}
     else
       loop_context = create_loop_context(context, loop_variable, items, item_count)
 

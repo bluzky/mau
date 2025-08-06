@@ -67,12 +67,12 @@ defmodule Mau.NewFiltersTest do
       assert result == "10"
     end
 
-    test "sum filter ignores non-numeric values" do
+    test "sum filter rejects non-numeric values" do
       template = "{{ mixed | sum }}"
       context = %{"mixed" => [1, "hello", 2, nil, 3]}
 
-      assert {:ok, result} = Mau.render(template, context)
-      assert result == "6"
+      assert {:error, error} = Mau.render(template, context)
+      assert error.message =~ "sum filter requires all elements to be numeric"
     end
 
     test "keys filter gets map keys" do
@@ -232,7 +232,7 @@ defmodule Mau.NewFiltersTest do
       context = %{"text" => "  hello world  "}
 
       assert {:ok, result} = Mau.render(template, context)
-      assert String.trim(result) == "HELLO"
+      assert String.trim(result) == "HE..."
     end
 
     test "data transformation chain" do

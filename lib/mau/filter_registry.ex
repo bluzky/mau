@@ -9,13 +9,14 @@ defmodule Mau.FilterRegistry do
   @type filter_mfa :: {module(), atom()}
   @type filter_name :: atom() | String.t()
 
+  @user_defined_filters Application.compile_env(:mau, :filters, [])
+
   # Filter modules to load
   @filter_modules [
-    Mau.Filters.String,
-    Mau.Filters.Collection,
-    Mau.Filters.Math,
-    Mau.Filters.Number
-  ]
+                    Mau.Filters.String,
+                    Mau.Filters.Collection,
+                    Mau.Filters.Math
+                  ] ++ @user_defined_filters
 
   # Build compile-time filter name to {module, function} mapping for fast runtime lookups
   @filter_function_map @filter_modules

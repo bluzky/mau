@@ -234,23 +234,29 @@ defmodule Mau.Parser do
   # LOGICAL EXPRESSION PARSING
   # ============================================================================
 
-  # Logical AND operator
+  # Logical AND operator - supports both "and" and "&&"
   logical_and_expression =
     unary_expression
     |> repeat(
       ignore(optional_whitespace)
-      |> string("and")
+      |> choice([
+        string("&&"),
+        string("and")
+      ])
       |> ignore(optional_whitespace)
       |> concat(unary_expression)
     )
     |> reduce(:build_logical_operation)
 
-  # Logical OR operator (lowest precedence)
+  # Logical OR operator (lowest precedence) - supports both "or" and "||"
   logical_or_expression =
     logical_and_expression
     |> repeat(
       ignore(optional_whitespace)
-      |> string("or")
+      |> choice([
+        string("||"),
+        string("or")
+      ])
       |> ignore(optional_whitespace)
       |> concat(logical_and_expression)
     )

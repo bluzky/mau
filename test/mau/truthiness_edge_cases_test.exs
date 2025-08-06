@@ -732,7 +732,7 @@ defmodule Mau.TruthinessEdgeCasesTest do
         end)
 
       context = %{
-        "range" => 0..999,
+        "range" => Enum.to_list(0..999),
         "items" => items
       }
 
