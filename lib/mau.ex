@@ -20,6 +20,7 @@ defmodule Mau do
 
   ## Options
   - `:strict_mode` - boolean, default `false`
+  - `:max_template_size` - integer, maximum template size in bytes (no limit by default)
 
   ## Examples
 
@@ -27,16 +28,13 @@ defmodule Mau do
       {:ok, [{:text, ["Hello world"], []}]}
   """
   def compile(template, opts \\ []) when is_binary(template) do
-    case Parser.parse(template) do
-      {:ok, ast} ->
-        if opts[:strict_mode] do
-          {:ok, ast, []}
-        else
-          {:ok, ast}
-        end
-
-      {:error, error} ->
-        {:error, error}
+    with :ok <- validate_template_size(template, opts),
+         {:ok, ast} <- Parser.parse(template) do
+      if opts[:strict_mode] do
+        {:ok, ast, []}
+      else
+        {:ok, ast}
+      end
     end
   end
 
@@ -46,6 +44,8 @@ defmodule Mau do
   ## Options
   - `:preserve_types` - boolean, default `false`. When `true`, preserves data types 
     for single-value templates (templates that render to a single expression result).
+  - `:max_template_size` - integer, maximum template size in bytes (no limit by default)
+  - `:max_loop_iterations` - integer, maximum loop iterations (default 10000)
 
   ## Examples
 
@@ -66,7 +66,8 @@ defmodule Mau do
   def render(template, context, opts \\ [])
 
   def render(template, context, opts) when is_binary(template) and is_map(context) do
-    with {:ok, ast} <- Parser.parse(template),
+    with :ok <- validate_template_size(template, opts),
+         {:ok, ast} <- Parser.parse(template),
          trimmed_ast <- WhitespaceProcessor.apply_whitespace_control(ast),
          processed_ast <- BlockProcessor.process_blocks(trimmed_ast),
          {:ok, result} <- Renderer.render(processed_ast, context, opts) do
@@ -130,5 +131,19 @@ defmodule Mau do
     String.contains?(value, "{{") or
       String.contains?(value, "{%") or
       String.contains?(value, "{#")
+  end
+
+  # Validates template size against max_template_size option
+  defp validate_template_size(template, opts) when is_binary(template) do
+    case opts[:max_template_size] do
+      nil -> :ok
+      max_size when is_integer(max_size) and max_size > 0 ->
+        if byte_size(template) <= max_size do
+          :ok
+        else
+          {:error, Mau.Error.runtime_error("Template size #{byte_size(template)} exceeds maximum #{max_size} bytes")}
+        end
+      _ -> :ok
+    end
   end
 end

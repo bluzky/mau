@@ -22,42 +22,42 @@ defmodule Mau.Renderer do
       iex> Mau.Renderer.render_node({:expression, [{:literal, [42], []}], []}, %{})
       {:ok, "42"}
   """
-  def render_node(node, context) do
-    case render_node_with_context(node, context) do
+  def render_node(node, context, opts \\ []) do
+    case render_node_with_context(node, context, opts) do
       {:ok, result, _updated_context} -> {:ok, result}
       {:error, error} -> {:error, error}
     end
   end
 
   # Renders a node and returns {result, updated_context} - main rendering pipeline
-  defp render_node_with_context({:text, [content], _opts}, context) when is_binary(content) do
+  defp render_node_with_context({:text, [content], _opts}, context, _render_opts) when is_binary(content) do
     {:ok, content, context}
   end
 
-  defp render_node_with_context({:comment, [_content], _opts}, context) do
+  defp render_node_with_context({:comment, [_content], _opts}, context, _render_opts) do
     {:ok, "", context}
   end
 
-  defp render_node_with_context({:expression, [expression_ast], _opts}, context) do
+  defp render_node_with_context({:expression, [expression_ast], _opts}, context, _render_opts) do
     case evaluate_expression(expression_ast, context) do
       {:ok, value} -> {:ok, format_value(value), context}
       {:error, error} -> {:error, error}
     end
   end
 
-  defp render_node_with_context({:tag, [tag_type | tag_parts], _opts}, context) do
-    render_tag_with_context(tag_type, tag_parts, context)
+  defp render_node_with_context({:tag, [tag_type | tag_parts], _opts}, context, render_opts) do
+    render_tag_with_context(tag_type, tag_parts, context, render_opts)
   end
 
-  defp render_node_with_context({:conditional_block, block_data, _opts}, context) do
-    render_conditional_block_with_context(block_data, context)
+  defp render_node_with_context({:conditional_block, block_data, _opts}, context, render_opts) do
+    render_conditional_block_with_context(block_data, context, render_opts)
   end
 
-  defp render_node_with_context({:loop_block, block_data, _opts}, context) do
-    render_loop_block_with_context(block_data, context)
+  defp render_node_with_context({:loop_block, block_data, _opts}, context, render_opts) do
+    render_loop_block_with_context(block_data, context, render_opts)
   end
 
-  defp render_node_with_context(node, _context) do
+  defp render_node_with_context(node, _context, _render_opts) do
     error = Mau.Error.runtime_error("Unknown node type: #{inspect(node)}")
     {:error, error}
   end
@@ -70,8 +70,8 @@ defmodule Mau.Renderer do
   def render(data, context, opts \\ [])
 
   def render(nodes, context, opts) when is_list(nodes) and is_map(context) do
-    case render_nodes(nodes, context) do
-      {:ok, parts} ->
+    case render_nodes(nodes, context, opts) do
+      {:ok, parts, _context} ->
         if opts[:preserve_types] && is_single_value_template?(nodes, parts) do
           # Extract the raw value from single expression templates
           extract_single_value(nodes, context)
@@ -92,10 +92,10 @@ defmodule Mau.Renderer do
           evaluate_expression(expression_ast, context)
 
         _ ->
-          render_node(ast, context)
+          render_node(ast, context, opts)
       end
     else
-      render_node(ast, context)
+      render_node(ast, context, opts)
     end
   end
 
@@ -121,23 +121,23 @@ defmodule Mau.Renderer do
   defp extract_single_value(_, _),
     do: {:error, Mau.Error.runtime_error("Not a single value template")}
 
-  # Renders a list of nodes
-  defp render_nodes(nodes, context) do
-    case render_nodes(nodes, context, []) do
-      {:ok, parts, _updated_context} -> {:ok, parts}
+  # 3-argument version for main render function
+  defp render_nodes(nodes, context, opts) when is_list(opts) do
+    case render_nodes(nodes, context, [], opts) do
+      {:ok, parts, updated_context} -> {:ok, parts, updated_context}
       {:error, error} -> {:error, error}
     end
   end
 
-  # Legacy version for block content where order matters
-  defp render_nodes([], context, acc) do
+  # Version with opts support for block content where order matters
+  defp render_nodes([], context, acc, _opts) do
     {:ok, Enum.reverse(acc), context}
   end
 
-  defp render_nodes([node | rest], context, acc) do
-    case render_node_with_context(node, context) do
+  defp render_nodes([node | rest], context, acc, opts) do
+    case render_node_with_context(node, context, opts) do
       {:ok, result, updated_context} ->
-        render_nodes(rest, updated_context, [result | acc])
+        render_nodes(rest, updated_context, [result | acc], opts)
 
       {:error, error} ->
         {:error, error}
@@ -526,7 +526,7 @@ defmodule Mau.Renderer do
 
   # Tag rendering functions
 
-  defp render_tag_with_context(:assign, [variable_name, expression], context) do
+  defp render_tag_with_context(:assign, [variable_name, expression], context, _opts) do
     case evaluate_expression(expression, context) do
       {:ok, value} ->
         updated_context = Map.put(context, variable_name, value)
@@ -539,7 +539,7 @@ defmodule Mau.Renderer do
   end
 
   # Conditional tags - these need special handling as they work in blocks
-  defp render_tag_with_context(:if, [condition], context) do
+  defp render_tag_with_context(:if, [condition], context, _opts) do
     case evaluate_expression(condition, context) do
       {:ok, value} ->
         # For now, store the condition result in a special context key
@@ -552,7 +552,7 @@ defmodule Mau.Renderer do
     end
   end
 
-  defp render_tag_with_context(:elsif, [condition], context) do
+  defp render_tag_with_context(:elsif, [condition], context, _opts) do
     case evaluate_expression(condition, context) do
       {:ok, value} ->
         # Placeholder implementation
@@ -564,35 +564,35 @@ defmodule Mau.Renderer do
     end
   end
 
-  defp render_tag_with_context(:else, [], context) do
+  defp render_tag_with_context(:else, [], context, _opts) do
     # Placeholder implementation
     {:ok, "", context}
   end
 
-  defp render_tag_with_context(:endif, [], context) do
+  defp render_tag_with_context(:endif, [], context, _opts) do
     # Placeholder implementation
     {:ok, "", context}
   end
 
   # Individual for/endfor tags (when block processing fails or doesn't apply)
-  defp render_tag_with_context(:for, [_loop_variable, _collection_expression], context) do
+  defp render_tag_with_context(:for, [_loop_variable, _collection_expression], context, _opts) do
     # Individual for tag - just return empty (should be handled by block processor)
     {:ok, "", context}
   end
 
-  defp render_tag_with_context(:endfor, [], context) do
+  defp render_tag_with_context(:endfor, [], context, _opts) do
     # Individual endfor tag - just return empty
     {:ok, "", context}
   end
 
-  defp render_tag_with_context(tag_type, _tag_parts, _context) do
+  defp render_tag_with_context(tag_type, _tag_parts, _context, _opts) do
     error = Mau.Error.runtime_error("Unknown tag type: #{inspect(tag_type)}")
     {:error, error}
   end
 
   # Conditional block rendering functions
 
-  defp render_conditional_block_with_context(block_data, context) do
+  defp render_conditional_block_with_context(block_data, context, opts) do
     if_branch = Keyword.get(block_data, :if_branch)
     elsif_branches = Keyword.get(block_data, :elsif_branches, [])
     else_branch = Keyword.get(block_data, :else_branch)
@@ -603,10 +603,10 @@ defmodule Mau.Renderer do
           {:ok, condition_value} ->
             if is_truthy(condition_value) do
               # Render if branch content
-              render_conditional_content(content, context)
+              render_conditional_content(content, context, opts)
             else
               # Check elsif branches
-              render_elsif_branches(elsif_branches, else_branch, context)
+              render_elsif_branches(elsif_branches, else_branch, context, opts)
             end
 
           {:error, error} ->
@@ -619,24 +619,24 @@ defmodule Mau.Renderer do
     end
   end
 
-  defp render_elsif_branches([], else_branch, context) do
+  defp render_elsif_branches([], else_branch, context, opts) do
     # No more elsif branches, render else if present
     case else_branch do
       # No else branch
       nil -> {:ok, "", context}
-      content when is_list(content) -> render_conditional_content(content, context)
+      content when is_list(content) -> render_conditional_content(content, context, opts)
     end
   end
 
-  defp render_elsif_branches([{condition, content} | rest_branches], else_branch, context) do
+  defp render_elsif_branches([{condition, content} | rest_branches], else_branch, context, opts) do
     case evaluate_expression(condition, context) do
       {:ok, condition_value} ->
         if is_truthy(condition_value) do
           # Render this elsif branch content
-          render_conditional_content(content, context)
+          render_conditional_content(content, context, opts)
         else
           # Check next elsif branch
-          render_elsif_branches(rest_branches, else_branch, context)
+          render_elsif_branches(rest_branches, else_branch, context, opts)
         end
 
       {:error, error} ->
@@ -645,8 +645,8 @@ defmodule Mau.Renderer do
   end
 
   # Helper to render nodes for conditional blocks
-  defp render_conditional_content(nodes, context) do
-    case render_nodes(nodes, context, []) do
+  defp render_conditional_content(nodes, context, opts) do
+    case render_nodes(nodes, context, [], opts) do
       {:ok, parts, updated_context} ->
         {:ok, parts, updated_context}
 
@@ -657,7 +657,7 @@ defmodule Mau.Renderer do
 
   # Loop block rendering functions
 
-  defp render_loop_block_with_context(block_data, context) do
+  defp render_loop_block_with_context(block_data, context, opts) do
     loop_variable = Keyword.get(block_data, :loop_variable)
     collection_expression = Keyword.get(block_data, :collection_expression)
     content = Keyword.get(block_data, :content, [])
@@ -665,7 +665,7 @@ defmodule Mau.Renderer do
     with {:ok, collection} <- evaluate_expression(collection_expression, context),
          {:ok, items} <- ensure_iterable(collection),
          {:ok, acc_result, updated_context} <-
-           render_loop_items(items, loop_variable, content, context) do
+           render_loop_items(items, loop_variable, content, context, opts) do
       updated_context = Map.drop(updated_context, [loop_variable, "forloop"])
       {:ok, Enum.reverse(acc_result), updated_context}
     end
@@ -686,14 +686,23 @@ defmodule Mau.Renderer do
   defp ensure_iterable(nil), do: {:ok, []}
   defp ensure_iterable(_), do: {:error, Mau.Error.runtime_error("Collection is not iterable")}
 
-  defp render_loop_items(items, loop_variable, content, context) do
-    loop_context = create_loop_context(context, loop_variable, items)
+  defp render_loop_items(items, loop_variable, content, context, opts) do
+    # Check max_loop_iterations limit (default 10000)
+    max_iterations = opts[:max_loop_iterations] || 10000
+    items_to_process = 
+      if length(items) > max_iterations do
+        Enum.take(items, max_iterations)
+      else
+        items
+      end
 
-    Enum.reduce_while(items, {:ok, [], loop_context}, fn item, {:ok, acc, loop_context} ->
+    loop_context = create_loop_context(context, loop_variable, items_to_process)
+
+    Enum.reduce_while(items_to_process, {:ok, [], loop_context}, fn item, {:ok, acc, loop_context} ->
       # Update loop context with current item
       updated_loop_context = update_loop_context(loop_context, loop_variable, item)
 
-      case render_nodes(content, updated_loop_context, []) do
+      case render_nodes(content, updated_loop_context, [], opts) do
         {:ok, parts, final_context} ->
           restored_context =
             Map.merge(final_context, %{
