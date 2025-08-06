@@ -47,7 +47,6 @@ defmodule Mau.Parser do
     |> repeat(identifier_char)
     |> reduce(:build_identifier)
 
-
   # Atom literal - :atom_name (delegated to Literal module)
   atom_literal = Literal.atom_literal()
 
@@ -102,10 +101,14 @@ defmodule Mau.Parser do
   # Keywords must come before variables to avoid conflicts
   primary_expression =
     choice([
-      boolean_literal,   # Must come before variable_path to match "true"/"false" correctly
-      null_literal,      # Must come before variable_path to match "null" correctly  
-      variable_path,     # Variables second (very common) - put early after keywords
-      string_literal,    # Literals less common - put after variables
+      # Must come before variable_path to match "true"/"false" correctly
+      boolean_literal,
+      # Must come before variable_path to match "null" correctly  
+      null_literal,
+      # Variables second (very common) - put early after keywords
+      variable_path,
+      # Literals less common - put after variables
+      string_literal,
       number_literal,
       atom_literal
     ])
@@ -276,7 +279,13 @@ defmodule Mau.Parser do
   # Generic tag parser helpers - combinators for common patterns
 
   # Assignment tag parsing - {% assign variable = expression %} (delegated to Tag module)
-  assign_tag = Tag.assign_tag(basic_identifier, parsec(:pipe_expression), optional_whitespace, required_whitespace)
+  assign_tag =
+    Tag.assign_tag(
+      basic_identifier,
+      parsec(:pipe_expression),
+      optional_whitespace,
+      required_whitespace
+    )
 
   # If tag parsing - {% if condition %} (delegated to Tag module)
   if_tag = Tag.if_tag(parsec(:pipe_expression), required_whitespace)
@@ -750,7 +759,6 @@ defmodule Mau.Parser do
   defp build_text_node([content]) do
     {:text, [content], []}
   end
-
 
   # Unified trim handler for expression nodes
   defp build_expression_node_with_trim([expression_ast], trim_variant) do

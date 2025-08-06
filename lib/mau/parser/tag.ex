@@ -16,7 +16,7 @@ defmodule Mau.Parser.Tag do
 
   @doc """
   Assignment tag parsing - {% assign variable = expression %}.
-  
+
   Requires: basic_identifier, pipe_expression, optional_whitespace, required_whitespace
   from the main parser context.
   """
@@ -33,7 +33,7 @@ defmodule Mau.Parser.Tag do
 
   @doc """
   If tag parsing - {% if condition %}.
-  
+
   Requires: pipe_expression, required_whitespace from the main parser context.
   """
   def if_tag(pipe_expression, required_whitespace) do
@@ -45,7 +45,7 @@ defmodule Mau.Parser.Tag do
 
   @doc """
   Elsif tag parsing - {% elsif condition %}.
-  
+
   Requires: pipe_expression, required_whitespace from the main parser context.
   """
   def elsif_tag(pipe_expression, required_whitespace) do
@@ -73,7 +73,7 @@ defmodule Mau.Parser.Tag do
 
   @doc """
   For tag parsing - {% for item in collection %}.
-  
+
   Requires: basic_identifier, pipe_expression, required_whitespace from the main parser context.
   """
   def for_tag(basic_identifier, pipe_expression, required_whitespace) do

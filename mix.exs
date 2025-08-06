@@ -4,11 +4,11 @@ defmodule Mau.MixProject do
   def project do
     [
       app: :mau,
-      version: "0.1.0",
-      elixir: "~> 1.15",
+      version: "0.2.0",
+      elixir: "~> 1.14",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
-      description: "Mau is a powerful and flexible templating engine for Elixir, designed for building dynamic and reusable content.",
+      description: "Mau support sub set of Liquid template language with extended features.",
       package: [
         licenses: ["MIT"],
         links: %{"GitHub" => "https://github.com/flex/mau"}

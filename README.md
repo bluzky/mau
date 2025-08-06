@@ -1,6 +1,8 @@
 # Mau Template Engine
 
-Mau is a powerful Elixir template engine implementing the **Prana** template language. Designed for workflow automation and dynamic content generation, Mau provides a Liquid-like syntax with advanced features including comprehensive filter support, complex expressions, and workflow integration capabilities.
+Mau is a powerful Elixir template engine, designed for workflow automation and dynamic content generation, Mau provides a Liquid-like syntax with advanced features including comprehensive filter support, complex expressions, and workflow integration capabilities.
+
+## **95% of `Mau` is written by Claude code under supervisor**
 
 ## Features
 
@@ -155,9 +157,9 @@ context = %{
 
 ```elixir
 case Mau.render(template, context) do
-  {:ok, result} -> 
+  {:ok, result} ->
     IO.puts("Rendered: #{result}")
-  {:error, %Mau.Error{message: message}} -> 
+  {:error, %Mau.Error{message: message}} ->
     IO.puts("Error: #{message}")
 end
 ```
@@ -221,7 +223,7 @@ Mau delivers excellent performance, often outperforming established template eng
 
 ### String Filters
 - `upper_case` - Convert to uppercase
-- `lower_case` - Convert to lowercase  
+- `lower_case` - Convert to lowercase
 - `capitalize` - Capitalize words
 - `strip` - Remove whitespace
 - `truncate(length)` - Truncate to length
