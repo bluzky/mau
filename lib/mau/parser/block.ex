@@ -77,20 +77,6 @@ defmodule Mau.Parser.Block do
   # HELPER FUNCTIONS
   # ============================================================================
 
-  # Optimized reduce functions to avoid function call overhead
-  defp build_comment_content(chars) do
-    :binary.list_to_bin(chars)
-  end
-
-  defp build_comment_node([content]) do
-    {:comment, [content], []}
-  end
-
-  defp join_chars(chars) when is_list(chars) do
-    :binary.list_to_bin(chars)
-  end
-
-  defp build_text_node([content]) do
-    {:text, [content], []}
-  end
+  # Note: Helper functions removed to eliminate unused function warnings
+  # These were originally intended for future comment/text processing features
 end
