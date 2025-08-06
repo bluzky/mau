@@ -8,7 +8,8 @@ defmodule Mau.MixProject do
       elixir: "~> 1.14",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
-      description: "Mau is a powerful Liquid-inspired template engine for Elixir with workflow integration and enhanced expression support.",
+      description:
+        "Mau is a powerful Liquid-inspired template engine for Elixir with enhanced expression support.",
       package: package(),
       docs: docs(),
       source_url: "https://github.com/bluzky/mau",
@@ -60,9 +61,9 @@ defmodule Mau.MixProject do
       ],
       groups_for_extras: [
         "Getting Started": ["README.md"],
-        "Documentation": [
+        Documentation: [
           "docs/template_language_reference.md",
-          "docs/template_ast_specification.md", 
+          "docs/template_ast_specification.md",
           "docs/template_evaluator_implementation.md"
         ]
       ],
