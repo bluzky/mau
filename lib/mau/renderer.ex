@@ -129,6 +129,7 @@ defmodule Mau.Renderer do
     end
   end
 
+  # Legacy version for block content where order matters
   defp render_nodes([], context, acc) do
     {:ok, Enum.reverse(acc), context}
   end
@@ -144,8 +145,20 @@ defmodule Mau.Renderer do
   end
 
   # Evaluates expressions - handles literals, variables, and arithmetic operations
+  # Optimized literal evaluation - skip list pattern matching for single values
+  defp evaluate_expression({:literal, [value], []}, _context) do
+    {:ok, value}
+  end
+
   defp evaluate_expression({:literal, [value], _opts}, _context) do
     {:ok, value}
+  end
+
+  defp evaluate_expression({:variable, [var_name], []}, context) when is_binary(var_name) do
+    case Map.get(context, var_name) do
+      nil -> {:ok, nil}
+      value -> {:ok, value}
+    end
   end
 
   defp evaluate_expression({:variable, path, _opts}, context) do
@@ -187,11 +200,19 @@ defmodule Mau.Renderer do
   # - Array access: "items[0]", "items[index]"
   # - Complex paths: "users[0].profile.name"
 
-  defp extract_variable_value_with_context([identifier | path_rest], context, original_context)
+  defp extract_variable_value_with_context([identifier], context, _original_context)
        when is_binary(identifier) do
     case Map.get(context, identifier) do
       nil -> {:ok, nil}
-      value when path_rest == [] -> {:ok, value}
+      value -> {:ok, value}
+    end
+  end
+
+  # Complex path handling (property access, array indices, etc.)
+  defp extract_variable_value_with_context([identifier | path_rest], context, original_context)
+       when is_binary(identifier) and path_rest != [] do
+    case Map.get(context, identifier) do
+      nil -> {:ok, nil}
       value -> extract_variable_value_with_context_from_value(path_rest, value, original_context)
     end
   end
@@ -302,9 +323,10 @@ defmodule Mau.Renderer do
     nil
   end
 
-  # Formats values for output
+  # Formats values for output - optimized for common cases
   defp format_value(value) when is_binary(value), do: value
-  defp format_value(value) when is_number(value), do: to_string(value)
+  defp format_value(value) when is_integer(value), do: Integer.to_string(value)
+  defp format_value(value) when is_float(value), do: Float.to_string(value)
   defp format_value(true), do: "true"
   defp format_value(false), do: "false"
   defp format_value(nil), do: ""
@@ -473,19 +495,19 @@ defmodule Mau.Renderer do
     end
   end
 
-  # Evaluates a list of arguments
+  # Evaluates a list of arguments with optimized tail recursion
   defp evaluate_arguments(args, context) do
-    evaluate_arguments(args, context, [])
+    evaluate_arguments_fast(args, context, [])
   end
 
-  defp evaluate_arguments([], _context, acc) do
+  defp evaluate_arguments_fast([], _context, acc) do
     {:ok, Enum.reverse(acc)}
   end
 
-  defp evaluate_arguments([arg | rest], context, acc) do
+  defp evaluate_arguments_fast([arg | rest], context, acc) do
     case evaluate_expression(arg, context) do
       {:ok, value} ->
-        evaluate_arguments(rest, context, [value | acc])
+        evaluate_arguments_fast(rest, context, [value | acc])
 
       {:error, error} ->
         {:error, error}

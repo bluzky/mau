@@ -31,6 +31,44 @@ defmodule FullRenderBenchee do
         }
       },
       {
+        "Deep Property Access",
+        "Company: {{ company.departments.engineering.teams.backend.lead.name }} ({{ company.departments.engineering.teams.backend.lead.title }})",
+        %{
+          "company" => %{
+            "departments" => %{
+              "engineering" => %{
+                "teams" => %{
+                  "backend" => %{
+                    "lead" => %{
+                      "name" => "Sarah Connor",
+                      "title" => "Senior Backend Engineer"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "Array Access",
+        "First item: {{ items[0] }}, Second: {{ items[1] }}, Last: {{ items[2] }}",
+        %{"items" => ["apple", "banana", "cherry"]}
+      },
+      {
+        "Mixed Variable Access",
+        "User {{ users[0].name }} from {{ users[0].company.name }} has {{ users[0].skills | length }} skills: {{ users[0].skills[0] }}",
+        %{
+          "users" => [
+            %{
+              "name" => "Alex",
+              "company" => %{"name" => "TechCorp"},
+              "skills" => ["Elixir", "Phoenix", "PostgreSQL"]
+            }
+          ]
+        }
+      },
+      {
         "Simple Conditionals",
         "{% if active %}Active{% else %}Inactive{% endif %}",
         %{"active" => true}

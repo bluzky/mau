@@ -8,182 +8,50 @@ defmodule Mau.Parser do
 
   import NimbleParsec
   alias Mau.AST.Nodes
+  alias Mau.Parser.Literal
+  alias Mau.Parser.Variable
+  alias Mau.Parser.Expression
+  alias Mau.Parser.Tag
+  alias Mau.Parser.Block
 
   # ============================================================================
-  # STRING LITERAL PARSING
+  # LITERAL PARSING (DELEGATED TO LITERAL MODULE)
   # ============================================================================
 
-  # Escape sequence handling
-  escaped_char =
-    ignore(string("\\"))
-    |> choice([
-      string("\"") |> replace(?"),
-      string("'") |> replace(?'),
-      string("\\") |> replace(?\\),
-      string("/") |> replace(?/),
-      string("b") |> replace(?\b),
-      string("f") |> replace(?\f),
-      string("n") |> replace(?\n),
-      string("r") |> replace(?\r),
-      string("t") |> replace(?\t),
-      # Unicode escape sequences \uXXXX
-      string("u")
-      |> concat(times(ascii_char([?0..?9, ?A..?F, ?a..?f]), 4))
-      |> reduce(:parse_unicode_escape)
-    ])
+  # Use the Literal module for all literal parsing
+  string_literal = Literal.string_literal()
 
-  # Double-quoted string content
-  double_quoted_char =
-    choice([
-      escaped_char,
-      utf8_char(not: ?", not: ?\\)
-    ])
+  number_literal = Literal.number_literal()
 
-  double_quoted_string =
-    ignore(string("\""))
-    |> repeat(double_quoted_char)
-    |> ignore(string("\""))
-    |> reduce(:build_string_from_chars)
-
-  # Single-quoted string content  
-  single_quoted_char =
-    choice([
-      escaped_char,
-      utf8_char(not: ?', not: ?\\)
-    ])
-
-  single_quoted_string =
-    ignore(string("'"))
-    |> repeat(single_quoted_char)
-    |> ignore(string("'"))
-    |> reduce(:build_string_from_chars)
-
-  # Combined string literal parser
-  string_literal =
-    choice([
-      double_quoted_string,
-      single_quoted_string
-    ])
-    |> reduce(:build_string_literal_node)
+  boolean_literal = Literal.boolean_literal()
+  null_literal = Literal.null_literal()
 
   # ============================================================================
-  # NUMBER LITERAL PARSING
+  # VARIABLE PARSING (DELEGATED TO VARIABLE MODULE)
   # ============================================================================
 
-  # Integer part (required for all numbers)
-  integer_part =
-    choice([
-      string("0"),
-      concat(ascii_char([?1..?9]), repeat(ascii_char([?0..?9])))
-    ])
+  # Whitespace handling (delegated to Literal module)
+  optional_whitespace = Literal.optional_whitespace()
+  required_whitespace = Literal.required_whitespace()
 
-  # Fractional part for floats
-  fractional_part =
-    string(".")
-    |> concat(times(ascii_char([?0..?9]), min: 1))
+  # Use the Variable module for identifier parsing
+  identifier = Variable.identifier()
 
-  # Exponent part for scientific notation
-  exponent_part =
-    choice([string("e"), string("E")])
-    |> optional(choice([string("+"), string("-")]))
-    |> concat(times(ascii_char([?0..?9]), min: 1))
-
-  # Float number: integer.fractional or integer.fractionalE±exponent or integerE±exponent
-  float_number =
-    choice([
-      # integer.fractional[E±exponent]
-      integer_part
-      |> concat(fractional_part)
-      |> optional(exponent_part),
-      # integerE±exponent (no fractional part)
-      integer_part
-      |> concat(exponent_part)
-    ])
-    |> reduce(:parse_float)
-
-  # Integer number
-  integer_number =
-    integer_part
-    |> reduce(:parse_integer)
-
-  # Positive number (integer or float)
-  positive_number =
-    choice([
-      float_number,
-      integer_number
-    ])
-
-  # Number with optional negative sign
-  number_literal =
-    choice([
-      ignore(string("-")) |> concat(positive_number) |> reduce(:negate_number),
-      positive_number
-    ])
-    |> reduce(:build_number_literal_node)
-
-  # ============================================================================
-  # BOOLEAN AND NULL LITERAL PARSING
-  # ============================================================================
-
-  # Boolean literals - with word boundary check
-  boolean_literal =
-    choice([
-      string("true")
-      |> concat(lookahead_not(ascii_char([?a..?z, ?A..?Z, ?0..?9, ?_])))
-      |> replace(true),
-      string("false")
-      |> concat(lookahead_not(ascii_char([?a..?z, ?A..?Z, ?0..?9, ?_])))
-      |> replace(false)
-    ])
-    |> reduce(:build_boolean_literal_node)
-
-  # Null literal - with word boundary check
-  null_literal =
-    string("null")
-    |> concat(lookahead_not(ascii_char([?a..?z, ?A..?Z, ?0..?9, ?_])))
-    |> replace(nil)
-    |> reduce(:build_null_literal_node)
-
-  # ============================================================================
-  # VARIABLE PARSING
-  # ============================================================================
-
-  # Whitespace handling (moved up for use in variable parsing)
-  optional_whitespace = repeat(ascii_char([?\s, ?\t, ?\n, ?\r]))
-  required_whitespace = times(ascii_char([?\s, ?\t]), min: 1)
-
-  # Identifier parsing - supports letters, numbers, underscores
-  # Must start with letter or underscore, can contain numbers after first char
+  # Keep internal identifier helpers for combinator use
   identifier_start = ascii_char([?a..?z, ?A..?Z, ?_])
   identifier_char = ascii_char([?a..?z, ?A..?Z, ?0..?9, ?_])
 
-  # Basic identifier (user, name, index, etc.)
+  # Basic identifier (user, name, index, etc.) - kept for internal combinator use
   basic_identifier =
     identifier_start
     |> repeat(identifier_char)
     |> reduce(:build_identifier)
 
-  # Workflow variable identifier (starts with $)
-  workflow_identifier =
-    string("$")
-    |> concat(basic_identifier)
-    |> reduce(:build_workflow_identifier)
 
-  # Combined identifier parser
-  identifier =
-    choice([
-      workflow_identifier,
-      basic_identifier
-    ])
+  # Atom literal - :atom_name (delegated to Literal module)
+  atom_literal = Literal.atom_literal()
 
-  # Atom literal - :atom_name (defined after identifier parsers)
-  atom_literal =
-    string(":")
-    |> concat(identifier_start)
-    |> repeat(identifier_char)
-    |> reduce(:build_atom_literal)
-
-  # Property access parsing
+  # Keep internal property access and array index parsing for combinator use
   property_access =
     string(".")
     |> concat(basic_identifier)
@@ -230,15 +98,16 @@ defmodule Mau.Parser do
   # EXPRESSION PARSING WITH PRECEDENCE
   # ============================================================================
 
-  # Primary expressions - literals with word boundaries, then variables
+  # Primary expressions - optimized order for performance
+  # Keywords must come before variables to avoid conflicts
   primary_expression =
     choice([
-      string_literal,
+      boolean_literal,   # Must come before variable_path to match "true"/"false" correctly
+      null_literal,      # Must come before variable_path to match "null" correctly  
+      variable_path,     # Variables second (very common) - put early after keywords
+      string_literal,    # Literals less common - put after variables
       number_literal,
-      boolean_literal,
-      null_literal,
-      atom_literal,
-      variable_path
+      atom_literal
     ])
 
   # Forward declare atom expression to include parentheses and function calls
@@ -247,7 +116,7 @@ defmodule Mau.Parser do
     :atom_expression,
     choice([
       # Function call syntax: func(arg1, arg2) - must come before primary_expression
-      identifier
+      basic_identifier
       |> ignore(optional_whitespace)
       |> ignore(string("("))
       |> ignore(optional_whitespace)
@@ -285,12 +154,7 @@ defmodule Mau.Parser do
   )
 
   # Multiplicative expressions - *, /, % (highest arithmetic precedence)
-  multiplicative_operator =
-    choice([
-      string("*"),
-      string("/"),
-      string("%")
-    ])
+  multiplicative_operator = Expression.multiplicative_operator()
 
   multiplicative_expression =
     parsec(:atom_expression)
@@ -303,11 +167,7 @@ defmodule Mau.Parser do
     |> reduce(:build_binary_operation)
 
   # Additive expressions - +, - (lowest arithmetic precedence)
-  additive_operator =
-    choice([
-      string("+"),
-      string("-")
-    ])
+  additive_operator = Expression.additive_operator()
 
   additive_expression =
     multiplicative_expression
@@ -324,11 +184,7 @@ defmodule Mau.Parser do
   # ============================================================================
 
   # Equality operators - ==, !=
-  equality_operator =
-    choice([
-      string("=="),
-      string("!=")
-    ])
+  equality_operator = Expression.equality_operator()
 
   equality_expression =
     additive_expression
@@ -341,13 +197,7 @@ defmodule Mau.Parser do
     |> reduce(:build_binary_operation)
 
   # Relational operators - >, >=, <, <=
-  relational_operator =
-    choice([
-      string(">="),
-      string("<="),
-      string(">"),
-      string("<")
-    ])
+  relational_operator = Expression.relational_operator()
 
   relational_expression =
     equality_expression
@@ -425,56 +275,26 @@ defmodule Mau.Parser do
 
   # Generic tag parser helpers - combinators for common patterns
 
-  # Assignment tag parsing - {% assign variable = expression %}
-  assign_tag =
-    ignore(string("assign"))
-    |> ignore(required_whitespace)
-    |> concat(identifier)
-    |> ignore(optional_whitespace)
-    |> ignore(string("="))
-    |> ignore(optional_whitespace)
-    |> concat(parsec(:pipe_expression))
-    |> reduce({:build_tag, [:assign]})
+  # Assignment tag parsing - {% assign variable = expression %} (delegated to Tag module)
+  assign_tag = Tag.assign_tag(basic_identifier, parsec(:pipe_expression), optional_whitespace, required_whitespace)
 
-  # If tag parsing - {% if condition %}
-  if_tag =
-    ignore(string("if"))
-    |> ignore(required_whitespace)
-    |> concat(parsec(:pipe_expression))
-    |> reduce({:build_tag, [:if]})
+  # If tag parsing - {% if condition %} (delegated to Tag module)
+  if_tag = Tag.if_tag(parsec(:pipe_expression), required_whitespace)
 
-  # Elsif tag parsing - {% elsif condition %}
-  elsif_tag =
-    ignore(string("elsif"))
-    |> ignore(required_whitespace)
-    |> concat(parsec(:pipe_expression))
-    |> reduce({:build_tag, [:elsif]})
+  # Elsif tag parsing - {% elsif condition %} (delegated to Tag module)
+  elsif_tag = Tag.elsif_tag(parsec(:pipe_expression), required_whitespace)
 
-  # Else tag parsing - {% else %}
-  else_tag =
-    ignore(string("else"))
-    |> reduce({:build_tag, [:else]})
+  # Else tag parsing - {% else %} (delegated to Tag module)
+  else_tag = Tag.else_tag()
 
-  # Endif tag parsing - {% endif %}
-  endif_tag =
-    ignore(string("endif"))
-    |> reduce({:build_tag, [:endif]})
+  # Endif tag parsing - {% endif %} (delegated to Tag module)
+  endif_tag = Tag.endif_tag()
 
-  # For tag parsing - {% for item in collection %}
-  for_tag =
-    ignore(string("for"))
-    |> ignore(required_whitespace)
-    |> concat(identifier)
-    |> ignore(required_whitespace)
-    |> ignore(string("in"))
-    |> ignore(required_whitespace)
-    |> concat(parsec(:pipe_expression))
-    |> reduce({:build_tag, [:for]})
+  # For tag parsing - {% for item in collection %} (delegated to Tag module)
+  for_tag = Tag.for_tag(basic_identifier, parsec(:pipe_expression), required_whitespace)
 
-  # Endfor tag parsing - {% endfor %}
-  endfor_tag =
-    ignore(string("endfor"))
-    |> reduce({:build_tag, [:endfor]})
+  # Endfor tag parsing - {% endfor %} (delegated to Tag module)
+  endfor_tag = Tag.endfor_tag()
 
   # Tag content - assignment, conditional, and loop tags
   tag_content =
@@ -525,38 +345,11 @@ defmodule Mau.Parser do
       |> reduce({:build_tag_node_with_trim, [:no_trim]})
     ])
 
-  # ============================================================================
-  # COMMENT BLOCK PARSING
-  # ============================================================================
-
-  # Comment content - anything up to #}
-  comment_content =
-    repeat(
-      choice([
-        # Match # that's not followed by }
-        string("#") |> lookahead_not(string("}")),
-        # Match anything that's not #
-        utf8_char(not: ?#)
-      ])
-    )
-    |> reduce(:build_comment_content)
-
-  # Comment block with {# #} delimiters
-  comment_block =
-    ignore(string("{#"))
-    |> concat(comment_content)
-    |> ignore(string("#}"))
-    |> reduce(:build_comment_node)
-
-  # ============================================================================
-  # EXPRESSION BLOCK PARSING
-  # ============================================================================
-
   # Pipe filter - can be either a simple identifier or a function call
   pipe_filter =
     choice([
       # Function call syntax: filter(arg1, arg2)
-      identifier
+      basic_identifier
       |> ignore(optional_whitespace)
       |> ignore(string("("))
       |> ignore(optional_whitespace)
@@ -566,11 +359,11 @@ defmodule Mau.Parser do
       |> reduce(:build_pipe_function_call),
 
       # Simple identifier: filter
-      identifier
+      basic_identifier
     ])
 
   # Forward declare pipe expression to break circular dependency
-  defcombinatorp(
+  defcombinator(
     :pipe_expression,
     logical_or_expression
     |> repeat(
@@ -585,8 +378,6 @@ defmodule Mau.Parser do
   # Any expression value (now supports pipes)
   expression_value = parsec(:pipe_expression)
 
-  # Expression block with {{ }} delimiters (with optional trim)
-  # Ordered by specificity to avoid ambiguous matches
   expression_block =
     choice([
       # Both trim: {{- expr -}} (most specific - must come first)
@@ -628,27 +419,10 @@ defmodule Mau.Parser do
 
   # Legacy text content parser (unused but kept for reference)
 
-  # Text content that handles { characters not part of template constructs
-  text_content =
-    choice([
-      # Text that doesn't contain any { characters  
-      utf8_string([not: ?{], min: 1),
-      # Handle { character that's not part of a template construct
-      string("{")
-      |> lookahead_not(choice([string("%"), string("{"), string("#")]))
-      |> concat(repeat(utf8_char(not: ?{)))
-      |> reduce(:join_chars)
-    ])
-    |> reduce(:build_text_node)
+  # Text content parsing is now handled directly by Block.template_content()
 
-  # Combined content parser (text, expressions, tags, or comments)
-  template_content =
-    choice([
-      comment_block,
-      tag_block,
-      expression_block,
-      text_content
-    ])
+  # Combined content parser (delegated to Block module)
+  template_content = Block.template_content(tag_block, expression_block)
 
   # Main template parser - handles mixed content
   defparsec(:parse_template, repeat(template_content))
@@ -902,7 +676,7 @@ defmodule Mau.Parser do
   # HELPER FUNCTIONS
   # ============================================================================
 
-  # String literal helpers
+  # String literal helpers (kept for internal combinator use)
   defp parse_unicode_escape(["u", d1, d2, d3, d4]) do
     hex_string = <<d1, d2, d3, d4>>
     {code_point, ""} = Integer.parse(hex_string, 16)
@@ -910,14 +684,14 @@ defmodule Mau.Parser do
   end
 
   defp build_string_from_chars(chars) do
-    chars |> List.to_string()
+    List.to_string(chars)
   end
 
   defp build_string_literal_node([string_value]) do
-    Nodes.literal_node(string_value)
+    {:literal, [string_value], []}
   end
 
-  # Number literal helpers
+  # Number literal helpers (kept for internal combinator use)
   defp parse_integer(digits) do
     digits
     |> List.flatten()
@@ -950,7 +724,22 @@ defmodule Mau.Parser do
   end
 
   defp build_number_literal_node([number_value]) when is_number(number_value) do
-    Nodes.literal_node(number_value)
+    {:literal, [number_value], []}
+  end
+
+  # Boolean and null literal helpers (kept for internal combinator use)
+  defp build_boolean_literal_node([boolean_value]) when is_boolean(boolean_value) do
+    {:literal, [boolean_value], []}
+  end
+
+  defp build_null_literal_node([nil]) do
+    {:literal, [nil], []}
+  end
+
+  # Atom literal helpers (kept for internal combinator use)
+  defp build_atom_literal([":" | atom_chars]) do
+    atom_name = :binary.list_to_bin(atom_chars)
+    {:literal, [String.to_atom(atom_name)], []}
   end
 
   # Text node helpers
@@ -959,28 +748,14 @@ defmodule Mau.Parser do
   end
 
   defp build_text_node([content]) do
-    Nodes.text_node(content)
+    {:text, [content], []}
   end
 
-  # Boolean and null literal helpers
-  defp build_boolean_literal_node([boolean_value]) when is_boolean(boolean_value) do
-    Nodes.literal_node(boolean_value)
-  end
-
-  defp build_null_literal_node([nil]) do
-    Nodes.literal_node(nil)
-  end
-
-  # Atom literal helpers
-  defp build_atom_literal([":" | atom_chars]) do
-    atom_name = atom_chars |> List.to_string()
-    Nodes.atom_literal_node(atom_name)
-  end
 
   # Unified trim handler for expression nodes
   defp build_expression_node_with_trim([expression_ast], trim_variant) do
     trim_opts = build_trim_opts(trim_variant)
-    Nodes.expression_node(expression_ast, trim_opts)
+    {:expression, [expression_ast], trim_opts}
   end
 
   # Helper to convert trim variant atoms to keyword lists
@@ -998,18 +773,18 @@ defmodule Mau.Parser do
     end
   end
 
-  # Comment node builders
+  # Text and comment node builders
   defp build_comment_content(chars) do
-    IO.iodata_to_binary(chars)
+    :binary.list_to_bin(chars)
   end
 
   defp build_comment_node([content]) do
-    Nodes.comment_node(content, [])
+    {:comment, [content], []}
   end
 
   # Variable identifier helpers
   defp build_identifier(chars) do
-    chars |> List.to_string()
+    :binary.list_to_bin(chars)
   end
 
   defp build_workflow_identifier(["$", identifier]) do
@@ -1028,8 +803,7 @@ defmodule Mau.Parser do
 
   # Variable path helpers
   defp build_variable_path([identifier | accesses]) do
-    path_segments = [identifier | accesses]
-    Nodes.variable_node(path_segments)
+    {:variable, [identifier | accesses], []}
   end
 
   # Arithmetic expression helpers
@@ -1048,7 +822,7 @@ defmodule Mau.Parser do
   end
 
   defp build_left_associative_ops(left, [operator, right | rest]) do
-    binary_op = Nodes.binary_op_node(operator, left, right)
+    binary_op = {:binary_op, [operator, left, right], []}
     build_left_associative_ops(binary_op, rest)
   end
 
@@ -1068,13 +842,13 @@ defmodule Mau.Parser do
   end
 
   defp build_left_associative_logical_ops(left, [operator, right | rest]) do
-    logical_op = Nodes.logical_op_node(operator, left, right)
+    logical_op = {:logical_op, [operator, left, right], []}
     build_left_associative_logical_ops(logical_op, rest)
   end
 
   # Unary operation helpers
   defp build_unary_operation(["not", operand]) do
-    Nodes.unary_op_node("not", operand)
+    {:unary_op, ["not", operand], []}
   end
 
   # Function call helpers
@@ -1085,7 +859,7 @@ defmodule Mau.Parser do
         [] -> []
       end
 
-    Nodes.call_node(function_name, argument_list)
+    {:call, [function_name, argument_list], []}
   end
 
   defp build_argument_list([first_arg | rest_args]) do
@@ -1125,11 +899,11 @@ defmodule Mau.Parser do
         {:pipe_function_call, function_name, args} ->
           # Function call with arguments: value | filter(arg1, arg2)
           # The value becomes the first argument
-          Nodes.call_node(function_name, [value | args])
+          {:call, [function_name, [value | args]], []}
 
         filter_name when is_binary(filter_name) ->
           # Simple filter: value | filter
-          Nodes.call_node(filter_name, [value])
+          {:call, [filter_name, [value]], []}
       end
 
     apply_filters_to_value(call_node, rest_filters)
@@ -1170,23 +944,23 @@ defmodule Mau.Parser do
 
     case tag_data do
       {:assign, variable_name, expression} ->
-        Nodes.tag_node(:assign, [variable_name, expression], trim_opts)
+        {:tag, [:assign, variable_name, expression], trim_opts}
 
       {tag_type, condition} when tag_type in [:if, :elsif] ->
-        Nodes.tag_node(tag_type, [condition], trim_opts)
+        {:tag, [tag_type, condition], trim_opts}
 
       {tag_type} when tag_type in [:else, :endif, :endfor] ->
-        Nodes.tag_node(tag_type, [], trim_opts)
+        {:tag, [tag_type], trim_opts}
 
       {:for, loop_variable, collection_expression} ->
-        Nodes.tag_node(:for, [loop_variable, collection_expression], trim_opts)
+        {:tag, [:for, loop_variable, collection_expression], trim_opts}
 
       # Generic fallback for future tag types
       {tag_type, params} when is_list(params) ->
-        Nodes.tag_node(tag_type, params, trim_opts)
+        {:tag, [tag_type | params], trim_opts}
 
       {tag_type, param} ->
-        Nodes.tag_node(tag_type, [param], trim_opts)
+        {:tag, [tag_type, param], trim_opts}
     end
   end
 end
