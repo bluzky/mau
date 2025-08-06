@@ -98,15 +98,16 @@ defmodule Mau.Parser do
   # EXPRESSION PARSING WITH PRECEDENCE
   # ============================================================================
 
-  # Primary expressions - literals with word boundaries, then variables
+  # Primary expressions - optimized order for performance
+  # Keywords must come before variables to avoid conflicts
   primary_expression =
     choice([
-      string_literal,
+      boolean_literal,   # Must come before variable_path to match "true"/"false" correctly
+      null_literal,      # Must come before variable_path to match "null" correctly  
+      variable_path,     # Variables second (very common) - put early after keywords
+      string_literal,    # Literals less common - put after variables
       number_literal,
-      boolean_literal,
-      null_literal,
-      atom_literal,
-      variable_path
+      atom_literal
     ])
 
   # Forward declare atom expression to include parentheses and function calls

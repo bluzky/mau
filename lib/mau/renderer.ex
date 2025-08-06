@@ -145,8 +145,20 @@ defmodule Mau.Renderer do
   end
 
   # Evaluates expressions - handles literals, variables, and arithmetic operations
+  # Optimized literal evaluation - skip list pattern matching for single values
+  defp evaluate_expression({:literal, [value], []}, _context) do
+    {:ok, value}
+  end
+
   defp evaluate_expression({:literal, [value], _opts}, _context) do
     {:ok, value}
+  end
+
+  defp evaluate_expression({:variable, [var_name], []}, context) when is_binary(var_name) do
+    case Map.get(context, var_name) do
+      nil -> {:ok, nil}
+      value -> {:ok, value}
+    end
   end
 
   defp evaluate_expression({:variable, path, _opts}, context) do
@@ -188,12 +200,20 @@ defmodule Mau.Renderer do
   # - Array access: "items[0]", "items[index]"
   # - Complex paths: "users[0].profile.name"
 
-  defp extract_variable_value_with_context([identifier | path_rest], context, original_context)
+  defp extract_variable_value_with_context([identifier], context, _original_context)
        when is_binary(identifier) do
-    case Map.fetch(context, identifier) do
-      {:ok, value} when path_rest == [] -> {:ok, value}
-      {:ok, value} -> extract_variable_value_with_context_from_value(path_rest, value, original_context)
-      :error -> {:ok, nil}
+    case Map.get(context, identifier) do
+      nil -> {:ok, nil}
+      value -> {:ok, value}
+    end
+  end
+
+  # Complex path handling (property access, array indices, etc.)
+  defp extract_variable_value_with_context([identifier | path_rest], context, original_context)
+       when is_binary(identifier) and path_rest != [] do
+    case Map.get(context, identifier) do
+      nil -> {:ok, nil}
+      value -> extract_variable_value_with_context_from_value(path_rest, value, original_context)
     end
   end
 
