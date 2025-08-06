@@ -2,14 +2,13 @@
 
 Mau is a powerful Elixir template engine, designed for workflow automation and dynamic content generation, Mau provides a Liquid-like syntax with advanced features including comprehensive filter support, complex expressions, and workflow integration capabilities.
 
-## **95% of `Mau` is written by Claude code under supervisor**
+## **95% of `Mau` is written by Claude code under my supervisor**
 
 ## Features
 
-- 🔥 **High Performance**: Competitive with leading template engines (outperforms Solid and Liquex in complex scenarios)
+- 🔥 **High Performance**: focus on most vital features
 - 🎯 **Feature Rich**: 95% implementation coverage of documented features
 - 🔗 **Filter Chaining**: Full support for complex multi-filter expressions
-- 🔄 **Workflow Integration**: Built-in support for `$input`, `$nodes`, `$variables`, `$context`
 - 🎨 **Whitespace Control**: Precise control over output formatting
 - 🧮 **40+ Filters**: Comprehensive string, collection, math, and number filters
 - 🌊 **Liquid-like Syntax**: Familiar template syntax for easy adoption
@@ -21,16 +20,11 @@ Add `mau` to your list of dependencies in `mix.exs`:
 ```elixir
 def deps do
   [
-    {:mau, "~> 0.1.0"}
+    {:mau, "~> 0.2.0"}
   ]
 end
 ```
 
-Then run:
-
-```bash
-mix deps.get
-```
 
 ## Quick Start
 
@@ -76,35 +70,6 @@ context = %{
 {:ok, result} = Mau.render(template, context)
 ```
 
-### Filter Chaining
-
-```elixir
-# Complex filter chains
-template = "{{ user.bio | strip | truncate(100) | capitalize }}"
-context = %{"user" => %{"bio" => "  a very long biography...  "}}
-
-{:ok, result} = Mau.render(template, context)
-```
-
-### Workflow Integration
-
-```elixir
-# Workflow-style variables
-template = """
-Input: {{ $input.email }}
-API Result: {{ $nodes.api_call.response.data.status }}
-Config: {{ $variables.api_timeout }}
-"""
-
-context = %{
-  "$input" => %{"email" => "user@example.com"},
-  "$nodes" => %{"api_call" => %{"response" => %{"data" => %{"status" => "success"}}}},
-  "$variables" => %{"api_timeout" => 30}
-}
-
-{:ok, result} = Mau.render(template, context)
-```
-
 ## API Reference
 
 ### Main Functions
@@ -116,11 +81,6 @@ context = %{
 # Render template with context (returns string)
 {:ok, result} = Mau.render(template, context)
 {:error, error} = Mau.render(invalid_template, context)
-
-# Render with data type preservation (NEW!)
-{:ok, 42} = Mau.render("{{ 42 }}", %{}, preserve_types: true)
-{:ok, true} = Mau.render("{{ active }}", %{"active" => true}, preserve_types: true)
-{:ok, [1, 2, 3]} = Mau.render("{{ items }}", %{"items" => [1, 2, 3]}, preserve_types: true)
 
 # Mixed content always returns strings
 {:ok, "Count: 42"} = Mau.render("Count: {{ 42 }}", %{}, preserve_types: true)
@@ -206,141 +166,12 @@ end
 
 **Overall Coverage: 95% of documented features implemented**
 
-## Performance
-
-Mau delivers excellent performance, often outperforming established template engines:
-
-| Template Type | Mau | Solid | Liquex |
-|---------------|-----|-------|---------|
-| Simple text | 436K ops/s | 378K ops/s | 149K ops/s |
-| Complex conditionals | **22K ops/s** | 19K ops/s | 8K ops/s |
-| Nested loops | **13K ops/s** | 12K ops/s | 3K ops/s |
-| Complex templates | **4.3K ops/s** | 3.4K ops/s | 1K ops/s |
-
-*Benchmarks run on Apple M1, showing operations per second*
-
-## Available Filters
-
-### String Filters
-- `upper_case` - Convert to uppercase
-- `lower_case` - Convert to lowercase
-- `capitalize` - Capitalize words
-- `strip` - Remove whitespace
-- `truncate(length)` - Truncate to length
-- `default(value)` - Default for nil/empty
-
-### Collection Filters
-- `length` - Get collection size
-- `first` - First element
-- `last` - Last element
-- `join(separator)` - Join with separator
-- `sort` - Sort collection
-- `reverse` - Reverse order
-- `uniq` - Unique elements
-- `slice(start, length)` - Extract slice
-- `contains(value)` - Check membership
-- `compact` - Remove nil values
-- `flatten` - Flatten nested lists
-- `sum` - Sum numeric values
-- `keys` - Map keys
-- `values` - Map values
-- `group_by(field)` - Group by field
-- `map(field)` - Extract field values
-- `filter(field, value)` - Filter by field
-- `reject(field, value)` - Reject by field
-- `dump` - Debug output
-
-### Math Filters
-- `abs` - Absolute value
-- `ceil` - Round up
-- `floor` - Round down
-- `round(precision)` - Round to precision
-- `max(value)` - Maximum value
-- `min(value)` - Minimum value
-- `power(exponent)` - Raise to power
-- `sqrt` - Square root
-- `mod(divisor)` - Modulo operation
-- `clamp(min, max)` - Clamp value
-
-### Number Filters
-- `format_currency(symbol)` - Format as currency
-
 ## Documentation
 
 - **[Template Language Reference](docs/template_language_reference.md)** - Complete syntax guide
 - **[Template AST Specification](docs/template_ast_specification.md)** - AST node definitions
 - **[Template Evaluator Implementation](docs/template_evaluator_implementation.md)** - Implementation patterns
 
-## Development
-
-### Setup
-
-```bash
-# Clone repository
-git clone <repository-url>
-cd mau
-
-# Install dependencies
-mix deps.get
-
-# Run tests
-mix test
-
-# Run specific tests
-mix test test/mau/parser_test.exs
-
-# Interactive shell
-iex -S mix
-
-# Generate documentation
-mix docs
-```
-
-### Running Benchmarks
-
-```bash
-# Full render performance benchmark
-mix run bench/full_render_benchee.exs
-```
-
-### Project Structure
-
-```
-lib/
-├── mau.ex                    # Main API
-├── mau/
-│   ├── parser.ex            # Template parser
-│   ├── renderer.ex          # Template renderer
-│   ├── filter_registry.ex   # Filter management
-│   ├── filters/             # Filter implementations
-│   └── ast/                 # AST node definitions
-docs/                        # Documentation
-test/                        # Test suite (50+ test files)
-bench/                       # Performance benchmarks
-```
-
-## Contributing
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Add tests for your changes
-4. Run the test suite (`mix test`)
-5. Commit your changes (`git commit -m 'Add amazing feature'`)
-6. Push to the branch (`git push origin feature/amazing-feature`)
-7. Open a Pull Request
-
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## Changelog
-
-### v0.1.0
-- Initial release
-- Complete template parser and renderer
-- 40+ filter implementations
-- Comprehensive test suite
-- Full filter chaining support
-- Loop variables support
-- **Data type preservation**: `preserve_types: true` option preserves original data types for single-value templates
-- Performance optimizations (FilterRegistry compile-time optimization)
