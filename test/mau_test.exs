@@ -47,6 +47,96 @@ defmodule MauTest do
 
       assert {:ok, ^input} = Mau.render_map(input, %{})
     end
+
+    @tag :render_map_array
+    test "render_map processes arrays with template strings" do
+      input = %{
+        messages: [
+          "Hello {{ name }}!",
+          "Count: {{ count }}",
+          "Status: {{ active }}"
+        ],
+        plain_list: [1, 2, 3]
+      }
+
+      context = %{
+        "name" => "world",
+        "count" => 42,
+        "active" => true
+      }
+
+      expected = %{
+        messages: [
+          "Hello world!",
+          "Count: 42",
+          "Status: true"
+        ],
+        plain_list: [1, 2, 3]
+      }
+
+      assert {:ok, ^expected} = Mau.render_map(input, context)
+    end
+
+    @tag :render_map_array
+    test "render_map processes nested arrays with template strings" do
+      input = %{
+        nested_arrays: [
+          ["Hello {{ user.name }}!", "Count: {{ items | length }}"],
+          ["Status: {{ user.active }}", "Value: {{ nil_value }}"]
+        ],
+        mixed_nested: [
+          %{
+            message: "{{ greeting }} {{ user.name }}!"
+          },
+          [
+            "Nested: {{ nested.value }}",
+            %{
+              deep: [
+                "Deep: {{ user.active }}",
+                "Deeper: {{ nested.deep_value }}"
+              ]
+            }
+          ]
+        ]
+      }
+
+      context = %{
+        "greeting" => "Hello",
+        "user" => %{
+          "name" => "world",
+          "active" => true
+        },
+        "items" => [1, 2, 3, 4, 5],
+        "nil_value" => nil,
+        "nested" => %{
+          "value" => 123,
+          "deep_value" => 456
+        }
+      }
+
+      expected = %{
+        nested_arrays: [
+          ["Hello world!", "Count: 5"],
+          ["Status: true", "Value: "]
+        ],
+        mixed_nested: [
+          %{
+            message: "Hello world!"
+          },
+          [
+            "Nested: 123",
+            %{
+              deep: [
+                "Deep: true",
+                "Deeper: 456"
+              ]
+            }
+          ]
+        ]
+      }
+
+      assert {:ok, ^expected} = Mau.render_map(input, context)
+    end
   end
 
   describe "Options - max_template_size and max_loop_iterations" do

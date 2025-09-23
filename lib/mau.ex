@@ -113,6 +113,10 @@ defmodule Mau do
     |> Enum.into(%{})
   end
 
+  defp render_map_recursive(list, context, opts) when is_list(list) do
+    Enum.map(list, &render_map_recursive(&1, context, opts))
+  end
+
   defp render_map_recursive(value, context, opts) when is_binary(value) do
     if has_template_syntax?(value) do
       case render(value, context, opts) do
