@@ -124,6 +124,42 @@ case Mau.render(template, context) do
 end
 ```
 
+## Custom Filters
+
+### Built-in Filters
+40+ filters available: `upper_case`, `length`, `abs`, `format_currency`, etc.
+
+### Runtime Custom Filters
+
+```elixir
+# 1. Enable runtime mode
+config :mau,
+  enable_runtime_filters: true,
+  filters: [MyApp.CustomFilters]
+
+# 2. Create filter module
+defmodule MyApp.CustomFilters do
+  def spec do
+    %{
+      filters: %{
+        "slugify" => %{function: {__MODULE__, :slugify}}
+      }
+    }
+  end
+
+  def slugify(text, _args) do
+    slug = text |> String.downcase() |> String.replace(~r/\W+/, "-")
+    {:ok, slug}
+  end
+end
+
+# 3. Add to supervision tree
+children = [Mau.FilterRegistry]
+
+# 4. Use in templates
+"{{ title | slugify }}"
+```
+
 ## Feature Support Matrix
 
 | Feature Category | Feature | Status | Example |
@@ -153,6 +189,7 @@ end
 | | Number filters (1) | ✅ | `{{ price \| format_currency }}` |
 | | Filter chaining | ✅ | `{{ text \| strip \| capitalize }}` |
 | | Function syntax | ✅ | `{{ upper_case(text) }}` |
+| | Custom runtime filters | ✅ | User-defined filter modules |
 | **Advanced Features** | Loop conditions | ❌ | `{% for item in items limit: 5 %}` |
 | | Loop filtering | ❌ | `{% for user in users where user.active %}` |
 | | Array slicing | ❌ | `{{ items[1:3] }}` |

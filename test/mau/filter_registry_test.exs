@@ -53,6 +53,97 @@ defmodule Mau.FilterRegistryTest do
     end
   end
 
+  describe "runtime filters" do
+    defmodule TestUserFilter do
+      def spec do
+        %{
+          filters: %{
+            "test_reverse" => %{function: {__MODULE__, :reverse}},
+            "test_double" => %{function: {__MODULE__, :double}}
+          }
+        }
+      end
+
+      def reverse(value, _args) do
+        {:ok, String.reverse(value)}
+      end
+
+      def double(value, _args) when is_number(value) do
+        {:ok, value * 2}
+      end
+    end
+
+    test "GenServer loads user-defined filters correctly" do
+      original_filters = Application.get_env(:mau, :filters, [])
+
+      try do
+        # Configure runtime filters
+        Application.put_env(:mau, :filters, [TestUserFilter])
+
+        # Start the GenServer directly (bypassing compile-time mode check)
+        {:ok, pid} = FilterRegistry.start_link([])
+
+        # Test user-defined filters are available via direct GenServer call
+        assert {:ok, {TestUserFilter, :reverse}} = GenServer.call(pid, {:get, "test_reverse"})
+        assert {:ok, {TestUserFilter, :double}} = GenServer.call(pid, {:get, "test_double"})
+
+        # Test built-in filters are also loaded
+        assert {:ok, {module, function}} = GenServer.call(pid, {:get, "upper_case"})
+        assert is_atom(module) and is_atom(function)
+
+        # Clean up
+        GenServer.stop(pid)
+      after
+        # Restore original config
+        Application.put_env(:mau, :filters, original_filters)
+      end
+    end
+
+    test "GenServer handles invalid user filter modules gracefully" do
+      defmodule InvalidFilter do
+        # No spec/0 function
+      end
+
+      defmodule BrokenFilter do
+        def spec do
+          raise "Broken spec"
+        end
+      end
+
+      original_filters = Application.get_env(:mau, :filters, [])
+
+      try do
+        Application.put_env(:mau, :filters, [InvalidFilter, BrokenFilter, TestUserFilter])
+
+        # Should start successfully despite invalid modules
+        {:ok, pid} = FilterRegistry.start_link([])
+
+        # Valid user filter should still work
+        assert {:ok, {TestUserFilter, :reverse}} = GenServer.call(pid, {:get, "test_reverse"})
+
+        # Built-ins should still work
+        assert {:ok, {module, function}} = GenServer.call(pid, {:get, "upper_case"})
+        assert is_atom(module) and is_atom(function)
+
+        GenServer.stop(pid)
+      after
+        Application.put_env(:mau, :filters, original_filters)
+      end
+    end
+
+    test "compile-time mode uses built-in filters only" do
+      # This test verifies the current compile-time behavior
+      # (runtime is disabled by default in this test environment)
+
+      # Built-in filters should work
+      assert {:ok, {module, function}} = FilterRegistry.get(:upper_case)
+      assert is_atom(module) and is_atom(function)
+
+      # User-defined filters should not be available without GenServer
+      assert {:error, :not_found} = FilterRegistry.get("test_reverse")
+    end
+  end
+
   describe "apply/3" do
     test "applies string filters correctly" do
       assert {:ok, "HELLO"} = FilterRegistry.apply(:upper_case, "hello", [])
