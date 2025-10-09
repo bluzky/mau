@@ -204,8 +204,15 @@ defmodule Mau.Renderer do
   defp extract_variable_value_with_context([identifier], context, _original_context)
        when is_binary(identifier) do
     case Map.get(context, identifier) do
-      nil -> {:ok, nil}
-      value -> {:ok, value}
+      nil ->
+        # Fallback to atom key if string key not found
+        case Map.get(context, String.to_atom(identifier)) do
+          nil -> {:ok, nil}
+          value -> {:ok, value}
+        end
+
+      value ->
+        {:ok, value}
     end
   end
 
@@ -213,8 +220,15 @@ defmodule Mau.Renderer do
   defp extract_variable_value_with_context([identifier | path_rest], context, original_context)
        when is_binary(identifier) and path_rest != [] do
     case Map.get(context, identifier) do
-      nil -> {:ok, nil}
-      value -> extract_variable_value_with_context_from_value(path_rest, value, original_context)
+      nil ->
+        # Fallback to atom key if string key not found
+        case Map.get(context, String.to_atom(identifier)) do
+          nil -> {:ok, nil}
+          value -> extract_variable_value_with_context_from_value(path_rest, value, original_context)
+        end
+
+      value ->
+        extract_variable_value_with_context_from_value(path_rest, value, original_context)
     end
   end
 
@@ -445,8 +459,22 @@ defmodule Mau.Renderer do
     end
   end
 
+  # Elixir-style && operator - returns actual values (not booleans)
+  # Only false and nil are falsy in Elixir
   defp evaluate_logical_operation("&&", left, right, context) do
-    evaluate_logical_operation("and", left, right, context)
+    case evaluate_expression(left, context) do
+      {:ok, left_value} ->
+        if is_elixir_truthy(left_value) do
+          # If left is truthy, return right value (without evaluating to boolean)
+          evaluate_expression(right, context)
+        else
+          # If left is falsy, return left value
+          {:ok, left_value}
+        end
+
+      {:error, error} ->
+        {:error, error}
+    end
   end
 
   defp evaluate_logical_operation("or", left, right, context) do
@@ -466,8 +494,22 @@ defmodule Mau.Renderer do
     end
   end
 
+  # Elixir-style || operator - returns actual values (not booleans)
+  # Only false and nil are falsy in Elixir
   defp evaluate_logical_operation("||", left, right, context) do
-    evaluate_logical_operation("or", left, right, context)
+    case evaluate_expression(left, context) do
+      {:ok, left_value} ->
+        if is_elixir_truthy(left_value) do
+          # If left is truthy, return left value
+          {:ok, left_value}
+        else
+          # If left is falsy, return right value (without evaluating to boolean)
+          evaluate_expression(right, context)
+        end
+
+      {:error, error} ->
+        {:error, error}
+    end
   end
 
   # Unary operation evaluation
@@ -523,7 +565,7 @@ defmodule Mau.Renderer do
     end
   end
 
-  # Truthiness evaluation rules
+  # Truthiness evaluation rules (for `and` and `or` operators)
   defp is_truthy(nil), do: false
   defp is_truthy(false), do: false
   defp is_truthy(""), do: false
@@ -532,6 +574,12 @@ defmodule Mau.Renderer do
   defp is_truthy([]), do: false
   defp is_truthy(map) when is_map(map), do: map_size(map) > 0
   defp is_truthy(_), do: true
+
+  # Elixir-style truthiness evaluation (for `&&` and `||` operators)
+  # In Elixir, only false and nil are falsy
+  defp is_elixir_truthy(nil), do: false
+  defp is_elixir_truthy(false), do: false
+  defp is_elixir_truthy(_), do: true
 
   # Tag rendering functions
 

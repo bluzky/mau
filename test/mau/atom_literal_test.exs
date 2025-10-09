@@ -31,7 +31,7 @@ defmodule Mau.AtomLiteralTest do
   end
 
   describe "Atom Key Access" do
-    test "accesses map values with atom keys" do
+    test "accesses map values with atom keys using bracket notation" do
       context = %{
         "user" => %{:name => "Alice", :age => 30, :active => true}
       }
@@ -39,6 +39,38 @@ defmodule Mau.AtomLiteralTest do
       assert {:ok, "Alice"} = Mau.render("{{ user[:name] }}", context)
       assert {:ok, "30"} = Mau.render("{{ user[:age] }}", context)
       assert {:ok, "true"} = Mau.render("{{ user[:active] }}", context)
+    end
+
+    test "accesses root context with atom keys using dot notation" do
+      context = %{
+        user: %{name: "Dan", age: 25}
+      }
+
+      assert {:ok, "Dan"} = Mau.render("{{ user.name }}", context)
+      assert {:ok, "25"} = Mau.render("{{ user.age }}", context)
+    end
+
+    test "accesses nested atom keys in root context" do
+      context = %{
+        config: %{database: %{host: "localhost", port: 5432}}
+      }
+
+      assert {:ok, "localhost"} = Mau.render("{{ config.database.host }}", context)
+      assert {:ok, "5432"} = Mau.render("{{ config.database.port }}", context)
+    end
+
+    test "falls back to atom keys when string keys not found" do
+      # String key takes precedence
+      context = %{
+        "user" => %{name: "Alice"},
+        user: %{name: "Bob"}
+      }
+
+      assert {:ok, "Alice"} = Mau.render("{{ user.name }}", context)
+
+      # Atom key used when string key absent
+      context2 = %{user: %{name: "Charlie"}}
+      assert {:ok, "Charlie"} = Mau.render("{{ user.name }}", context2)
     end
 
     test "returns empty string for non-existent atom keys" do
