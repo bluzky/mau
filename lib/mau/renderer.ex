@@ -204,8 +204,15 @@ defmodule Mau.Renderer do
   defp extract_variable_value_with_context([identifier], context, _original_context)
        when is_binary(identifier) do
     case Map.get(context, identifier) do
-      nil -> {:ok, nil}
-      value -> {:ok, value}
+      nil ->
+        # Fallback to atom key if string key not found
+        case Map.get(context, String.to_atom(identifier)) do
+          nil -> {:ok, nil}
+          value -> {:ok, value}
+        end
+
+      value ->
+        {:ok, value}
     end
   end
 
@@ -213,8 +220,15 @@ defmodule Mau.Renderer do
   defp extract_variable_value_with_context([identifier | path_rest], context, original_context)
        when is_binary(identifier) and path_rest != [] do
     case Map.get(context, identifier) do
-      nil -> {:ok, nil}
-      value -> extract_variable_value_with_context_from_value(path_rest, value, original_context)
+      nil ->
+        # Fallback to atom key if string key not found
+        case Map.get(context, String.to_atom(identifier)) do
+          nil -> {:ok, nil}
+          value -> extract_variable_value_with_context_from_value(path_rest, value, original_context)
+        end
+
+      value ->
+        extract_variable_value_with_context_from_value(path_rest, value, original_context)
     end
   end
 
