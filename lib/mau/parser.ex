@@ -50,6 +50,10 @@ defmodule Mau.Parser do
   # Atom literal - :atom_name (delegated to Literal module)
   atom_literal = Literal.atom_literal()
 
+  # Array literal - [1, 2, 3] (delegated to Literal module)
+  # Uses pipe_expression for full expression support in array elements
+  array_literal = Literal.array_literal(:pipe_expression)
+
   # Keep internal property access and array index parsing for combinator use
   property_access =
     string(".")
@@ -103,8 +107,10 @@ defmodule Mau.Parser do
     choice([
       # Must come before variable_path to match "true"/"false" correctly
       boolean_literal,
-      # Must come before variable_path to match "null" correctly  
+      # Must come before variable_path to match "null" correctly
       null_literal,
+      # Array literals must come before variable_path to avoid conflicts with array indexing
+      array_literal,
       # Variables second (very common) - put early after keywords
       variable_path,
       # Literals less common - put after variables
@@ -755,6 +761,17 @@ defmodule Mau.Parser do
   defp build_atom_literal([":" | atom_chars]) do
     atom_name = :binary.list_to_bin(atom_chars)
     {:literal, [String.to_atom(atom_name)], []}
+  end
+
+  # Array literal helpers
+  defp build_array_literal_node([]) do
+    # Empty array
+    {:literal, [[]], []}
+  end
+
+  defp build_array_literal_node(elements) when is_list(elements) do
+    # Array with elements
+    {:literal, [elements], []}
   end
 
   # Text node helpers
