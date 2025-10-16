@@ -146,6 +146,18 @@ defmodule Mau.Renderer do
   end
 
   # Evaluates expressions - handles literals, variables, and arithmetic operations
+  # Array literal evaluation - evaluate each element expression
+  defp evaluate_expression({:literal, [elements], _opts}, context) when is_list(elements) do
+    # Check if any elements are expressions (tuples) that need evaluation
+    if Enum.any?(elements, &is_tuple/1) do
+      # Elements contain AST expressions, need to evaluate them
+      evaluate_array_elements(elements, context, [])
+    else
+      # Elements are already primitive values (unlikely but handle for completeness)
+      {:ok, elements}
+    end
+  end
+
   # Optimized literal evaluation - skip list pattern matching for single values
   defp evaluate_expression({:literal, [value], []}, _context) do
     {:ok, value}
@@ -559,6 +571,21 @@ defmodule Mau.Renderer do
     case evaluate_expression(arg, context) do
       {:ok, value} ->
         evaluate_arguments_fast(rest, context, [value | acc])
+
+      {:error, error} ->
+        {:error, error}
+    end
+  end
+
+  # Evaluates array literal elements (each element is an AST expression)
+  defp evaluate_array_elements([], _context, acc) do
+    {:ok, Enum.reverse(acc)}
+  end
+
+  defp evaluate_array_elements([element | rest], context, acc) do
+    case evaluate_expression(element, context) do
+      {:ok, value} ->
+        evaluate_array_elements(rest, context, [value | acc])
 
       {:error, error} ->
         {:error, error}

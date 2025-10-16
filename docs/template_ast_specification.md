@@ -231,7 +231,7 @@ Apply filters/functions using either pipe or function call syntax. Both syntaxes
 
 # user.bio | truncate(50)
 {:call, ["truncate", [
-  {:variable, ["user", "bio"], []}, 
+  {:variable, ["user", "bio"], []},
   {:literal, [50], []}
 ]], []}
 
@@ -262,6 +262,51 @@ Apply filters/functions using either pipe or function call syntax. Both syntaxes
   {:variable, ["price"], []},
   {:literal, ["USD"], []}
 ]], []}
+```
+
+### Array Literals
+
+Array literals allow inline array construction within templates.
+
+**Format:**
+```elixir
+{:literal, [array_elements], opts}
+```
+
+Where `array_elements` is a list of AST expression nodes that will be evaluated.
+
+**Examples:**
+```elixir
+# Empty array: []
+{:literal, [[]], []}
+
+# Number array: [1, 2, 3]
+{:literal, [
+  [{:literal, [1], []}, {:literal, [2], []}, {:literal, [3], []}]
+], []}
+
+# String array: ["a", "b", "c"]
+{:literal, [
+  [{:literal, ["a"], []}, {:literal, ["b"], []}, {:literal, ["c"], []}]
+], []}
+
+# Mixed type array: [1, "two", true]
+{:literal, [
+  [{:literal, [1], []}, {:literal, ["two"], []}, {:literal, [true], []}]
+], []}
+
+# Array with variables: [user.name, user.email]
+{:literal, [
+  [{:variable, ["user", "name"], []}, {:variable, ["user", "email"], []}]
+], []}
+
+# Nested arrays: [[1, 2], [3, 4]]
+{:literal, [
+  [
+    {:literal, [[{:literal, [1], []}, {:literal, [2], []}]], []},
+    {:literal, [[{:literal, [3], []}, {:literal, [4], []}]], []}
+  ]
+], []}
 ```
 
 
@@ -485,13 +530,6 @@ defmodule Prana.Template.V3.AST do
 end
 ```
 
-## Version History
-
-- **v1.0** - Initial AST specification with unified tuple format
-- **v1.0** - Added whitespace control options
-- **v1.0** - Defined expression type hierarchy
-- **v1.0** - Specified tag subtypes and for loop parameters
-
 ## Expression Types Reference
 
 ### Supported Filter Names
@@ -508,8 +546,15 @@ end
 
 Planned additions to the AST specification:
 
-- **Array/object literals** - `{:array, [elements], opts}`, `{:object, [key_value_pairs], opts}`
+- **Object literals** - `{:object, [key_value_pairs], opts}` for inline map construction
 - **Ternary operators** - `{:ternary, [condition, if_true, if_false], opts}`
 - **Case/when statements** - `{:case, [switch_expr, when_clauses], opts}`
-- **Loop variables** - `forloop.index`, `forloop.first`, `forloop.last`
 - **Custom tag extensions** - Plugin system for custom tag types
+
+## Version History
+
+- **v1.1** - Added array literal support with inline array construction
+- **v1.0** - Initial AST specification with unified tuple format
+- **v1.0** - Added whitespace control options
+- **v1.0** - Defined expression type hierarchy
+- **v1.0** - Specified tag subtypes and for loop parameters

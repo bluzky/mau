@@ -225,6 +225,41 @@ defmodule Mau.Parser.Literal do
   end
 
   # ============================================================================
+  # ARRAY LITERAL PARSING
+  # ============================================================================
+
+  @doc """
+  Parses array literals.
+
+  Array literals use square brackets and contain comma-separated expressions.
+  This combinator requires a parsec reference to the expression parser from
+  the main Parser module.
+
+  ## Examples
+
+      * `[]`
+      * `[1, 2, 3]`
+      * `["a", "b", "c"]`
+      * `[user.name, user.email]`
+  """
+  def array_literal(expression_parser) do
+    ignore(string("["))
+    |> ignore(optional_whitespace())
+    |> optional(
+      parsec(expression_parser)
+      |> repeat(
+        ignore(optional_whitespace())
+        |> ignore(string(","))
+        |> ignore(optional_whitespace())
+        |> parsec(expression_parser)
+      )
+    )
+    |> ignore(optional_whitespace())
+    |> ignore(string("]"))
+    |> reduce(:build_array_literal_node)
+  end
+
+  # ============================================================================
   # HELPER FUNCTIONS
   # ============================================================================
 
