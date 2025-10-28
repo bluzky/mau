@@ -12,6 +12,7 @@ defmodule Mau do
   alias Mau.Renderer
   alias Mau.BlockProcessor
   alias Mau.WhitespaceProcessor
+  alias Mau.MapDirectives
 
   @doc """
   Compiles a template string into an AST.
@@ -106,11 +107,19 @@ defmodule Mau do
 
   # Private helper for recursive map rendering
   defp render_map_recursive(map, context, opts) when is_map(map) do
-    map
-    |> Enum.map(fn {key, value} ->
-      {key, render_map_recursive(value, context, opts)}
-    end)
-    |> Enum.into(%{})
+    # Try to match special directive patterns
+    case MapDirectives.match_directive(map) do
+      {directive_type, args} ->
+        MapDirectives.apply_directive({directive_type, args}, context, opts, &render_map_recursive/3)
+
+      :none ->
+        # Regular map - recursively process all values
+        map
+        |> Enum.map(fn {key, value} ->
+          {key, render_map_recursive(value, context, opts)}
+        end)
+        |> Enum.into(%{})
+    end
   end
 
   defp render_map_recursive(list, context, opts) when is_list(list) do
