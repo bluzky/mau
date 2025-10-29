@@ -108,5 +108,5 @@ mix deps.get
 ## Getting Help
 
 - Check the [Troubleshooting Guide](../advanced/error-handling.md)
-- Review [Examples](../examples/)
+- Review [Email Template Examples](../examples/email-templates.md)
 - Open an issue on [GitHub](https://github.com/bluzky/mau)

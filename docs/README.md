@@ -47,7 +47,6 @@ For experienced users wanting to extend or optimize Mau.
 
 Real-world examples and copy-paste ready code snippets.
 
-- [Web Templates](examples/web-templates.md) - HTML and web templating
 - [Email Templates](examples/email-templates.md) - Email generation examples
 - [Report Generation](examples/report-generation.md) - Dynamic reports and data outputs
 - [Data Transformation](examples/data-transformation.md) - Using map directives for transformations
