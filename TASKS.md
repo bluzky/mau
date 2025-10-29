@@ -439,3 +439,138 @@
 - [ ] Performance benchmarks (for Groups 4+)
 
 This breakdown provides **88 specific, actionable tasks** organized into 10 groups, with clear success criteria and workflow for each task and group.
+
+---
+
+## Documentation Development ✅ IN PROGRESS
+
+### Phase 1: Foundation ✅ COMPLETED
+- [x] Create `docs/README.md` - Documentation index with navigation
+- [x] Create directory structure (getting-started/, guides/, reference/, advanced/, examples/)
+- [x] Move existing files to `reference/`:
+  - [x] `template_language_reference.md` → `reference/template-language.md`
+  - [x] `template_ast_specification.md` → `reference/ast-specification.md`
+  - [x] `map_directives_reference.md` → `reference/map-directives.md`
+- [x] Update root `README.md` to link to documentation index
+
+**Deliverables**:
+- Organized directory structure
+- Central documentation index
+- All existing docs accessible from new structure
+
+---
+
+### Phase 2: Getting Started Guides ✅ COMPLETED
+
+4 beginner-friendly guides (19.5 KB total):
+- [x] `getting-started/installation.md` - Installation instructions and setup
+- [x] `getting-started/quick-start.md` - 5-minute tutorial with basic examples
+- [x] `getting-started/basic-concepts.md` - Core concepts and terminology
+- [x] `getting-started/first-template.md` - Step-by-step walkthrough with real example
+
+**Deliverables**:
+- New users can get started in < 5 minutes
+- Clear learning progression
+- Hands-on examples
+
+---
+
+### Phase 3: Task-Oriented Guides ✅ COMPLETED
+
+6 practical guides (2,160 lines, ~57 KB total):
+- [x] `guides/template-syntax.md` - Variables, expressions, and tags
+- [x] `guides/filters.md` - Using and chaining filters
+- [x] `guides/control-flow.md` - Conditionals and loops
+- [x] `guides/variables.md` - Variable access and assignment
+- [x] `guides/whitespace-control.md` - Managing whitespace in templates
+- [x] `guides/map-rendering.md` - Advanced map transformations with directives
+- [ ] ~~`guides/workflow-integration.md`~~ - REMOVED (out of scope)
+
+**Deliverables**:
+- 6 practical, task-oriented guides
+- Each guide with 3-5 complete, tested examples
+- Troubleshooting sections
+- Cross-references between guides
+
+---
+
+### Phase 4: Enhanced Reference ✅ COMPLETED
+
+Comprehensive reference documentation (44 KB, 2,509 lines):
+- [x] `reference/filters-list.md` - Alphabetical filter reference with examples (1,135 lines, 17 KB)
+- [x] `reference/functions-list.md` - Built-in functions reference (712 lines, 12 KB)
+- [x] `reference/api-reference.md` - Elixir API documentation (662 lines, 15 KB)
+
+**Deliverables**:
+- Complete filter reference (40 filters with syntax, parameters, error handling, and examples)
+- Function reference (40 functions documented with pipe and function call syntax)
+- Comprehensive API documentation (3 main functions + 4 supporting modules, options, error handling, patterns)
+
+---
+
+### Phase 5: Real-World Examples ⏳ PENDING
+
+Copy-paste ready examples (estimated 20+ KB):
+- [ ] `examples/web-templates.md` - HTML and web templating
+- [ ] `examples/email-templates.md` - Email generation
+- [ ] `examples/report-generation.md` - Dynamic reports
+- [ ] `examples/data-transformation.md` - Using map directives for transformations
+
+**Goals**:
+- 5 example guides
+- Each with 5+ complete, runnable examples
+- Real-world use cases
+
+---
+
+### Phase 6: Advanced Topics ⏳ PENDING
+
+In-depth topics for power users (estimated 30+ KB):
+- [ ] `advanced/custom-filters.md` - Creating custom filters
+- [ ] `advanced/custom-functions.md` - Creating custom functions
+- [ ] `advanced/performance-tuning.md` - Optimization techniques
+- [ ] `advanced/error-handling.md` - Error handling strategies
+- [ ] `advanced/security.md` - Security best practices
+- [ ] `advanced/extending-mau.md` - Architecture and extension points
+
+**Goals**:
+- 6 advanced guides
+- Extension examples
+- Security best practices
+
+---
+
+### Phase 7: Documentation Site ⏳ PENDING
+
+Professional documentation website:
+- [ ] Choose documentation platform (MkDocs or Docusaurus)
+- [ ] Set up project configuration
+- [ ] Configure theme and navigation
+- [ ] Add search functionality
+- [ ] Set up CI/CD for deployment
+
+**Goals**:
+- Live documentation site
+- Search functionality
+- Mobile-friendly design
+
+---
+
+### Documentation Progress Summary
+
+**Completed**: 4 phases (Phase 1, 2, 3 & 4)
+- 1 documentation index (docs/README.md)
+- 4 getting-started guides (~19.5 KB, ~580 lines)
+- 6 task-oriented guides (~57 KB, ~2,160 lines)
+- 3 enhanced reference guides (~44 KB, ~2,509 lines)
+- **Total: 14 documents, ~165 KB, ~5,250 lines**
+
+**In Progress**: Phase 5-7
+**Status**: ~50% of documentation scope completed (4 of 8 phases)
+
+**Phase 4 Highlights**:
+- 40+ filters documented with examples and error cases
+- 40 functions with both pipe and function call syntax
+- 3 main API functions with 4 supporting modules
+- Performance considerations and best practices
+- Cross-references between all documentation sections
