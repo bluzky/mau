@@ -1,6 +1,6 @@
 # Mau Documentation
 
-Welcome to the Mau template engine documentation! Mau is a powerful Elixir library that implements the Prana template language, providing Liquid-like templating with advanced features for data transformation and workflow integration.
+Welcome to the Mau template engine documentation! Mau is a powerful Elixir library that implements the Prana template language, providing Liquid-like templating with advanced features for data transformation.
 
 ## Getting Started
 
@@ -20,7 +20,6 @@ Practical, task-oriented guides for common use cases.
 - [Control Flow](guides/control-flow.md) - Conditionals and loops
 - [Variables](guides/variables.md) - Variable access and assignment
 - [Whitespace Control](guides/whitespace-control.md) - Managing whitespace in templates
-- [Workflow Integration](guides/workflow-integration.md) - Using $input, $nodes, $variables
 - [Map Directives](guides/map-rendering.md) - Advanced map transformations with directives
 
 ## Reference
@@ -52,7 +51,6 @@ Real-world examples and copy-paste ready code snippets.
 - [Web Templates](examples/web-templates.md) - HTML and web templating
 - [Email Templates](examples/email-templates.md) - Email generation examples
 - [Report Generation](examples/report-generation.md) - Dynamic reports and data outputs
-- [Workflow Automation](examples/workflow-automation.md) - Workflow integration examples
 - [Data Transformation](examples/data-transformation.md) - Using map directives for transformations
 
 ## Quick Links

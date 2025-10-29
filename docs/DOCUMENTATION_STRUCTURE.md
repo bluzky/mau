@@ -316,12 +316,6 @@ mkdocs serve
   - Trim right: `-}}`
   - Practical examples
 
-- [ ] `guides/workflow-integration.md`
-  - `$input` - Workflow input
-  - `$nodes` - Node results
-  - `$variables` - Workflow variables
-  - `$context` - Execution metadata
-
 - [ ] `guides/map-rendering.md`
   - Using `render_map/3`
   - Map directives overview
@@ -329,7 +323,7 @@ mkdocs serve
   - When to use vs `render/3`
 
 **Deliverables**:
-- 7 practical guides
+- 6 practical guides
 - Each guide with 3-5 complete examples
 
 ---
