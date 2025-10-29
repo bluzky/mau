@@ -2,15 +2,15 @@ defmodule Mau.MapDirectivesTest do
   use ExUnit.Case
   doctest Mau.MapDirectives
 
-  describe "_.forEach directive" do
-    test "maps over a collection with $self context" do
+  describe "#map directive" do
+    test "maps over a collection with $loop context" do
       input = %{
         items: %{
-          "_.forEach" => [
+          "#map" => [
             "{{$items}}",
             %{
-              name: "{{$self.name}}",
-              sku: "{{$self.sku}}"
+              name: "{{$loop.item.name}}",
+              sku: "{{$loop.item.sku}}"
             }
           ]
         }
@@ -33,14 +33,14 @@ defmodule Mau.MapDirectivesTest do
       assert {:ok, ^expected} = Mau.render_map(input, context)
     end
 
-    test "handles nested property access in $self" do
+    test "handles nested property access in $loop.item" do
       input = %{
         users: %{
-          "_.forEach" => [
+          "#map" => [
             "{{$users}}",
             %{
-              full_name: "{{$self.profile.firstName}} {{$self.profile.lastName}}",
-              email: "{{$self.contact.email}}"
+              full_name: "{{$loop.item.profile.firstName}} {{$loop.item.profile.lastName}}",
+              email: "{{$loop.item.contact.email}}"
             }
           ]
         }
@@ -72,9 +72,9 @@ defmodule Mau.MapDirectivesTest do
     test "handles empty collection" do
       input = %{
         items: %{
-          "_.forEach" => [
+          "#map" => [
             "{{$items}}",
-            %{name: "{{$self.name}}"}
+            %{name: "{{$loop.item.name}}"}
           ]
         }
       }
@@ -89,9 +89,9 @@ defmodule Mau.MapDirectivesTest do
     test "handles nil collection" do
       input = %{
         items: %{
-          "_.forEach" => [
+          "#map" => [
             "{{$items}}",
-            %{name: "{{$self.name}}"}
+            %{name: "{{$loop.item.name}}"}
           ]
         }
       }
@@ -103,13 +103,13 @@ defmodule Mau.MapDirectivesTest do
       assert {:ok, ^expected} = Mau.render_map(input, context)
     end
 
-    test "can access context variables alongside $self" do
+    test "can access context variables alongside $loop.item" do
       input = %{
         items: %{
-          "_.forEach" => [
+          "#map" => [
             "{{$items}}",
             %{
-              product: "{{$self.name}}",
+              product: "{{$loop.item.name}}",
               company: "{{$company}}"
             }
           ]
@@ -134,20 +134,20 @@ defmodule Mau.MapDirectivesTest do
       assert {:ok, ^expected} = Mau.render_map(input, context)
     end
 
-    test "supports nested _.forEach directives" do
+    test "supports nested #map directives" do
       input = %{
         categories: %{
-          "_.forEach" => [
+          "#map" => [
             "{{$categories}}",
             %{
-              category: "{{$self.name}}",
+              category: "{{$loop.item.name}}",
               products: %{
-                "_.forEach" => [
-                  "{{$self.products}}",
+                "#map" => [
+                  "{{$loop.item.products}}",
                   %{
-                    name: "{{$self.name}}",
+                    name: "{{$loop.item.name}}",
                     # Don't use template for price to preserve type
-                    price: "{{$self.price}}"
+                    price: "{{$loop.item.price}}"
                   }
                 ]
               }
@@ -197,17 +197,116 @@ defmodule Mau.MapDirectivesTest do
       assert {:ok, ^expected} = Mau.render_map(input, context)
     end
 
+    test "provides index access via $loop.index" do
+      input = %{
+        items: %{
+          "#map" => [
+            "{{$items}}",
+            %{
+              name: "{{$loop.item.name}}",
+              position: "{{$loop.index}}",
+              is_first: "{{$loop.index == 0}}",
+              is_even: "{{$loop.index % 2 == 0}}"
+            }
+          ]
+        }
+      }
+
+      context = %{
+        "$items" => [
+          %{"name" => "Alice"},
+          %{"name" => "Bob"},
+          %{"name" => "Charlie"}
+        ]
+      }
+
+      expected = %{
+        items: [
+          %{name: "Alice", position: 0, is_first: true, is_even: true},
+          %{name: "Bob", position: 1, is_first: false, is_even: false},
+          %{name: "Charlie", position: 2, is_first: false, is_even: true}
+        ]
+      }
+
+      assert {:ok, ^expected} = Mau.render_map(input, context)
+    end
+
+    test "provides parent loop access via $loop.parentloop" do
+      input = %{
+        departments: %{
+          "#map" => [
+            "{{$departments}}",
+            %{
+              dept_name: "{{$loop.item.name}}",
+              dept_index: "{{$loop.index}}",
+              employees: %{
+                "#map" => [
+                  "{{$loop.item.employees}}",
+                  %{
+                    emp_name: "{{$loop.item.name}}",
+                    emp_index: "{{$loop.index}}",
+                    department: "{{$loop.parentloop.item.name}}",
+                    department_index: "{{$loop.parentloop.index}}"
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      }
+
+      context = %{
+        "$departments" => [
+          %{
+            "name" => "Engineering",
+            "employees" => [
+              %{"name" => "Alice"},
+              %{"name" => "Bob"}
+            ]
+          },
+          %{
+            "name" => "Sales",
+            "employees" => [
+              %{"name" => "Carol"}
+            ]
+          }
+        ]
+      }
+
+      expected = %{
+        departments: [
+          %{
+            dept_name: "Engineering",
+            dept_index: 0,
+            employees: [
+              %{emp_name: "Alice", emp_index: 0, department: "Engineering", department_index: 0},
+              %{emp_name: "Bob", emp_index: 1, department: "Engineering", department_index: 0}
+            ]
+          },
+          %{
+            dept_name: "Sales",
+            dept_index: 1,
+            employees: [
+              %{emp_name: "Carol", emp_index: 0, department: "Sales", department_index: 1}
+            ]
+          }
+        ]
+      }
+
+      assert {:ok, ^expected} = Mau.render_map(input, context)
+    end
+
     test "handles invalid arguments gracefully" do
       input = %{
         items: %{
-          "_.forEach" => "not a list"
+          "#map" => "not a list"
         }
       }
 
       context = %{}
 
       # When args is not a list, it's treated as a regular map key
-      expected = %{items: %{"_.forEach" => "not a list"}}
+      expected = %{items: %{"#map" => "not a list"}}
 
       assert {:ok, ^expected} = Mau.render_map(input, context)
     end
@@ -215,9 +314,9 @@ defmodule Mau.MapDirectivesTest do
     test "returns empty list for non-list collection" do
       input = %{
         items: %{
-          "_.forEach" => [
+          "#map" => [
             "{{$items}}",
-            %{name: "{{$self.name}}"}
+            %{name: "{{$loop.item.name}}"}
           ]
         }
       }
@@ -230,11 +329,11 @@ defmodule Mau.MapDirectivesTest do
     end
   end
 
-  describe "_.merge directive" do
+  describe "#merge directive" do
     test "merges two maps together" do
       input = %{
         user: %{
-          "_.merge" => [
+          "#merge" => [
             "{{$original}}",
             %{age: 20, status: "active"}
           ]
@@ -260,7 +359,7 @@ defmodule Mau.MapDirectivesTest do
     test "later values override earlier values" do
       input = %{
         config: %{
-          "_.merge" => [
+          "#merge" => [
             %{a: 1, b: 2, c: 3},
             %{b: 20, d: 4},
             %{c: 30, e: 5}
@@ -286,7 +385,7 @@ defmodule Mau.MapDirectivesTest do
     test "merges maps from context variables" do
       input = %{
         result: %{
-          "_.merge" => [
+          "#merge" => [
             "{{$base}}",
             "{{$override}}"
           ]
@@ -312,14 +411,14 @@ defmodule Mau.MapDirectivesTest do
     test "handles empty merge list" do
       input = %{
         result: %{
-          "_.merge" => []
+          "#merge" => []
         }
       }
 
       context = %{}
 
       # When args is an empty list, it's treated as a regular map key (length must be > 0)
-      expected = %{result: %{"_.merge" => []}}
+      expected = %{result: %{"#merge" => []}}
 
       assert {:ok, ^expected} = Mau.render_map(input, context)
     end
@@ -327,7 +426,7 @@ defmodule Mau.MapDirectivesTest do
     test "ignores non-map values in merge" do
       input = %{
         result: %{
-          "_.merge" => [
+          "#merge" => [
             %{a: 1},
             "not a map",
             %{b: 2},
@@ -353,7 +452,7 @@ defmodule Mau.MapDirectivesTest do
     test "merges with nested template rendering" do
       input = %{
         user: %{
-          "_.merge" => [
+          "#merge" => [
             "{{$user}}",
             %{
               full_name: "{{$user.firstName}} {{$user.lastName}}",
@@ -387,30 +486,30 @@ defmodule Mau.MapDirectivesTest do
     test "handles invalid arguments gracefully" do
       input = %{
         result: %{
-          "_.merge" => "not a list"
+          "#merge" => "not a list"
         }
       }
 
       context = %{}
 
       # When args is not a list, it's treated as a regular map key
-      expected = %{result: %{"_.merge" => "not a list"}}
+      expected = %{result: %{"#merge" => "not a list"}}
 
       assert {:ok, ^expected} = Mau.render_map(input, context)
     end
   end
 
   describe "combined directives" do
-    test "_.forEach and _.merge work together" do
+    test "#map and #merge work together" do
       input = %{
         enriched_users: %{
-          "_.forEach" => [
+          "#map" => [
             "{{$users}}",
             %{
-              "_.merge" => [
-                "{{$self}}",
+              "#merge" => [
+                "{{$loop.item}}",
                 %{
-                  display_name: "{{$self.name}}",
+                  display_name: "{{$loop.item.name}}",
                   company: "{{$company}}"
                 }
               ]
@@ -450,18 +549,18 @@ defmodule Mau.MapDirectivesTest do
     test "complex nested directives with multiple levels" do
       input = %{
         departments: %{
-          "_.forEach" => [
+          "#map" => [
             "{{$departments}}",
             %{
-              "_.merge" => [
-                "{{$self}}",
+              "#merge" => [
+                "{{$loop.item}}",
                 %{
                   employees: %{
-                    "_.forEach" => [
-                      "{{$self.staff}}",
+                    "#map" => [
+                      "{{$loop.item.staff}}",
                       %{
-                        name: "{{$self.name}}",
-                        dept: "{{$self.department}}"
+                        name: "{{$loop.item.name}}",
+                        dept: "{{$loop.item.department}}"
                       }
                     ]
                   }
@@ -504,11 +603,11 @@ defmodule Mau.MapDirectivesTest do
     end
   end
 
-  describe "_.if directive" do
+  describe "#if directive" do
     test "renders true template when condition is truthy" do
       input = %{
         status: %{
-          "_.if" => [
+          "#if" => [
             "{{$user.is_active}}",
             %{message: "User is active", badge: "online"}
           ]
@@ -529,7 +628,7 @@ defmodule Mau.MapDirectivesTest do
     test "renders nil when condition is falsy and no else template" do
       input = %{
         status: %{
-          "_.if" => [
+          "#if" => [
             "{{$user.is_active}}",
             %{message: "User is active", badge: "online"}
           ]
@@ -550,7 +649,7 @@ defmodule Mau.MapDirectivesTest do
     test "renders false template when condition is falsy with else clause" do
       input = %{
         status: %{
-          "_.if" => [
+          "#if" => [
             "{{$user.is_active}}",
             %{message: "User is active", badge: "online"},
             %{message: "User is inactive", badge: "offline"}
@@ -575,7 +674,7 @@ defmodule Mau.MapDirectivesTest do
       Enum.each(input_values, fn value ->
         input = %{
           result: %{
-            "_.if" => [
+            "#if" => [
               value,
               %{success: true},
               %{success: false}
@@ -596,7 +695,7 @@ defmodule Mau.MapDirectivesTest do
       Enum.each(falsy_values, fn value ->
         input = %{
           result: %{
-            "_.if" => [
+            "#if" => [
               value,
               %{success: true},
               %{success: false}
@@ -614,25 +713,25 @@ defmodule Mau.MapDirectivesTest do
     test "handles invalid arguments gracefully" do
       input = %{
         result: %{
-          "_.if" => "invalid"
+          "#if" => "invalid"
         }
       }
 
       context = %{}
         # When args is not a list, it's treated as a regular map key
-      expected = %{result: %{"_.if" => "invalid"}}
+      expected = %{result: %{"#if" => "invalid"}}
 
       assert {:ok, ^expected} = Mau.render_map(input, context)
     end
   end
 
-  describe "_.filter directive" do
+  describe "#filter directive" do
     test "filters collection based on condition" do
       input = %{
         active_users: %{
-          "_.filter" => [
+          "#filter" => [
             "{{$users}}",
-            "{{$self.status == 'active'}}"
+            "{{$loop.item.status == 'active'}}"
           ]
         }
       }
@@ -658,9 +757,9 @@ defmodule Mau.MapDirectivesTest do
     test "filters with numeric comparison" do
       input = %{
         expensive_items: %{
-          "_.filter" => [
+          "#filter" => [
             "{{$items}}",
-            "{{$self.price > 100}}"
+            "{{$loop.item.price > 100}}"
           ]
         }
       }
@@ -686,9 +785,9 @@ defmodule Mau.MapDirectivesTest do
     test "handles empty collection" do
       input = %{
         filtered: %{
-          "_.filter" => [
+          "#filter" => [
             "{{$items}}",
-            "{{$self.active}}"
+            "{{$loop.item.active}}"
           ]
         }
       }
@@ -703,9 +802,9 @@ defmodule Mau.MapDirectivesTest do
     test "handles nil collection" do
       input = %{
         filtered: %{
-          "_.filter" => [
+          "#filter" => [
             "{{$items}}",
-            "{{$self.active}}"
+            "{{$loop.item.active}}"
           ]
         }
       }
@@ -720,108 +819,240 @@ defmodule Mau.MapDirectivesTest do
     test "handles invalid arguments gracefully" do
       input = %{
         result: %{
-          "_.filter" => "invalid"
+          "#filter" => "invalid"
         }
       }
 
       context = %{}
 
-      expected = %{result: %{"_.filter" => "invalid"}}
+      expected = %{result: %{"#filter" => "invalid"}}
 
       assert {:ok, ^expected} = Mau.render_map(input, context)
     end
   end
 
-  describe "_.map directive" do
-    test "extracts specific field from collection" do
+  
+  describe "#pipe directive" do
+    test "pipes value through filter and map" do
       input = %{
-        user_names: %{
-          "_.map" => [
+        result: %{
+          "#pipe" => [
             "{{$users}}",
-            "name"
+            [
+              %{"#filter" => "{{$loop.item.active}}"},
+              %{"#map" => %{name: "{{$loop.item.name}}"}}
+            ]
           ]
         }
       }
 
       context = %{
         "$users" => [
-          %{"name" => "John", "age" => 30},
-          %{"name" => "Jane", "age" => 25},
-          %{"name" => "Bob", "age" => 35}
+          %{"name" => "John", "active" => true},
+          %{"name" => "Jane", "active" => false},
+          %{"name" => "Bob", "active" => true}
         ]
       }
 
       expected = %{
-        user_names: ["John", "Jane", "Bob"]
+        result: [
+          %{name: "John"},
+          %{name: "Bob"}
+        ]
       }
 
       assert {:ok, ^expected} = Mau.render_map(input, context)
     end
 
-    test "handles missing field with nil values" do
+    test "pipes value through map and merge" do
       input = %{
-        emails: %{
-          "_.map" => [
-            "{{$users}}",
-            "email"
-          ]
-        }
-      }
-
-      context = %{
-        "$users" => [
-          %{"name" => "John", "email" => "john@example.com"},
-          %{"name" => "Jane"},  # No email field
-          %{"name" => "Bob", "email" => "bob@example.com"}
-        ]
-      }
-
-      expected = %{
-        emails: ["john@example.com", nil, "bob@example.com"]
-      }
-
-      assert {:ok, ^expected} = Mau.render_map(input, context)
-    end
-
-    test "handles non-map items" do
-      input = %{
-        values: %{
-          "_.map" => [
+        enriched: %{
+          "#pipe" => [
             "{{$items}}",
-            "field"
+            [
+              %{"#map" => %{name: "{{$loop.item.name}}"}},
+              %{"#map" => %{
+                "#merge" => [
+                  "{{$loop.item}}",
+                  %{company: "{{$company}}"}
+                ]
+              }}
+            ]
           ]
         }
       }
 
       context = %{
         "$items" => [
-          %{"field" => "value1"},
-          "string item",
-          42,
-          %{"field" => "value2"}
-        ]
+          %{"name" => "Product 1"},
+          %{"name" => "Product 2"}
+        ],
+        "$company" => "Acme Corp"
       }
 
       expected = %{
-        values: ["value1", nil, nil, "value2"]
+        enriched: [
+          %{name: "Product 1", company: "Acme Corp"},
+          %{name: "Product 2", company: "Acme Corp"}
+        ]
       }
 
       assert {:ok, ^expected} = Mau.render_map(input, context)
     end
 
-    test "handles empty collection" do
+    test "pipes single map through merge and pick" do
       input = %{
-        names: %{
-          "_.map" => [
-            "{{$users}}",
-            "name"
+        user: %{
+          "#pipe" => [
+            "{{$user}}",
+            [
+              %{"#merge" => %{status: "active"}},
+              %{"#merge" => %{last_login: "2024-01-15"}},
+              %{"#pick" => ["name", "email", :status, :last_login]}
+            ]
           ]
         }
       }
 
-      context = %{"$users" => []}
+      context = %{
+        "$user" => %{
+          "name" => "John",
+          "email" => "john@example.com",
+          "age" => 30,
+          "password" => "secret"
+        }
+      }
 
-      expected = %{names: []}
+      expected = %{
+        user: %{
+          "name" => "John",
+          "email" => "john@example.com",
+          status: "active",
+          last_login: "2024-01-15"
+        }
+      }
+
+      assert {:ok, ^expected} = Mau.render_map(input, context)
+    end
+
+    test "handles empty directive list" do
+      input = %{
+        result: %{
+          "#pipe" => [
+            "{{$value}}",
+            []
+          ]
+        }
+      }
+
+      context = %{"$value" => "unchanged"}
+
+      expected = %{result: "unchanged"}
+
+      assert {:ok, ^expected} = Mau.render_map(input, context)
+    end
+
+    test "pipes with conditional logic" do
+      input = %{
+        result: %{
+          "#pipe" => [
+            "{{$items}}",
+            [
+              %{"#filter" => "{{$loop.item.price > 100}}"},
+              %{"#map" => %{
+                "#if" => [
+                  "{{$loop.item.premium}}",
+                  %{name: "{{$loop.item.name}}", badge: "premium"},
+                  %{name: "{{$loop.item.name}}", badge: "standard"}
+                ]
+              }}
+            ]
+          ]
+        }
+      }
+
+      context = %{
+        "$items" => [
+          %{"name" => "Laptop", "price" => 999, "premium" => true},
+          %{"name" => "Book", "price" => 20, "premium" => false},
+          %{"name" => "Phone", "price" => 599, "premium" => false}
+        ]
+      }
+
+      expected = %{
+        result: [
+          %{name: "Laptop", badge: "premium"},
+          %{name: "Phone", badge: "standard"}
+        ]
+      }
+
+      assert {:ok, ^expected} = Mau.render_map(input, context)
+    end
+
+    test "accesses context variables within pipe" do
+      input = %{
+        result: %{
+          "#pipe" => [
+            "{{$products}}",
+            [
+              %{"#map" => %{
+                name: "{{$loop.item.name}}",
+                company: "{{$company}}"
+              }}
+            ]
+          ]
+        }
+      }
+
+      context = %{
+        "$products" => [
+          %{"name" => "Widget"},
+          %{"name" => "Gadget"}
+        ],
+        "$company" => "Acme Corp"
+      }
+
+      expected = %{
+        result: [
+          %{name: "Widget", company: "Acme Corp"},
+          %{name: "Gadget", company: "Acme Corp"}
+        ]
+      }
+
+      assert {:ok, ^expected} = Mau.render_map(input, context)
+    end
+
+    test "complex pipe with multiple transformations" do
+      input = %{
+        result: %{
+          "#pipe" => [
+            "{{$users}}",
+            [
+              %{"#filter" => "{{$loop.item.status == 'active'}}"},
+              %{"#map" => %{
+                id: "{{$loop.item.id}}",
+                name: "{{$loop.item.name}}",
+                email: "{{$loop.item.email}}"
+              }},
+              %{"#filter" => "{{$loop.item.id > 1}}"}
+            ]
+          ]
+        }
+      }
+
+      context = %{
+        "$users" => [
+          %{"id" => 1, "name" => "John", "email" => "john@example.com", "status" => "active"},
+          %{"id" => 2, "name" => "Jane", "email" => "jane@example.com", "status" => "active"},
+          %{"id" => 3, "name" => "Bob", "email" => "bob@example.com", "status" => "inactive"}
+        ]
+      }
+
+      expected = %{
+        result: [
+          %{id: 2, name: "Jane", email: "jane@example.com"}
+        ]
+      }
 
       assert {:ok, ^expected} = Mau.render_map(input, context)
     end
@@ -829,23 +1060,96 @@ defmodule Mau.MapDirectivesTest do
     test "handles invalid arguments gracefully" do
       input = %{
         result: %{
-          "_.map" => "invalid"
+          "#pipe" => "invalid"
         }
       }
 
       context = %{}
 
-      expected = %{result: %{"_.map" => "invalid"}}
+      expected = %{result: %{"#pipe" => "invalid"}}
+
+      assert {:ok, ^expected} = Mau.render_map(input, context)
+    end
+
+    test "handles invalid directives list gracefully" do
+      input = %{
+        result: %{
+          "#pipe" => ["{{$value}}", "not a list"]
+        }
+      }
+
+      context = %{"$value" => "test"}
+
+      # When directives arg is not a list, it's treated as a regular map key
+      # The template gets rendered
+      expected = %{result: %{"#pipe" => ["test", "not a list"]}}
+
+      assert {:ok, ^expected} = Mau.render_map(input, context)
+    end
+
+    test "nested pipes work independently" do
+      input = %{
+        result: %{
+          "#pipe" => [
+            "{{$departments}}",
+            [
+              %{"#map" => %{
+                dept: "{{$loop.item.name}}",
+                active_staff: %{
+                  "#pipe" => [
+                    "{{$loop.item.employees}}",
+                    [
+                      %{"#filter" => "{{$loop.item.active}}"},
+                      %{"#map" => %{name: "{{$loop.item.name}}"}}
+                    ]
+                  ]
+                }
+              }}
+            ]
+          ]
+        }
+      }
+
+      context = %{
+        "$departments" => [
+          %{
+            "name" => "Engineering",
+            "employees" => [
+              %{"name" => "Alice", "active" => true},
+              %{"name" => "Bob", "active" => false}
+            ]
+          },
+          %{
+            "name" => "Sales",
+            "employees" => [
+              %{"name" => "Carol", "active" => true}
+            ]
+          }
+        ]
+      }
+
+      expected = %{
+        result: [
+          %{
+            dept: "Engineering",
+            active_staff: [%{name: "Alice"}]
+          },
+          %{
+            dept: "Sales",
+            active_staff: [%{name: "Carol"}]
+          }
+        ]
+      }
 
       assert {:ok, ^expected} = Mau.render_map(input, context)
     end
   end
 
-  describe "_.pick directive" do
+  describe "#pick directive" do
     test "extracts specific keys from map" do
       input = %{
         user_info: %{
-          "_.pick" => [
+          "#pick" => [
             "{{$user}}",
             ["name", "email"]
           ]
@@ -875,7 +1179,7 @@ defmodule Mau.MapDirectivesTest do
     test "handles missing keys gracefully" do
       input = %{
         partial_info: %{
-          "_.pick" => [
+          "#pick" => [
             "{{$user}}",
             ["name", "email", "phone", "age"]
           ]
@@ -903,7 +1207,7 @@ defmodule Mau.MapDirectivesTest do
     test "handles empty keys list" do
       input = %{
         empty_result: %{
-          "_.pick" => [
+          "#pick" => [
             "{{$user}}",
             []
           ]
@@ -922,7 +1226,7 @@ defmodule Mau.MapDirectivesTest do
     test "handles non-map template result" do
       input = %{
         result: %{
-          "_.pick" => [
+          "#pick" => [
             "{{$value}}",
             ["name"]
           ]
@@ -939,13 +1243,13 @@ defmodule Mau.MapDirectivesTest do
     test "handles invalid arguments gracefully" do
       input = %{
         result: %{
-          "_.pick" => "invalid"
+          "#pick" => "invalid"
         }
       }
 
       context = %{}
 
-      expected = %{result: %{"_.pick" => "invalid"}}
+      expected = %{result: %{"#pick" => "invalid"}}
 
       assert {:ok, ^expected} = Mau.render_map(input, context)
     end

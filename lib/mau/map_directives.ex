@@ -2,17 +2,17 @@ defmodule Mau.MapDirectives do
   @moduledoc """
   Handles special directives for render_map functionality.
 
-  Directives are special map keys that start with "_." and provide
-  advanced map transformation capabilities with lodash-style naming.
+  Directives are special map keys that start with "#" and provide
+  advanced map transformation capabilities.
 
   ## Supported Directives
 
-  - `_.forEach` - Iterate over a collection and apply a template to each item
-  - `_.merge` - Merge multiple maps together
-  - `_.if` - Conditional rendering based on a boolean condition
-  - `_.filter` - Filter items in a collection based on a condition
-  - `_.map` - Extract specific fields from items in a collection (similar to lodash.map)
-  - `_.pick` - Extract specific keys from a map (similar to lodash.pick)
+  - `#pipe` - Thread data through a series of transformations (like Elixir's |> operator)
+  - `#map` - Iterate over a collection and apply a template to each item
+  - `#merge` - Merge multiple maps together
+  - `#if` - Conditional rendering based on a boolean condition
+  - `#filter` - Filter items in a collection based on a condition
+  - `#pick` - Extract specific keys from a map (similar to Map.pick)
 
   ## Easy Extension
 
@@ -27,22 +27,26 @@ defmodule Mau.MapDirectives do
 
   ## Examples
 
-      iex> Mau.MapDirectives.match_directive(%{"_.forEach" => ["collection", "template"]})
-      {:for_each, ["collection", "template"]}
+      iex> Mau.MapDirectives.match_directive(%{"#map" => ["collection", "template"]})
+      {:map, ["collection", "template"]}
 
-      iex> Mau.MapDirectives.match_directive(%{"_.merge" => [%{}, %{}]})
+      iex> Mau.MapDirectives.match_directive(%{"#merge" => [%{}, %{}]})
       {:merge, [%{}, %{}]}
 
       iex> Mau.MapDirectives.match_directive(%{"name" => "John"})
       :none
   """
   # Only match if args is a list, otherwise treat as regular map key
-  def match_directive(%{"_.forEach" => args}) when is_list(args) and length(args) > 0, do: {:for_each, args}
-  def match_directive(%{"_.merge" => args}) when is_list(args) and length(args) > 0, do: {:merge, args}
-  def match_directive(%{"_.if" => args}) when is_list(args) and length(args) in [2, 3], do: {:if, args}
-  def match_directive(%{"_.filter" => args}) when is_list(args) and length(args) == 2, do: {:filter, args}
-  def match_directive(%{"_.map" => args}) when is_list(args) and length(args) == 2, do: {:map, args}
-  def match_directive(%{"_.pick" => args}) when is_list(args) and length(args) == 2, do: {:pick, args}
+  def match_directive(%{"#map" => args}) when is_list(args) and length(args) > 0, do: {:map, args}
+  def match_directive(%{"#merge" => args}) when is_list(args) and length(args) > 0, do: {:merge, args}
+  def match_directive(%{"#if" => args}) when is_list(args) and length(args) in [2, 3], do: {:if, args}
+  def match_directive(%{"#filter" => args}) when is_list(args) and length(args) == 2, do: {:filter, args}
+  def match_directive(%{"#pick" => args}) when is_list(args) and length(args) == 2, do: {:pick, args}
+
+  def match_directive(%{"#pipe" => args}) when is_list(args) and length(args) == 2 do
+    [_initial, directives] = args
+    if is_list(directives), do: {:pipe, args}, else: :none
+  end
 
   # No directive matched
   def match_directive(_map), do: :none
@@ -59,39 +63,51 @@ defmodule Mau.MapDirectives do
 
   ## Supported Directives
 
-  - `_.forEach` - Iterate over a collection and apply a template to each item
-  - `_.merge` - Merge multiple maps together
-  - `_.if` - Conditional rendering based on a boolean condition
-  - `_.filter` - Filter items in a collection based on a condition
-  - `_.map` - Extract specific fields from items in a collection (similar to lodash.map)
-  - `_.pick` - Extract specific keys from a map (similar to lodash.pick)
+  - `#pipe` - Thread data through a series of transformations (like Elixir's |> operator)
+  - `#map` - Iterate over a collection and apply a template to each item
+  - `#merge` - Merge multiple maps together
+  - `#if` - Conditional rendering based on a boolean condition
+  - `#filter` - Filter items in a collection based on a condition
+  - `#pick` - Extract specific keys from a map (similar to Map.pick)
 
   ## Examples
 
-      iex> Mau.MapDirectives.apply_directive({:for_each, ["{{$items}}", %{name: "{{$self.name}}"}]}, %{}, [], fn template, context, _opts -> template end)
+      iex> Mau.MapDirectives.apply_directive({:map, ["{{$items}}", %{name: "{{$self.name}}"}]}, %{}, [], fn template, _context, _opts -> template end)
       []
 
       iex> Mau.MapDirectives.apply_directive({:merge, [%{a: 1}, %{b: 2}]}, %{}, [], fn template, _context, _opts -> template end)
       %{a: 1, b: 2}
 
   """
-  def apply_directive({:for_each, [collection_template, item_template]}, context, opts, render_fn) do
+  def apply_directive({:map, [collection_template, item_template]}, context, opts, render_fn) do
     # Render the collection template to get the actual collection
     collection = render_fn.(collection_template, context, opts)
 
     # Ensure we have a list to iterate over
     items = ensure_list(collection)
 
-    # Map over each item with $self context
-    Enum.map(items, fn item ->
-      # Create new context with $self pointing to current item
-      item_context = Map.put(context, "$self", item)
+    # Get parent loop reference if it exists
+    parent_loop = context["$loop"]
+
+    # Map over each item with $loop context
+    items
+    |> Enum.with_index()
+    |> Enum.map(fn {item, index} ->
+      # Create new $loop structure with parent reference
+      loop_context = %{
+        "item" => item,
+        "index" => index,
+        "parentloop" => parent_loop
+      }
+
+      # Create new context with $loop pointing to current loop structure
+      item_context = Map.put(context, "$loop", loop_context)
       # Recursively render the item template
       render_fn.(item_template, item_context, opts)
     end)
   end
 
-  def apply_directive({:for_each, _invalid_args}, _context, _opts, _render_fn) do
+  def apply_directive({:map, _invalid_args}, _context, _opts, _render_fn) do
     # Invalid arguments - return empty list
     []
   end
@@ -151,15 +167,28 @@ defmodule Mau.MapDirectives do
     # Ensure we have a list to filter
     items = ensure_list(collection)
 
+    # Get parent loop reference if it exists
+    parent_loop = context["$loop"]
+
     # Filter items based on condition
-    Enum.filter(items, fn item ->
-      # Create new context with $self pointing to current item
-      item_context = Map.put(context, "$self", item)
+    items
+    |> Enum.with_index()
+    |> Enum.filter(fn {item, index} ->
+      # Create new $loop structure with parent reference
+      loop_context = %{
+        "item" => item,
+        "index" => index,
+        "parentloop" => parent_loop
+      }
+
+      # Create new context with $loop pointing to current loop structure
+      item_context = Map.put(context, "$loop", loop_context)
       # Render the condition template
       condition_result = render_fn.(condition_template, item_context, opts)
       # Check if condition is truthy
       truthy?(condition_result)
     end)
+    |> Enum.map(fn {item, _index} -> item end)
   end
 
   def apply_directive({:filter, _invalid_args}, _context, _opts, _render_fn) do
@@ -167,28 +196,7 @@ defmodule Mau.MapDirectives do
     []
   end
 
-    def apply_directive({:map, [collection_template, field_name]}, context, opts, render_fn) when is_binary(field_name) do
-    # Render the collection template to get the actual collection
-    collection = render_fn.(collection_template, context, opts)
-
-    # Ensure we have a list to pluck from
-    items = ensure_list(collection)
-
-    # Extract the field from each item
-    Enum.map(items, fn item ->
-      if is_map(item) do
-        Map.get(item, field_name)
-      else
-        nil
-      end
-    end)
-  end
-
-  def apply_directive({:map, _invalid_args}, _context, _opts, _render_fn) do
-    # Invalid arguments - return empty list
-    []
-  end
-
+    
     def apply_directive({:pick, [map_template, keys]}, context, opts, render_fn) when is_list(keys) do
     # Render the map template to get the actual map
     map_result = render_fn.(map_template, context, opts)
@@ -205,6 +213,41 @@ defmodule Mau.MapDirectives do
   def apply_directive({:pick, _invalid_args}, _context, _opts, _render_fn) do
     # Invalid arguments - return empty map
     %{}
+  end
+
+  def apply_directive({:pipe, [initial_template, directives]}, context, opts, render_fn) do
+    # Render initial value
+    initial_value = render_fn.(initial_template, context, opts)
+
+    # Thread through each directive
+    Enum.reduce(directives, initial_value, fn directive_map, acc ->
+      # Inject accumulated value as first argument
+      transformed_directive = inject_piped_value(directive_map, acc)
+
+      # Provide $self in context for manual access
+      self_context = Map.put(context, "$self", acc)
+
+      # Render the transformed directive
+      render_fn.(transformed_directive, self_context, opts)
+    end)
+  end
+
+  def apply_directive({:pipe, _invalid_args}, _context, _opts, _render_fn) do
+    # Invalid arguments - return nil
+    nil
+  end
+
+  # Helper to inject piped value as first argument to directives
+  defp inject_piped_value(directive_map, piped_value) when is_map(directive_map) do
+    directive_map
+    |> Enum.map(fn {key, args} ->
+      if String.starts_with?(key, "#") do
+        {key, [piped_value, args]}
+      else
+        {key, args}
+      end
+    end)
+    |> Map.new()
   end
 
   # Helper to check if a value is truthy

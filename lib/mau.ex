@@ -5,7 +5,19 @@ defmodule Mau do
   Provides three main functions:
   - `compile/2` - Parse template string into AST
   - `render/3` - Render template string or AST with context
-  - `render_map/3` - Recursively render template strings in nested maps
+  - `render_map/3` - Recursively render template strings in nested maps with directive support
+
+  ## Map Directives
+
+  The `render_map/3` function supports powerful map transformation directives:
+
+  - `#map` - Iterate over collections and apply templates to each item with index and parent access
+  - `#merge` - Combine multiple maps together
+  - `#if` - Conditional rendering based on boolean conditions
+  - `#filter` - Filter collections based on conditions with index access
+  - `#pick` - Extract specific keys from maps
+
+  See `docs/map_directives_reference.md` for comprehensive documentation.
   """
 
   alias Mau.Parser
