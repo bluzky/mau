@@ -472,7 +472,7 @@ During filtering, each item has access to the same `$loop` structure as the `#ma
 
 ### `#pick` - Key Extraction
 
-Extracts specific keys from a map (similar to `Map.pick/2`).
+Extracts specific keys from a map (similar to `Map.take/2`).
 
 #### Syntax
 

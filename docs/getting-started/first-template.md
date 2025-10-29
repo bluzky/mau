@@ -301,7 +301,7 @@ Now that you understand the basics, explore more advanced features:
 - [Filters Guide](../guides/filters.md) - More powerful filters
 - [Control Flow Guide](../guides/control-flow.md) - Advanced conditionals
 - [Map Directives Guide](../guides/map-rendering.md) - Transform nested data
-- [Examples](../examples/) - Real-world use cases
+- [Report Generation Example](../examples/report-generation.md) - Real-world use cases
 
 ## Key Takeaways
 

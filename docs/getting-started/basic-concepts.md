@@ -387,5 +387,5 @@ Mau.render("Count: {{ 42 }}", %{}, preserve_types: true)
 ## Next Steps
 
 - [Your First Template](first-template.md) - Build a complete example
-- [Guides](../guides/template-syntax.md) - Detailed feature guides
-- [Examples](../examples/) - Real-world use cases
+- [Template Syntax Guide](../guides/template-syntax.md) - Detailed feature guides
+- [Email Template Examples](../examples/email-templates.md) - Real-world use cases

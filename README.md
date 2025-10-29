@@ -205,16 +205,16 @@ children = [Mau.FilterRegistry]
 
 ## Documentation
 
-Comprehensive documentation is available in the [docs/](docs/) directory:
+Comprehensive documentation is available in the `docs/` directory:
 
-- **[Getting Started](docs/README.md#getting-started)** - Installation, quick start, and basic concepts
-- **[Guides](docs/README.md#guides)** - Task-oriented guides for common use cases
-- **[Reference](docs/README.md#reference)** - Complete technical reference
-- **[Advanced Topics](docs/README.md#advanced-topics)** - Custom filters, performance tuning, security
-- **[Examples](docs/README.md#examples)** - Real-world examples and code snippets
+- **[Getting Started](docs/getting-started/installation.md)** - Installation, quick start, and basic concepts
+- **[Guides](docs/guides/template-syntax.md)** - Task-oriented guides for common use cases
+- **[Reference](docs/reference/template-language.md)** - Complete technical reference
+- **[Advanced Topics](docs/advanced/custom-filters.md)** - Custom filters, performance tuning, security
+- **[Examples](docs/examples/email-templates.md)** - Real-world examples and code snippets
 
 👉 **[Start with the Documentation Index →](docs/README.md)**
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License - see the LICENSE file for details.

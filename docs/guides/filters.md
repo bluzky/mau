@@ -513,5 +513,5 @@ If a filter doesn't exist:
 ## See Also
 
 - [Template Syntax Guide](template-syntax.md) - Filter syntax details
-- [Examples](../examples/) - Real-world filter usage
+- [Email Templates Examples](../examples/email-templates.md) - Real-world filter usage
 - [Reference](../reference/filters-list.md) - Complete filter list

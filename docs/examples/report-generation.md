@@ -479,6 +479,6 @@ context = %{
 ## See Also
 
 - [Data Transformation](data-transformation.md) - Using map directives
-- [Web Templates](web-templates.md) - HTML examples
+- [Email Templates](email-templates.md) - Email template examples
 - [Filters Guide](../guides/filters.md) - Formatting data with filters
 - [Template Syntax Guide](../guides/template-syntax.md) - Template language reference

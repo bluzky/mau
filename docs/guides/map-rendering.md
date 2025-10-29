@@ -612,4 +612,4 @@ IO.inspect(items)
 - [Template Syntax Guide](template-syntax.md) - Template expressions
 - [Variables Guide](variables.md) - Variable access
 - [Map Directives Reference](../reference/map-directives.md) - Complete directive reference
-- [Examples](../examples/) - Real-world map rendering examples
+- [Data Transformation Examples](../examples/data-transformation.md) - Real-world map rendering examples
