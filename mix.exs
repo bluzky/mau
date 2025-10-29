@@ -45,7 +45,7 @@ defmodule Mau.MixProject do
         "Documentation" => "https://hexdocs.pm/mau"
       },
       maintainers: ["Dũng Nguyễn"],
-      files: ~w(lib .formatter.exs mix.exs README* LICENSE* CHANGELOG*)
+      files: ~w(lib docs .formatter.exs mix.exs README* LICENSE* CHANGELOG*)
     ]
   end
 
@@ -55,16 +55,65 @@ defmodule Mau.MixProject do
       main: "readme",
       extras: [
         "README.md",
-        "docs/template_language_reference.md",
-        "docs/template_ast_specification.md",
-        "docs/template_evaluator_implementation.md"
+        "docs/reference/template-language.md",
+        "docs/reference/ast-specification.md",
+        "docs/reference/filters-list.md",
+        "docs/reference/api-reference.md",
+        "docs/reference/map-directives.md",
+        "docs/guides/template-syntax.md",
+        "docs/guides/filters.md",
+        "docs/guides/control-flow.md",
+        "docs/guides/variables.md",
+        "docs/guides/whitespace-control.md",
+        "docs/guides/map-rendering.md",
+        "docs/getting-started/installation.md",
+        "docs/getting-started/quick-start.md",
+        "docs/getting-started/basic-concepts.md",
+        "docs/getting-started/first-template.md",
+        "docs/advanced/custom-filters.md",
+        "docs/advanced/custom-functions.md",
+        "docs/advanced/performance-tuning.md",
+        "docs/advanced/error-handling.md",
+        "docs/advanced/security.md",
+        "docs/advanced/extending-mau.md",
+        "docs/examples/email-templates.md",
+        "docs/examples/report-generation.md",
+        "docs/examples/data-transformation.md"
       ],
       groups_for_extras: [
-        "Getting Started": ["README.md"],
-        Documentation: [
-          "docs/template_language_reference.md",
-          "docs/template_ast_specification.md",
-          "docs/template_evaluator_implementation.md"
+        "Getting Started": [
+          "docs/getting-started/installation.md",
+          "docs/getting-started/quick-start.md",
+          "docs/getting-started/basic-concepts.md",
+          "docs/getting-started/first-template.md"
+        ],
+        Guides: [
+          "docs/guides/template-syntax.md",
+          "docs/guides/filters.md",
+          "docs/guides/control-flow.md",
+          "docs/guides/variables.md",
+          "docs/guides/whitespace-control.md",
+          "docs/guides/map-rendering.md"
+        ],
+        Reference: [
+          "docs/reference/template-language.md",
+          "docs/reference/ast-specification.md",
+          "docs/reference/filters-list.md",
+          "docs/reference/api-reference.md",
+          "docs/reference/map-directives.md"
+        ],
+        Advanced: [
+          "docs/advanced/custom-filters.md",
+          "docs/advanced/custom-functions.md",
+          "docs/advanced/performance-tuning.md",
+          "docs/advanced/error-handling.md",
+          "docs/advanced/security.md",
+          "docs/advanced/extending-mau.md"
+        ],
+        Examples: [
+          "docs/examples/email-templates.md",
+          "docs/examples/report-generation.md",
+          "docs/examples/data-transformation.md"
         ]
       ],
       source_ref: "main"
