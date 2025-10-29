@@ -80,24 +80,6 @@ Literal text content
 {{ user.address.city }} <!-- Nested access -->
 ```
 
-### Built-in Workflow variables
-
-Workflow variables are normal variables that support a $ prefix in the variable name to distinguish them from local variables.
-
-**Workflow Variables**
-```liquid
-{{ $input }}            <!-- Workflow input data -->
-{{ $variables }}        <!-- Workflow variables -->
-{{ $nodes.step1.output }} <!-- Node execution results -->
-{{ $context }}          <!-- Execution context -->
-```
-
-**Path Expressions**
-```liquid
-{{ $input.user.profile.email }}
-{{ $nodes.api_call.response.data.users[0].name }}
-{{ $variables.api_url }}
-```
 
 ## Variable Access
 
@@ -441,7 +423,7 @@ Mau.render("{{ true }}", %{}, preserve_types: true)  #=> {:ok, true}
 **Collection Types**
 ```liquid
 {{ [1, 2, 3] }}           # List -> [1, 2, 3]
-{{ %{"key" => "value"} }} # Map -> %{"key" => "value"}
+{{ %{"key" => "value"} }} # Map -> %{"key" => "value"} # not yet support
 ```
 
 **Expressions and Operations**

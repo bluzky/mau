@@ -1132,4 +1132,3 @@ Check filter documentation for specific parameter requirements.
 - [Template Syntax Guide](../guides/template-syntax.md) - Variable interpolation
 - [Filters Guide](../guides/filters.md) - How to use and chain filters
 - [Control Flow Guide](../guides/control-flow.md) - Conditionals and loops
-- [Functions List](functions-list.md) - Built-in template functions

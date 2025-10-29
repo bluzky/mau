@@ -593,6 +593,5 @@ end
 ## See Also
 
 - [Custom Filters](custom-filters.md) - Creating custom filters
-- [Functions List](../reference/functions-list.md) - Built-in functions reference
 - [Performance Tuning](performance-tuning.md) - Optimization techniques
 - [API Reference](../reference/api-reference.md) - Mau API documentation

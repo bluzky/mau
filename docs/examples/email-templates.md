@@ -471,7 +471,6 @@ context = %{
 
 ## See Also
 
-- [Web Templates](web-templates.md) - HTML template examples
 - [Report Generation](report-generation.md) - Data report examples
 - [Template Syntax Guide](../guides/template-syntax.md) - Template language reference
 - [Filters Guide](../guides/filters.md) - Using filters for formatting

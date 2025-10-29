@@ -18,16 +18,16 @@ Generated: {{ report.generated_date }}
 
 EXECUTIVE SUMMARY
 -----------------
-Total Revenue: ${{ report.total_revenue | round: 2 }}
+Total Revenue: ${{ report.total_revenue | round(2) }}
 Total Orders: {{ report.total_orders }}
-Average Order Value: ${{ report.average_order_value | round: 2 }}
+Average Order Value: ${{ report.average_order_value | round(2) }}
 Conversion Rate: {{ report.conversion_rate }}%
 
 SALES BY REGION
 ---------------
 {% for region in report.by_region %}
 {{ region.name }}:
-  Revenue: ${{ region.revenue | round: 2 }} ({{ region.percentage }}%)
+  Revenue: ${{ region.revenue | round(2) }} ({{ region.percentage }}%)
   Orders: {{ region.orders }}
   Growth: {{ region.growth }}%
 
@@ -37,7 +37,7 @@ TOP PRODUCTS
 ------------
 {% for product in report.top_products %}
 {{ forloop.index }}. {{ product.name }}
-   Revenue: ${{ product.revenue | round: 2 }}
+   Revenue: ${{ product.revenue | round(2) }}
    Units Sold: {{ product.units }}
    % of Total: {{ product.percentage }}%
 
@@ -48,15 +48,15 @@ CUSTOMER ANALYSIS
 New Customers: {{ report.new_customers }}
 Returning Customers: {{ report.returning_customers }}
 Customer Retention Rate: {{ report.retention_rate }}%
-Average Customer Lifetime Value: ${{ report.avg_ltv | round: 2 }}
+Average Customer Lifetime Value: ${{ report.avg_ltv | round(2) }}
 
 MONTHLY BREAKDOWN
 -----------------
 {% for month in report.monthly %}
 {{ month.name }}:
-  Revenue: ${{ month.revenue | round: 2 }}
+  Revenue: ${{ month.revenue | round(2) }}
   Orders: {{ month.orders }}
-  Avg Order Value: ${{ month.avg_order_value | round: 2 }}
+  Avg Order Value: ${{ month.avg_order_value | round(2) }}
 {% endfor %}
 
 NOTES
@@ -114,7 +114,7 @@ Generate CSV data for spreadsheet import.
 template = """
 Customer ID,Name,Email,Company,Phone,Total Spent,Last Purchase,Status
 {% for customer in customers %}
-{{ customer.id }},{{ customer.name }},{{ customer.email }},{{ customer.company }},{{ customer.phone }},${{ customer.total_spent | round: 2 }},{{ customer.last_purchase }},{{ customer.status | capitalize }}
+{{ customer.id }},{{ customer.name }},{{ customer.email }},{{ customer.company }},{{ customer.phone }},${{ customer.total_spent | round(2) }},{{ customer.last_purchase }},{{ customer.status | capitalize }}
 {% endfor %}
 """
 
@@ -176,8 +176,8 @@ template = """
     },
     "summary": {
       "total_items": {{ report.summary.total_items }},
-      "total_value": {{ report.summary.total_value | round: 2 }},
-      "average_value": {{ report.summary.average_value | round: 2 }}
+      "total_value": {{ report.summary.total_value | round(2) }},
+      "average_value": {{ report.summary.average_value | round(2) }}
     },
     "items": [
       {% for item in report.items %}
@@ -185,10 +185,10 @@ template = """
         "id": {{ item.id }},
         "name": "{{ item.name }}",
         "category": "{{ item.category }}",
-        "value": {{ item.value | round: 2 }},
+        "value": {{ item.value | round(2) }},
         "quantity": {{ item.quantity }},
         "status": "{{ item.status }}"
-      }{{ forloop.last | if: '' | else: ',' }}
+      }{% if forloop.last == false %},{% endif %}
       {% endfor %}
     ],
     "metadata": {
@@ -250,7 +250,7 @@ TOP PAGES
 {% for page in metrics.top_pages %}
 {{ forloop.index }}. {{ page.title }}
    Path: {{ page.path }}
-   Visitors: {{ page.visitors | format_number }}
+   Visitors: {{ page.visitors }}
    Bounce Rate: {{ page.bounce_rate }}%
    Avg Time: {{ page.avg_time }}s
 
@@ -260,7 +260,7 @@ TRAFFIC SOURCES
 ---------------
 {% for source in metrics.traffic_sources %}
 {{ source.name }}
-  Visitors: {{ source.visitors | format_number }} ({{ source.percentage }}%)
+  Visitors: {{ source.visitors }} ({{ source.percentage }}%)
   Conversion: {{ source.conversion }}%
   Avg Session Duration: {{ source.avg_session }}s
 
@@ -268,21 +268,21 @@ TRAFFIC SOURCES
 
 USER ENGAGEMENT
 ---------------
-Total Users: {{ metrics.total_users | format_number }}
-New Users: {{ metrics.new_users | format_number }} ({{ metrics.new_user_percentage }}%)
-Returning Users: {{ metrics.returning_users | format_number }}
-Active Users (30d): {{ metrics.active_users_30d | format_number }}
+Total Users: {{ metrics.total_users }}
+New Users: {{ metrics.new_users }} ({{ metrics.new_user_percentage }}%)
+Returning Users: {{ metrics.returning_users }}
+Active Users (30d): {{ metrics.active_users_30d }}
 
 GOALS & CONVERSIONS
 -------------------
 {% for goal in metrics.goals %}
-{{ goal.name }}: {{ goal.completions | format_number }} completions ({{ goal.conversion_rate }}%)
+{{ goal.name }}: {{ goal.completions }} completions ({{ goal.conversion_rate }}%)
 {% endfor %}
 
 TOP DEVICES
 -----------
 {% for device in metrics.devices %}
-{{ device.name }}: {{ device.sessions | format_number }} sessions ({{ device.percentage }}%)
+{{ device.name }}: {{ device.sessions }} sessions ({{ device.percentage }}%)
 {% endfor %}
 
 RECOMMENDATIONS

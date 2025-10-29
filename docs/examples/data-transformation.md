@@ -560,13 +560,12 @@ input = %{
         "{{$categories}}",
         %{
           "category" => "{{$loop.item}}",
-          "count" => %{
+          "products" => %{
             "#filter" => [
               "{{$products}}",
               "{{$loop.item.category == $loop.parentloop.item}}"
             ]
-          },
-          "avg_price" => "{{$products | sum: 'price' | divided_by: $count}}"
+          }
         }
       ]
     }

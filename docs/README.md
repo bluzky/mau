@@ -30,7 +30,6 @@ Complete technical reference documentation.
 - [AST Specification](reference/ast-specification.md) - Template AST structure
 - [Map Directives](reference/map-directives.md) - Directive system reference
 - [Filters List](reference/filters-list.md) - Alphabetical filter reference
-- [Functions List](reference/functions-list.md) - Built-in functions reference
 - [API Reference](reference/api-reference.md) - Elixir API documentation
 
 ## Advanced Topics
