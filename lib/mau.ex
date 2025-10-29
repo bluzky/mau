@@ -5,13 +5,26 @@ defmodule Mau do
   Provides three main functions:
   - `compile/2` - Parse template string into AST
   - `render/3` - Render template string or AST with context
-  - `render_map/3` - Recursively render template strings in nested maps
+  - `render_map/3` - Recursively render template strings in nested maps with directive support
+
+  ## Map Directives
+
+  The `render_map/3` function supports powerful map transformation directives:
+
+  - `#map` - Iterate over collections and apply templates to each item with index and parent access
+  - `#merge` - Combine multiple maps together
+  - `#if` - Conditional rendering based on boolean conditions
+  - `#filter` - Filter collections based on conditions with index access
+  - `#pick` - Extract specific keys from maps
+
+  See `docs/map_directives_reference.md` for comprehensive documentation.
   """
 
   alias Mau.Parser
   alias Mau.Renderer
   alias Mau.BlockProcessor
   alias Mau.WhitespaceProcessor
+  alias Mau.MapDirectives
 
   @doc """
   Compiles a template string into an AST.
@@ -106,11 +119,19 @@ defmodule Mau do
 
   # Private helper for recursive map rendering
   defp render_map_recursive(map, context, opts) when is_map(map) do
-    map
-    |> Enum.map(fn {key, value} ->
-      {key, render_map_recursive(value, context, opts)}
-    end)
-    |> Enum.into(%{})
+    # Try to match special directive patterns
+    case MapDirectives.match_directive(map) do
+      {directive_type, args} ->
+        MapDirectives.apply_directive({directive_type, args}, context, opts, &render_map_recursive/3)
+
+      :none ->
+        # Regular map - recursively process all values
+        map
+        |> Enum.map(fn {key, value} ->
+          {key, render_map_recursive(value, context, opts)}
+        end)
+        |> Enum.into(%{})
+    end
   end
 
   defp render_map_recursive(list, context, opts) when is_list(list) do

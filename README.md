@@ -205,9 +205,15 @@ children = [Mau.FilterRegistry]
 
 ## Documentation
 
-- **[Template Language Reference](docs/template_language_reference.md)** - Complete syntax guide
-- **[Template AST Specification](docs/template_ast_specification.md)** - AST node definitions
-- **[Template Evaluator Implementation](docs/template_evaluator_implementation.md)** - Implementation patterns
+Comprehensive documentation is available in the [docs/](docs/) directory:
+
+- **[Getting Started](docs/README.md#getting-started)** - Installation, quick start, and basic concepts
+- **[Guides](docs/README.md#guides)** - Task-oriented guides for common use cases
+- **[Reference](docs/README.md#reference)** - Complete technical reference
+- **[Advanced Topics](docs/README.md#advanced-topics)** - Custom filters, performance tuning, security
+- **[Examples](docs/README.md#examples)** - Real-world examples and code snippets
+
+👉 **[Start with the Documentation Index →](docs/README.md)**
 
 ## License
 
