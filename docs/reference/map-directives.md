@@ -52,6 +52,14 @@ context = %{
 
 ## Available Directives
 
+- **`#pipe`** - Thread data through a series of transformations
+- **`#map`** - Iterate over a collection and apply a template to each item
+- **`#flat_map`** - Map over a collection and flatten the results into a single list
+- **`#merge`** - Merge multiple maps together
+- **`#if`** - Conditional rendering based on a boolean condition
+- **`#filter`** - Filter items in a collection based on a condition
+- **`#pick`** - Extract specific keys from a map
+
 ### `#pipe` - Data Pipeline
 
 Threads data through a series of transformations, similar to Elixir's `|>` operator. Each directive in the chain automatically receives the output of the previous directive as its first argument.
@@ -294,6 +302,150 @@ $loop = %{
   }
 }
 ```
+
+### `#flat_map` - Collection Mapping with Flattening
+
+Maps over a collection and flattens the results into a single list. This is useful when each item in the collection produces a list, and you want to combine all those lists into one flat list.
+
+#### Syntax
+
+```elixir
+"#flat_map" => [collection_template, item_template]
+```
+
+#### Parameters
+
+- `collection_template` - Template that resolves to a list to iterate over
+- `item_template` - Template to apply to each item (should produce a list)
+
+#### Loop Context Variable
+
+Each iteration has access to the same `$loop` variable as `#map`, with the following structure:
+
+```elixir
+$loop = %{
+  "item" => %{},           # Current iteration item
+  "index" => 0,            # Current iteration index (0-based)
+  "parentloop" => $loop    # Reference to parent $loop (or nil for outermost)
+}
+```
+
+#### Examples
+
+**Flatten tags from multiple products:**
+```elixir
+%{
+  all_tags: %{
+    "#flat_map" => [
+      "{{$products}}",
+      "{{$loop.item.tags}}"
+    ]
+  }
+}
+
+# Context:
+context = %{
+  "$products" => [
+    %{"tags" => ["electronics", "sale"]},
+    %{"tags" => ["clothing", "new"]},
+    %{"tags" => ["electronics", "featured"]}
+  ]
+}
+
+# Result: %{all_tags: ["electronics", "sale", "clothing", "new", "electronics", "featured"]}
+```
+
+**Flatten nested items with transformations:**
+```elixir
+%{
+  all_items: %{
+    "#flat_map" => [
+      "{{$categories}}",
+      %{
+        "#map" => [
+          "{{$loop.item.items}}",
+          %{
+            name: "{{$loop.item.name}}",
+            category: "{{$loop.parentloop.item.name}}"
+          }
+        ]
+      }
+    ]
+  }
+}
+
+# Context:
+context = %{
+  "$categories" => [
+    %{
+      "name" => "Electronics",
+      "items" => [
+        %{"name" => "Laptop"},
+        %{"name" => "Phone"}
+      ]
+    },
+    %{
+      "name" => "Books",
+      "items" => [
+        %{"name" => "Novel"}
+      ]
+    }
+  ]
+}
+
+# Result:
+# %{
+#   all_items: [
+#     %{name: "Laptop", category: "Electronics"},
+#     %{name: "Phone", category: "Electronics"},
+#     %{name: "Novel", category: "Books"}
+#   ]
+# }
+```
+
+**Accessing index in flat_map:**
+```elixir
+%{
+  result: %{
+    "#flat_map" => [
+      "{{$items}}",
+      %{
+        "#map" => [
+          "{{$loop.item.values}}",
+          %{
+            value: "{{$loop.item}}",
+            parent_index: "{{$loop.parentloop.index}}"
+          }
+        ]
+      }
+    ]
+  }
+}
+
+# Context:
+context = %{
+  "$items" => [
+    %{"values" => [1, 2]},
+    %{"values" => [3]}
+  ]
+}
+
+# Result:
+# %{
+#   result: [
+#     %{value: 1, parent_index: 0},
+#     %{value: 2, parent_index: 0},
+#     %{value: 3, parent_index: 1}
+#   ]
+# }
+```
+
+#### Behavior Notes
+
+- Non-list results from the item template are treated as empty lists
+- Empty collections return an empty list
+- Nil collections are treated as empty lists
+- Items that produce empty lists are automatically filtered out by the flattening process
 
 ### `#merge` - Map Combination
 

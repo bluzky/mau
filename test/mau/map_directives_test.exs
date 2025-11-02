@@ -329,6 +329,230 @@ defmodule Mau.MapDirectivesTest do
     end
   end
 
+  describe "#flat_map directive" do
+    test "flat maps over a collection where each item produces a list" do
+      input = %{
+        all_tags: %{
+          "#flat_map" => [
+            "{{$products}}",
+            "{{$loop.item.tags}}"
+          ]
+        }
+      }
+
+      context = %{
+        "$products" => [
+          %{"tags" => ["electronics", "sale"]},
+          %{"tags" => ["clothing", "new"]},
+          %{"tags" => ["electronics", "featured"]}
+        ]
+      }
+
+      expected = %{
+        all_tags: ["electronics", "sale", "clothing", "new", "electronics", "featured"]
+      }
+
+      assert {:ok, ^expected} = Mau.render_map(input, context)
+    end
+
+    test "flat maps with template transformations" do
+      input = %{
+        all_items: %{
+          "#flat_map" => [
+            "{{$categories}}",
+            %{
+              "#map" => [
+                "{{$loop.item.items}}",
+                %{
+                  name: "{{$loop.item.name}}",
+                  category: "{{$loop.parentloop.item.name}}"
+                }
+              ]
+            }
+          ]
+        }
+      }
+
+      context = %{
+        "$categories" => [
+          %{
+            "name" => "Electronics",
+            "items" => [
+              %{"name" => "Laptop"},
+              %{"name" => "Phone"}
+            ]
+          },
+          %{
+            "name" => "Books",
+            "items" => [
+              %{"name" => "Novel"}
+            ]
+          }
+        ]
+      }
+
+      expected = %{
+        all_items: [
+          %{name: "Laptop", category: "Electronics"},
+          %{name: "Phone", category: "Electronics"},
+          %{name: "Novel", category: "Books"}
+        ]
+      }
+
+      assert {:ok, ^expected} = Mau.render_map(input, context)
+    end
+
+    test "handles empty collection" do
+      input = %{
+        items: %{
+          "#flat_map" => [
+            "{{$items}}",
+            "{{$loop.item.values}}"
+          ]
+        }
+      }
+
+      context = %{"$items" => []}
+
+      expected = %{items: []}
+
+      assert {:ok, ^expected} = Mau.render_map(input, context)
+    end
+
+    test "handles nil collection" do
+      input = %{
+        items: %{
+          "#flat_map" => [
+            "{{$items}}",
+            "{{$loop.item.values}}"
+          ]
+        }
+      }
+
+      context = %{"$items" => nil}
+
+      expected = %{items: []}
+
+      assert {:ok, ^expected} = Mau.render_map(input, context)
+    end
+
+    test "handles items that produce empty lists" do
+      input = %{
+        all_values: %{
+          "#flat_map" => [
+            "{{$items}}",
+            "{{$loop.item.values}}"
+          ]
+        }
+      }
+
+      context = %{
+        "$items" => [
+          %{"values" => [1, 2]},
+          %{"values" => []},
+          %{"values" => [3, 4]}
+        ]
+      }
+
+      expected = %{
+        all_values: [1, 2, 3, 4]
+      }
+
+      assert {:ok, ^expected} = Mau.render_map(input, context)
+    end
+
+    test "provides index access via $loop.index" do
+      input = %{
+        result: %{
+          "#flat_map" => [
+            "{{$items}}",
+            %{
+              "#map" => [
+                "{{$loop.item.values}}",
+                %{
+                  value: "{{$loop.item}}",
+                  parent_index: "{{$loop.parentloop.index}}"
+                }
+              ]
+            }
+          ]
+        }
+      }
+
+      context = %{
+        "$items" => [
+          %{"values" => [1, 2]},
+          %{"values" => [3]}
+        ]
+      }
+
+      expected = %{
+        result: [
+          %{value: 1, parent_index: 0},
+          %{value: 2, parent_index: 0},
+          %{value: 3, parent_index: 1}
+        ]
+      }
+
+      assert {:ok, ^expected} = Mau.render_map(input, context)
+    end
+
+    test "handles non-list item results by treating as empty" do
+      input = %{
+        items: %{
+          "#flat_map" => [
+            "{{$items}}",
+            "{{$loop.item.value}}"
+          ]
+        }
+      }
+
+      context = %{
+        "$items" => [
+          %{"value" => "not a list"},
+          %{"value" => [1, 2]}
+        ]
+      }
+
+      # First item is not a list, so it's treated as empty; second item is a list
+      expected = %{items: [1, 2]}
+
+      assert {:ok, ^expected} = Mau.render_map(input, context)
+    end
+
+    test "handles invalid arguments gracefully" do
+      input = %{
+        items: %{
+          "#flat_map" => "not a list"
+        }
+      }
+
+      context = %{}
+
+      # When args is not a list, it's treated as a regular map key
+      expected = %{items: %{"#flat_map" => "not a list"}}
+
+      assert {:ok, ^expected} = Mau.render_map(input, context)
+    end
+
+    test "returns empty list for non-list collection" do
+      input = %{
+        items: %{
+          "#flat_map" => [
+            "{{$items}}",
+            "{{$loop.item.values}}"
+          ]
+        }
+      }
+
+      context = %{"$items" => "not a list"}
+
+      expected = %{items: []}
+
+      assert {:ok, ^expected} = Mau.render_map(input, context)
+    end
+  end
+
   describe "#merge directive" do
     test "merges two maps together" do
       input = %{
