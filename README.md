@@ -20,7 +20,7 @@ Add `mau` to your list of dependencies in `mix.exs`:
 ```elixir
 def deps do
   [
-    {:mau, "~> 0.2.0"}
+    {:mau, "~> 0.6"}
   ]
 end
 ```

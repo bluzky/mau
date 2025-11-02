@@ -9,6 +9,7 @@ defmodule Mau.MapDirectives do
 
   - `#pipe` - Thread data through a series of transformations (like Elixir's |> operator)
   - `#map` - Iterate over a collection and apply a template to each item
+  - `#flat_map` - Map over a collection and flatten the results into a single list
   - `#merge` - Merge multiple maps together
   - `#if` - Conditional rendering based on a boolean condition
   - `#filter` - Filter items in a collection based on a condition
@@ -38,6 +39,7 @@ defmodule Mau.MapDirectives do
   """
   # Only match if args is a list, otherwise treat as regular map key
   def match_directive(%{"#map" => args}) when is_list(args) and length(args) > 0, do: {:map, args}
+  def match_directive(%{"#flat_map" => args}) when is_list(args) and length(args) == 2, do: {:flat_map, args}
   def match_directive(%{"#merge" => args}) when is_list(args) and length(args) > 0, do: {:merge, args}
   def match_directive(%{"#if" => args}) when is_list(args) and length(args) in [2, 3], do: {:if, args}
   def match_directive(%{"#filter" => args}) when is_list(args) and length(args) == 2, do: {:filter, args}
@@ -65,6 +67,7 @@ defmodule Mau.MapDirectives do
 
   - `#pipe` - Thread data through a series of transformations (like Elixir's |> operator)
   - `#map` - Iterate over a collection and apply a template to each item
+  - `#flat_map` - Map over a collection and flatten the results into a single list
   - `#merge` - Merge multiple maps together
   - `#if` - Conditional rendering based on a boolean condition
   - `#filter` - Filter items in a collection based on a condition
@@ -108,6 +111,41 @@ defmodule Mau.MapDirectives do
   end
 
   def apply_directive({:map, _invalid_args}, _context, _opts, _render_fn) do
+    # Invalid arguments - return empty list
+    []
+  end
+
+  def apply_directive({:flat_map, [collection_template, item_template]}, context, opts, render_fn) do
+    # Render the collection template to get the actual collection
+    collection = render_fn.(collection_template, context, opts)
+
+    # Ensure we have a list to iterate over
+    items = ensure_list(collection)
+
+    # Get parent loop reference if it exists
+    parent_loop = context["$loop"]
+
+    # Map over each item with $loop context, then flatten
+    items
+    |> Enum.with_index()
+    |> Enum.flat_map(fn {item, index} ->
+      # Create new $loop structure with parent reference
+      loop_context = %{
+        "item" => item,
+        "index" => index,
+        "parentloop" => parent_loop
+      }
+
+      # Create new context with $loop pointing to current loop structure
+      item_context = Map.put(context, "$loop", loop_context)
+      # Recursively render the item template
+      result = render_fn.(item_template, item_context, opts)
+      # Ensure result is a list for flattening
+      ensure_list(result)
+    end)
+  end
+
+  def apply_directive({:flat_map, _invalid_args}, _context, _opts, _render_fn) do
     # Invalid arguments - return empty list
     []
   end
