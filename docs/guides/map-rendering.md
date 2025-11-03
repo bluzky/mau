@@ -609,7 +609,7 @@ IO.inspect(items)
 
 ## See Also
 
-- [Template Syntax Guide](template-syntax.md) - Template expressions
+- [Template Language Reference](../reference/template-language.md) - Template expressions
 - [Variables Guide](variables.md) - Variable access
 - [Map Directives Reference](../reference/map-directives.md) - Complete directive reference
 - [Data Transformation Examples](../examples/data-transformation.md) - Real-world map rendering examples

@@ -15,7 +15,6 @@ New to Mau? Start here to get up and running in minutes.
 
 Practical, task-oriented guides for common use cases.
 
-- [Template Syntax](guides/template-syntax.md) - Variables, expressions, and tags
 - [Filters](guides/filters.md) - Using and chaining filters
 - [Control Flow](guides/control-flow.md) - Conditionals and loops
 - [Variables](guides/variables.md) - Variable access and assignment

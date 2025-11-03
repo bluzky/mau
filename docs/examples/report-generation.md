@@ -481,4 +481,4 @@ context = %{
 - [Data Transformation](data-transformation.md) - Using map directives
 - [Email Templates](email-templates.md) - Email template examples
 - [Filters Guide](../guides/filters.md) - Formatting data with filters
-- [Template Syntax Guide](../guides/template-syntax.md) - Template language reference
+- [Template Language Reference](../reference/template-language.md) - Template language reference

@@ -213,7 +213,7 @@ context = %{"items" => [3, 1, 2]}
 
 - [Basic Concepts](basic-concepts.md) - Learn core concepts
 - [Your First Template](first-template.md) - Build a complete example
-- [Template Syntax Guide](../guides/template-syntax.md) - Explore specific features
+- [Template Language Reference](../reference/template-language.md) - Explore specific features
 - [Email Templates Example](../examples/email-templates.md) - See real-world use cases
 
 ## Key Takeaways

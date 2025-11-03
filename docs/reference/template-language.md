@@ -60,9 +60,9 @@ Literal text content
 
 **Null**
 ```liquid
-{{ null }}
 {{ nil }}
 ```
+Note: Both `nil` and `null` are supported and equivalent.
 
 ### Complex Types
 
@@ -161,30 +161,88 @@ Literal text content
 
 ### Logical Operators
 
-**Boolean Logic**
+Mau supports two styles of logical operators with **different behavior**:
+
+#### Word-based Operators: `and` / `or` / `not`
+
+**Returns boolean values** (`true` or `false`) using Liquid-style truthiness:
+
 ```liquid
-{{ user.active and user.verified }}
-{{ role == "admin" or role == "moderator" }}
-{{ not user.blocked }}
+{{ user.active and user.verified }}        # Returns: true or false
+{{ role == "admin" or role == "moderator" }}  # Returns: true or false
+{{ not user.blocked }}                     # Returns: true or false
 ```
 
-**Complex Conditions**
+**Truthiness (Liquid-style):**
+- Falsy values: `nil`, `false`, `0`, `""` (empty string), `[]` (empty list), `{}` (empty map)
+- Everything else is truthy
+
+**Examples:**
+```liquid
+{{ 0 and "hello" }}          # false (0 is falsy)
+{{ "" or "world" }}          # true (returns boolean, not the value)
+{{ "hello" and "world" }}    # true (returns boolean)
+```
+
+#### Symbol-based Operators: `&&` / `||` / `!`
+
+**Returns actual values** (not booleans) using Elixir-style truthiness:
+
+```liquid
+{{ user.active && user.verified }}        # Returns: right value or false/nil
+{{ role == "admin" || role == "moderator" }}  # Returns: first truthy value
+{{ !user.blocked }}                       # Returns: true or false
+```
+
+**Truthiness (Elixir-style):**
+- Falsy values: **only** `nil` and `false`
+- Everything else is truthy (including `0`, `""`, `[]`, `{}`)
+
+**Examples:**
+```liquid
+{{ 0 && "hello" }}           # "hello" (0 is truthy, returns right value)
+{{ "" || "world" }}          # "" (empty string is truthy, returns left value)
+{{ "hello" && "world" }}     # "world" (returns right value)
+{{ false || 42 }}            # 42 (returns first truthy value)
+{{ nil && "test" }}          # nil (short-circuits, returns nil)
+```
+
+#### Choosing Between Operators
+
+Use **`and` / `or` / `not`** when:
+- You need boolean results for conditions
+- You want Liquid-like behavior where `0` and `""` are falsy
+- You're writing templates familiar to Liquid users
+
+Use **`&&` / `||` / `!`** when:
+- You need the actual values (for default value patterns)
+- You want Elixir-like behavior where only `nil` and `false` are falsy
+- You're using `||` for default values: `{{ user.name || "Guest" }}`
+
+**Complex Conditions:**
 ```liquid
 {{ (age >= 18 and age <= 65) and (role == "user" or role == "premium") }}
-{{ user.active and (user.plan == "pro" or user.credits > 0) }}
+{{ user.active && (user.plan == "pro" || user.credits > 0) }}
+```
+
+**Short-circuit Evaluation:**
+Both operator styles support short-circuit evaluation:
+```liquid
+{{ false && expensive_operation }}  # expensive_operation not evaluated
+{{ true || expensive_operation }}   # expensive_operation not evaluated
 ```
 
 ### Operator Precedence
 
 **Highest to Lowest:**
 1. Property access: `.`, `[]`
-2. Unary: `not`, `-`
+2. Unary: `not` / `!`, `-`
 3. Multiplicative: `*`, `/`, `%`
 4. Additive: `+`, `-`
 5. Relational: `<`, `<=`, `>`, `>=`
 6. Equality: `==`, `!=`
-7. Logical AND: `and`
-8. Logical OR: `or`
+7. Logical AND: `and` / `&&`
+8. Logical OR: `or` / `||`
 
 **Parentheses** can override precedence:
 ```liquid
@@ -287,14 +345,23 @@ Total: ${{ total_price }}
 
 ## Filters
 
-Filters transform expression values using the pipe (`|`) operator.
-Filters can be invoked directly without the pipe operator:
+Filters transform expression values using the pipe (`|`) operator or function call syntax.
 
+**Pipe Syntax:**
+```liquid
+{{ user.name | capitalize }}
+{{ text | upper_case | strip }}
+```
+
+**Function Call Syntax:**
 ```liquid
 {{ capitalize(user.name) }}
+{{ upper_case(text) }}
 ```
 
 **Multiple Filters** *(Fully Supported)*
+
+Filters can be chained together for complex transformations:
 ```liquid
 {{ user.bio | strip | truncate(100) | capitalize }}
 {{ price | multiply(quantity) | format_currency("USD") }}
@@ -304,49 +371,13 @@ Filters can be invoked directly without the pipe operator:
 
 ### Available Filters
 
-**String Filters**
-- `upper_case` - Convert string to uppercase
-- `lower_case` - Convert string to lowercase  
-- `capitalize` - Capitalize the first letter of a string
-- `truncate` - Truncate string to specified length
-- `default` - Provide default value for nil/empty values
+Mau includes 40+ built-in filters organized into categories:
+- **String Filters** - Text manipulation and formatting
+- **Collection Filters** - Array and list operations
+- **Math Filters** - Numeric calculations and rounding
+- **Number Filters** - Number formatting
 
-**Number Filters**
-- `format_currency` - Format number as currency
-
-*Note: The `round` filter is implemented in the Math filters category.*
-
-**Collection Filters**
-- `length` - Get length/count of a collection
-- `first` - Get first item from a collection
-- `last` - Get last item from a collection
-- `join` - Join array elements with separator
-- `sort` - Sort a list
-- `reverse` - Reverse a list or string
-- `uniq` - Get unique elements from list
-- `slice` - Extract slice from list or string
-- `contains` - Check if collection contains value
-- `compact` - Remove nil values from list
-- `flatten` - Flatten nested lists
-- `sum` - Sum numeric values in list
-- `keys` - Get keys of a map
-- `values` - Get values of a map
-- `group_by` - Group list elements by key
-- `map` - Extract field values from list of maps
-- `filter` - Filter list of maps by field value
-- `reject` - Reject list of maps by field value
-- `dump` - Format data structures for display
-
-**Math Filters**
-- `abs` - Absolute value
-- `ceil` - Round up to nearest integer
-- `floor` - Round down to nearest integer
-- `max` - Maximum of two values
-- `min` - Minimum of two values
-- `power` - Raise to power
-- `sqrt` - Square root
-- `mod` - Modulo operation
-- `clamp` - Clamp value between min and max
+For a complete list of all available filters with detailed documentation, see **[Filters List Reference](filters-list.md)**.
 
 ## Whitespace Control
 

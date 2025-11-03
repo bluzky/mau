@@ -67,12 +67,12 @@ context = %{
 
 ### Array Access
 
-Access array elements by index (0-based):
+Access array elements by index (0-based) using bracket notation:
 
 ```
-{{ items.0 }}    # First item
-{{ items.1 }}    # Second item
-{{ items.5 }}    # Sixth item
+{{ items[0] }}    # First item
+{{ items[1] }}    # Second item
+{{ items[5] }}    # Sixth item
 ```
 
 Example:
@@ -82,8 +82,8 @@ context = %{
   "colors" => ["red", "green", "blue"]
 }
 
-{{ colors.0 }}   # "red"
-{{ colors.2 }}   # "blue"
+{{ colors[0] }}   # "red"
+{{ colors[2] }}   # "blue"
 ```
 
 ### Mixed Nesting
@@ -91,8 +91,8 @@ context = %{
 Combine object and array access:
 
 ```
-{{ categories.0.name }}
-{{ users.2.profile.email }}
+{{ categories[0].name }}
+{{ users[2].profile.email }}
 ```
 
 Example:
@@ -105,8 +105,8 @@ context = %{
   ]
 }
 
-{{ categories.0.name }}    # "Books"
-{{ categories.1.name }}    # "Videos"
+{{ categories[0].name }}    # "Books"
+{{ categories[1].name }}    # "Videos"
 ```
 
 ## Undefined Variables
@@ -153,7 +153,7 @@ Create or modify variables within templates using `{% assign %}`:
 ### Assigning from Other Variables
 
 ```
-{% assign first_item = items.0 %}
+{% assign first_item = items[0] %}
 {{ first_item }}
 ```
 
@@ -473,13 +473,13 @@ Mau.render("{{ count }}", %{"count" => 42}, preserve_types: true)
 |-----------|--------|---------|
 | Access | `{{ var }}` | `{{ user }}` |
 | Property | `{{ obj.prop }}` | `{{ user.name }}` |
-| Array | `{{ array.0 }}` | `{{ items.0 }}` |
+| Array | `{{ array[0] }}` | `{{ items[0] }}` |
 | Assign | `{% assign x = y %}` | `{% assign name = "Alice" %}` |
 | Expression | `{% assign x = y \| filter %}` | `{% assign count = items \| length %}` |
 | Conditional | `{% if var %}` | Check if defined |
 
 ## See Also
 
-- [Template Syntax Guide](template-syntax.md) - Variable syntax details
+- [Template Language Reference](../reference/template-language.md) - Variable syntax details
 - [Filters Guide](filters.md) - Using filters with variables
 - [Control Flow Guide](control-flow.md) - Using variables in conditionals

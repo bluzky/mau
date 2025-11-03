@@ -118,7 +118,7 @@ template = "{{ user.profile.name }}"
 
 ```elixir
 context = %{"items" => ["apple", "banana", "cherry"]}
-template = "First: {{ items.0 }}, Last: {{ items.2 }}"
+template = "First: {{ items[0] }}, Last: {{ items[2] }}"
 # Output: "First: apple, Last: cherry"
 ```
 
@@ -387,5 +387,5 @@ Mau.render("Count: {{ 42 }}", %{}, preserve_types: true)
 ## Next Steps
 
 - [Your First Template](first-template.md) - Build a complete example
-- [Template Syntax Guide](../guides/template-syntax.md) - Detailed feature guides
+- [Template Language Reference](../reference/template-language.md) - Detailed feature guides
 - [Email Template Examples](../examples/email-templates.md) - Real-world use cases

@@ -12,6 +12,8 @@ defmodule Mau.MapDirectives do
   - `#flat_map` - Map over a collection and flatten the results into a single list
   - `#merge` - Merge multiple maps together
   - `#if` - Conditional rendering based on a boolean condition
+  - `#case` - Pattern matching on values (like Elixir's case)
+  - `#cond` - Condition-based branching (like Elixir's cond)
   - `#filter` - Filter items in a collection based on a condition
   - `#pick` - Extract specific keys from a map (similar to Map.pick)
 
@@ -42,6 +44,8 @@ defmodule Mau.MapDirectives do
   def match_directive(%{"#flat_map" => args}) when is_list(args) and length(args) == 2, do: {:flat_map, args}
   def match_directive(%{"#merge" => args}) when is_list(args) and length(args) > 0, do: {:merge, args}
   def match_directive(%{"#if" => args}) when is_list(args) and length(args) in [2, 3], do: {:if, args}
+  def match_directive(%{"#case" => args}) when is_list(args) and length(args) in [2, 3], do: {:case, args}
+  def match_directive(%{"#cond" => args}) when is_list(args) and length(args) == 1, do: {:cond, args}
   def match_directive(%{"#filter" => args}) when is_list(args) and length(args) == 2, do: {:filter, args}
   def match_directive(%{"#pick" => args}) when is_list(args) and length(args) == 2, do: {:pick, args}
 
@@ -70,6 +74,8 @@ defmodule Mau.MapDirectives do
   - `#flat_map` - Map over a collection and flatten the results into a single list
   - `#merge` - Merge multiple maps together
   - `#if` - Conditional rendering based on a boolean condition
+  - `#case` - Pattern matching on values (like Elixir's case)
+  - `#cond` - Condition-based branching (like Elixir's cond)
   - `#filter` - Filter items in a collection based on a condition
   - `#pick` - Extract specific keys from a map (similar to Map.pick)
 
@@ -194,6 +200,98 @@ defmodule Mau.MapDirectives do
   end
 
   def apply_directive({:if, _invalid_args}, _context, _opts, _render_fn) do
+    # Invalid arguments - return nil
+    nil
+  end
+
+  def apply_directive({:case, [value_template, patterns]}, context, opts, render_fn) when is_list(patterns) do
+    # Render the value to match against
+    value = render_fn.(value_template, context, opts)
+
+    # Find the first matching pattern - return {:ok, result} to distinguish from no match
+    match_result = Enum.reduce_while(patterns, nil, fn
+      [pattern, template], _acc ->
+        # Render pattern if it's a template string
+        pattern_value = if is_binary(pattern), do: render_fn.(pattern, context, opts), else: pattern
+
+        # Check if pattern matches value
+        if pattern_value == value do
+          result = render_fn.(template, context, opts)
+          {:halt, {:ok, result}}
+        else
+          {:cont, nil}
+        end
+
+      _, acc ->
+        # Invalid pattern format
+        {:cont, acc}
+    end)
+
+    # Return matched result or nil
+    case match_result do
+      {:ok, result} -> result
+      nil -> nil
+    end
+  end
+
+  def apply_directive({:case, [value_template, patterns, default_template]}, context, opts, render_fn) when is_list(patterns) do
+    # Render the value to match against
+    value = render_fn.(value_template, context, opts)
+
+    # Find the first matching pattern - return {:ok, result} to distinguish from no match
+    match_result = Enum.reduce_while(patterns, nil, fn
+      [pattern, template], _acc ->
+        # Render pattern if it's a template string
+        pattern_value = if is_binary(pattern), do: render_fn.(pattern, context, opts), else: pattern
+
+        # Check if pattern matches value
+        if pattern_value == value do
+          result = render_fn.(template, context, opts)
+          {:halt, {:ok, result}}
+        else
+          {:cont, nil}
+        end
+
+      _, acc ->
+        # Invalid pattern format
+        {:cont, acc}
+    end)
+
+    # Return matched result or default
+    case match_result do
+      {:ok, result} -> result
+      nil -> render_fn.(default_template, context, opts)
+    end
+  end
+
+  def apply_directive({:case, _invalid_args}, _context, _opts, _render_fn) do
+    # Invalid arguments - return nil
+    nil
+  end
+
+  def apply_directive({:cond, [conditions]}, context, opts, render_fn) when is_list(conditions) do
+    # Find the first condition that evaluates to true
+    result = Enum.find_value(conditions, fn
+      [condition_template, template] ->
+        # Render the condition
+        condition_result = render_fn.(condition_template, context, opts)
+
+        # Check if condition is truthy
+        if truthy?(condition_result) do
+          render_fn.(template, context, opts)
+        else
+          nil
+        end
+
+      _ ->
+        # Invalid condition format
+        nil
+    end)
+
+    result
+  end
+
+  def apply_directive({:cond, _invalid_args}, _context, _opts, _render_fn) do
     # Invalid arguments - return nil
     nil
   end

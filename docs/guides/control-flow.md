@@ -510,6 +510,6 @@ Use early returns with negation:
 
 ## See Also
 
-- [Template Syntax Guide](template-syntax.md) - Expression syntax
+- [Template Language Reference](../reference/template-language.md) - Expression syntax
 - [Variables Guide](variables.md) - Variable access patterns
 - [Filters Guide](filters.md) - Using filters in conditions
