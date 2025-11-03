@@ -57,6 +57,8 @@ context = %{
 - **`#flat_map`** - Map over a collection and flatten the results into a single list
 - **`#merge`** - Merge multiple maps together
 - **`#if`** - Conditional rendering based on a boolean condition
+- **`#case`** - Pattern matching on values (like Elixir's case)
+- **`#cond`** - Condition-based branching (like Elixir's cond)
 - **`#filter`** - Filter items in a collection based on a condition
 - **`#pick`** - Extract specific keys from a map
 
@@ -548,6 +550,125 @@ Conditionally renders one of two templates based on a boolean condition.
       "{{$loop.item.premium_user}}",
       %{price: "{{$loop.item.price}}", discount: "0.9"},
       %{price: "{{$loop.item.base_price}}"}
+    ]
+  }
+}
+```
+
+### `#case` - Pattern Matching
+
+Matches a value against multiple patterns and renders the template for the first matching pattern. Similar to Elixir's `case` statement.
+
+#### Syntax
+
+```elixir
+# With default case
+"#case" => [value_template, [[pattern, template], ...], default_template]
+
+# Without default case (returns nil if no match)
+"#case" => [value_template, [[pattern, template], ...]]
+```
+
+#### Parameters
+
+- `value_template` - Template that resolves to the value to match
+- `patterns` - List of `[pattern, template]` pairs. Patterns can be literals or templates.
+- `default_template` - Optional template to render if no pattern matches
+
+#### Examples
+
+**String matching:**
+```elixir
+%{
+  status_info: %{
+    "#case" => [
+      "{{$order.status}}",
+      [
+        ["pending", %{message: "Order is pending"}],
+        ["shipped", %{message: "Order has been shipped"}],
+        ["delivered", %{message: "Order delivered"}]
+      ],
+      %{message: "Unknown status"}
+    ]
+  }
+}
+```
+
+**Numeric matching:**
+```elixir
+%{
+  response: %{
+    "#case" => [
+      "{{$status_code}}",
+      [
+        [200, %{type: "success", message: "OK"}],
+        [404, %{type: "error", message: "Not Found"}],
+        [500, %{type: "error", message: "Server Error"}]
+      ]
+    ]
+  }
+}
+```
+
+### `#cond` - Conditional Branching
+
+Evaluates conditions in order and renders the template for the first truthy condition. Similar to Elixir's `cond` statement.
+
+#### Syntax
+
+```elixir
+"#cond" => [[[condition, template], ...]]
+```
+
+#### Parameters
+
+- `conditions` - List of `[condition_template, template]` pairs
+- Each condition is evaluated in order
+- First truthy condition's template is rendered
+- Returns `nil` if no condition matches
+
+#### Default Case
+
+Use `"{{ true }}"` as the last condition for a default case:
+
+```elixir
+"#cond" => [
+  [
+    ["{{ condition1 }}", template1],
+    ["{{ condition2 }}", template2],
+    ["{{ true }}", default_template]  # Always matches
+  ]
+]
+```
+
+#### Examples
+
+**Range-based conditions:**
+```elixir
+%{
+  grade: %{
+    "#cond" => [
+      [
+        ["{{$score > 90}}", %{grade: "A"}],
+        ["{{$score > 80}}", %{grade: "B"}],
+        ["{{$score > 70}}", %{grade: "C"}],
+        ["{{ true }}", %{grade: "F"}]
+      ]
+    ]
+  }
+}
+```
+
+**Boolean conditions:**
+```elixir
+%{
+  access: %{
+    "#cond" => [
+      [
+        ["{{$user.is_admin}}", %{role: "Administrator"}],
+        ["{{$user.is_moderator}}", %{role: "Moderator"}],
+        ["{{ true }}", %{role: "Guest"}]
+      ]
     ]
   }
 }

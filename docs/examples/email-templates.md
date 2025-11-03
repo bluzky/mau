@@ -472,5 +472,5 @@ context = %{
 ## See Also
 
 - [Report Generation](report-generation.md) - Data report examples
-- [Template Syntax Guide](../guides/template-syntax.md) - Template language reference
+- [Template Language Reference](../reference/template-language.md) - Template language reference
 - [Filters Guide](../guides/filters.md) - Using filters for formatting

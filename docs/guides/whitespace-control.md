@@ -466,6 +466,6 @@ Line 2
 
 ## See Also
 
-- [Template Syntax Guide](template-syntax.md) - Full syntax reference
+- [Template Language Reference](../reference/template-language.md) - Full syntax reference
 - [Control Flow Guide](control-flow.md) - Tags that work with whitespace
 - [Email Template Examples](../examples/email-templates.md) - Real-world template examples

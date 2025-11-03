@@ -4,7 +4,7 @@ defmodule Mau.MixProject do
   def project do
     [
       app: :mau,
-      version: "0.6.1",
+      version: "0.7.0",
       elixir: "~> 1.14",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
@@ -60,7 +60,6 @@ defmodule Mau.MixProject do
         "docs/reference/filters-list.md",
         "docs/reference/api-reference.md",
         "docs/reference/map-directives.md",
-        "docs/guides/template-syntax.md",
         "docs/guides/filters.md",
         "docs/guides/control-flow.md",
         "docs/guides/variables.md",
@@ -88,7 +87,6 @@ defmodule Mau.MixProject do
           "docs/getting-started/first-template.md"
         ],
         Guides: [
-          "docs/guides/template-syntax.md",
           "docs/guides/filters.md",
           "docs/guides/control-flow.md",
           "docs/guides/variables.md",

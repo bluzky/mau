@@ -208,7 +208,7 @@ children = [Mau.FilterRegistry]
 Comprehensive documentation is available in the `docs/` directory:
 
 - **[Getting Started](docs/getting-started/installation.md)** - Installation, quick start, and basic concepts
-- **[Guides](docs/guides/template-syntax.md)** - Task-oriented guides for common use cases
+- **[Guides](docs/guides/filters.md)** - Task-oriented guides for common use cases
 - **[Reference](docs/reference/template-language.md)** - Complete technical reference
 - **[Advanced Topics](docs/advanced/custom-filters.md)** - Custom filters, performance tuning, security
 - **[Examples](docs/examples/email-templates.md)** - Real-world examples and code snippets
