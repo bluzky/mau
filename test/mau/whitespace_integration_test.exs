@@ -158,4 +158,102 @@ defmodule Mau.WhitespaceIntegrationTest do
       assert result == ""
     end
   end
+
+  describe "negative numbers vs whitespace control disambiguation" do
+    test "renders {{-1 * 1.00}} as negative number multiplication" do
+      template = "{{-1 * 1.00}}"
+      context = %{}
+
+      assert {:ok, result} = Mau.render(template, context)
+      assert result == "-1.0"
+    end
+
+    test "renders {{-5 + 3}} as negative number addition" do
+      template = "{{-5 + 3}}"
+      context = %{}
+
+      assert {:ok, result} = Mau.render(template, context)
+      assert result == "-2"
+    end
+
+    test "renders {{-3.14}} as negative float" do
+      template = "{{-3.14}}"
+      context = %{}
+
+      assert {:ok, result} = Mau.render(template, context)
+      assert result == "-3.14"
+    end
+
+    test "renders {{-1 * -2}} as negative numbers multiplication" do
+      template = "{{-1 * -2}}"
+      context = %{}
+
+      assert {:ok, result} = Mau.render(template, context)
+      assert result == "2"
+    end
+
+    test "renders {{- 5}} with space as whitespace trim" do
+      template = "  {{- 5}}  "
+      context = %{}
+
+      assert {:ok, result} = Mau.render(template, context)
+      # Should trim left whitespace
+      assert result == "5  "
+    end
+
+    test "renders {{- -5}} with space as trim followed by negative number" do
+      template = "  {{- -5}}  "
+      context = %{}
+
+      assert {:ok, result} = Mau.render(template, context)
+      # Should trim left whitespace and render negative number
+      assert result == "-5  "
+    end
+
+    test "renders complex expression starting with negative number" do
+      template = "Result: {{-10 / 2 + 3}}"
+      context = %{}
+
+      assert {:ok, result} = Mau.render(template, context)
+      assert result == "Result: -2.0"
+    end
+
+    test "treats {{-var}} as literal text (invalid syntax)" do
+      template = "{{-var}}"
+      context = %{"var" => 42}
+
+      # {{-var}} is not valid syntax because:
+      # - It's not whitespace control (no space after {{-)
+      # - It's not a negative number literal (var is not a number)
+      # - Unary minus on variables is not supported
+      # So it's treated as literal text
+      assert {:ok, result} = Mau.render(template, context)
+      assert result == "{{-var}}"
+    end
+
+    test "preserves negative numbers in arithmetic expressions" do
+      template = "{{ 10 + -5 }}"
+      context = %{}
+
+      assert {:ok, result} = Mau.render(template, context)
+      assert result == "5"
+    end
+
+    test "handles negative numbers at start of complex expressions" do
+      template = "{{-1 * 2 + 3 * 4}}"
+      context = %{}
+
+      assert {:ok, result} = Mau.render(template, context)
+      assert result == "10"
+    end
+
+    test "distinguishes between trim and negative in mixed content" do
+      template = "A{{-1}}B  {{- 2}}C"
+      context = %{}
+
+      assert {:ok, result} = Mau.render(template, context)
+      # {{-1}} is negative one (no trim), {{- 2}} is trim with value 2
+      assert result == "A-1B2C"
+    end
+  end
 end

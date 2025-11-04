@@ -402,7 +402,9 @@ defmodule Mau.Parser do
   expression_block =
     choice([
       # Both trim: {{- expr -}} (most specific - must come first)
+      # Lookahead ensures {{- is followed by whitespace (not a digit for negative numbers)
       ignore(string("{{-"))
+      |> lookahead(ascii_char([?\s, ?\t, ?\n, ?\r]))
       |> ignore(optional_whitespace)
       |> concat(expression_value)
       |> ignore(optional_whitespace)
@@ -410,7 +412,9 @@ defmodule Mau.Parser do
       |> reduce({:build_expression_node_with_trim, [:both_trim]}),
 
       # Left trim: {{- expr }}
+      # Lookahead ensures {{- is followed by whitespace (not a digit for negative numbers)
       ignore(string("{{-"))
+      |> lookahead(ascii_char([?\s, ?\t, ?\n, ?\r]))
       |> ignore(optional_whitespace)
       |> concat(expression_value)
       |> ignore(optional_whitespace)

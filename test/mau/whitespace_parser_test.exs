@@ -141,4 +141,64 @@ defmodule Mau.WhitespaceParserTest do
       assert {:text, ["  End\n"], []} = text3
     end
   end
+
+  describe "negative numbers vs whitespace control disambiguation" do
+    test "parses {{-1}} as negative number (no trim)" do
+      result = Parser.parse("{{-1}}")
+
+      assert {:ok, nodes} = result
+      assert [node] = nodes
+      assert {:expression, [{:literal, [-1], []}], opts} = node
+      # Should NOT have trim flags since this is a negative number
+      assert Keyword.get(opts, :trim_left) == nil
+      assert Keyword.get(opts, :trim_right) == nil
+    end
+
+    test "parses {{-5 + 3}} as negative number expression" do
+      result = Parser.parse("{{-5 + 3}}")
+
+      assert {:ok, nodes} = result
+      assert [node] = nodes
+      assert {:expression, [{:binary_op, ["+", {:literal, [-5], []}, {:literal, [3], []}], []}], opts} = node
+      assert Keyword.get(opts, :trim_left) == nil
+    end
+
+    test "parses {{-3.14}} as negative float" do
+      result = Parser.parse("{{-3.14}}")
+
+      assert {:ok, nodes} = result
+      assert [node] = nodes
+      assert {:expression, [{:literal, [value], []}], opts} = node
+      assert_in_delta value, -3.14, 0.001
+      assert Keyword.get(opts, :trim_left) == nil
+    end
+
+    test "parses {{- 5}} with space as whitespace control" do
+      result = Parser.parse("{{- 5}}")
+
+      assert {:ok, nodes} = result
+      assert [node] = nodes
+      assert {:expression, [{:literal, [5], []}], opts} = node
+      # Should have trim flag since there's a space after {{-
+      assert Keyword.get(opts, :trim_left) == true
+    end
+
+    test "parses {{- name}} with space as whitespace control" do
+      result = Parser.parse("{{- name}}")
+
+      assert {:ok, nodes} = result
+      assert [node] = nodes
+      assert {:expression, [{:variable, ["name"], []}], opts} = node
+      assert Keyword.get(opts, :trim_left) == true
+    end
+
+    test "parses {{-1 * 2}} as negative number multiplication" do
+      result = Parser.parse("{{-1 * 2}}")
+
+      assert {:ok, nodes} = result
+      assert [node] = nodes
+      assert {:expression, [{:binary_op, ["*", {:literal, [-1], []}, {:literal, [2], []}], []}], opts} = node
+      assert Keyword.get(opts, :trim_left) == nil
+    end
+  end
 end
