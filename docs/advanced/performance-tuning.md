@@ -209,7 +209,7 @@ Order filters for best performance:
 {{ items | sort | reverse | first }}
 
 # ✅ Filter before sort (smaller dataset)
-{{ items | filter: "status", "active" | sort | reverse | first }}
+{{ items | filter("status", "active") | sort | reverse | first }}
 ```
 
 ### Avoid N+1 Filter Problems
@@ -217,7 +217,7 @@ Order filters for best performance:
 ```elixir
 # ❌ Creates 1 lookup per item (N+1)
 {% for item in items %}
-  {{ item | lookup_price: prices }}
+  {{ item | lookup_price(prices) }}
 {% endfor %}
 
 # ✅ Preprocess lookups before template
@@ -495,7 +495,7 @@ end)
 **Solutions**:
 ```elixir
 # ❌ Slow: Multiple passes
-{{ items | sort | reverse | map: "name" | join: ", " }}
+{{ items | sort | reverse | map("name") | join(", ") }}
 
 # ✅ Fast: Preprocess
 preprocessed = items

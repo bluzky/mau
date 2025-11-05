@@ -120,17 +120,17 @@ template = """
         <tr>
           <td>{{ item.name }}</td>
           <td>{{ item.quantity }}</td>
-          <td>${{ item.price | round: 2 }}</td>
-          <td>${{ item.total | round: 2 }}</td>
+          <td>${{ item.price | round(2) }}</td>
+          <td>${{ item.total | round(2) }}</td>
         </tr>
         {% endfor %}
       </tbody>
     </table>
 
     <div style="text-align: right; padding: 10px 0; border-top: 2px solid #333;">
-      <p style="margin: 10px 0;"><strong>Subtotal:</strong> ${{ order.subtotal | round: 2 }}</p>
-      <p style="margin: 10px 0;"><strong>Tax:</strong> ${{ order.tax | round: 2 }}</p>
-      <p style="margin: 10px 0; font-size: 18px;"><strong>Total:</strong> ${{ order.total | round: 2 }}</p>
+      <p style="margin: 10px 0;"><strong>Subtotal:</strong> ${{ order.subtotal | round(2) }}</p>
+      <p style="margin: 10px 0;"><strong>Tax:</strong> ${{ order.tax | round(2) }}</p>
+      <p style="margin: 10px 0; font-size: 18px;"><strong>Total:</strong> ${{ order.total | round(2) }}</p>
     </div>
 
     <h3>Shipping Address</h3>

@@ -154,7 +154,7 @@ defmodule MyApp.StringFilters do
   @doc """
   Masks a string, showing only first and last N characters.
 
-  Usage: {{ email | mask: 3 }}
+  Usage: {{ email | mask(3) }}
   "john@example.com" -> "joh***@example.***"
   """
   def mask(value, [num]) when is_binary(value) and is_integer(num) do
@@ -177,7 +177,7 @@ defmodule MyApp.StringFilters do
   @doc """
   Repeats a string N times.
 
-  Usage: {{ word | repeat: 3 }}
+  Usage: {{ word | repeat(3) }}
   "Ha" -> "HaHaHa"
   """
   def repeat(value, [count]) when is_binary(value) and is_integer(count) and count > 0 do
@@ -195,10 +195,10 @@ end
 ```elixir
 context = %{"email" => "john@example.com", "word" => "Ha"}
 
-Mau.render("{{ email | mask: 3 }}", context)
+Mau.render("{{ email | mask(3) }}", context)
 # Output: "joh***@example.***"
 
-Mau.render("{{ word | repeat: 3 }}", context)
+Mau.render("{{ word | repeat(3) }}", context)
 # Output: "HaHaHa"
 ```
 
@@ -230,7 +230,7 @@ defmodule MyApp.AdvancedFilters do
   @doc """
   Replace multiple patterns in a string.
 
-  Usage: {{ text | replace_multiple: search1, replace1, search2, replace2 }}
+  Usage: {{ text | replace_multiple(search1, replace1, search2, replace2) }}
   """
   def replace_multiple(value, args) when is_binary(value) and is_list(args) do
     if rem(length(args), 2) == 0 do
@@ -279,7 +279,7 @@ context = %{
   "title" => "My Awesome Blog Post!"
 }
 
-Mau.render("{{ text | replace_multiple: '{{name}}', 'Alice', '{{company}}', 'Acme' }}", context)
+Mau.render("{{ text | replace_multiple('{{name}}', 'Alice', '{{company}}', 'Acme') }}", context)
 # Output: "Hello Alice from Acme!"
 
 Mau.render("{{ title | slugify }}", context)
@@ -314,7 +314,7 @@ defmodule MyApp.ConditionalFilters do
   @doc """
   Pluralize a word based on count.
 
-  Usage: {{ count | pluralize: 'item' }}
+  Usage: {{ count | pluralize('item') }}
   1 -> "1 item"
   5 -> "5 items"
   """
@@ -358,10 +358,10 @@ end
 ```elixir
 context = %{"items" => 1, "more_items" => 5, "filesize" => 1048576}
 
-Mau.render("You have {{ items | pluralize: 'item' }}", context)
+Mau.render("You have {{ items | pluralize('item') }}", context)
 # Output: "You have 1 item"
 
-Mau.render("You have {{ more_items | pluralize: 'item' }}", context)
+Mau.render("You have {{ more_items | pluralize('item') }}", context)
 # Output: "You have 5 items"
 
 Mau.render("File size: {{ filesize | human_filesize }}", context)
@@ -494,7 +494,7 @@ truncates to specified length (default: 140).
 
 Usage:
   {{ text | social_format }}
-  {{ text | social_format: 280 }}
+  {{ text | social_format(280) }}
 
 Returns:
   {:ok, transformed_text}

@@ -16,7 +16,7 @@ All filters use the pipe syntax:
 
 ```
 {{ value | filter_name }}
-{{ value | filter_name: arg1, arg2 }}
+{{ value | filter_name(arg1, arg2) }}
 {{ value | filter1 | filter2 | filter3 }}
 ```
 
@@ -58,7 +58,7 @@ Returns the input value, or a default value if input is nil or empty string.
 
 **Syntax:**
 ```
-{{ value | default: fallback_value }}
+{{ value | default(fallback_value) }}
 ```
 
 **Parameters:**
@@ -66,11 +66,11 @@ Returns the input value, or a default value if input is nil or empty string.
 
 **Examples:**
 ```
-{{ author | default: "Anonymous" }}
+{{ author | default("Anonymous") }}
 # If author is nil: "Anonymous"
 # If author is "John": "John"
 
-{{ bio | default: "No bio provided" }}
+{{ bio | default("No bio provided") }}
 # If bio is empty string: "No bio provided"
 ```
 
@@ -136,8 +136,8 @@ Truncates a string to a specified length with optional suffix.
 
 **Syntax:**
 ```
-{{ value | truncate: length }}
-{{ value | truncate: length, suffix }}
+{{ value | truncate(length) }}
+{{ value | truncate(length, suffix) }}
 ```
 
 **Parameters:**
@@ -146,13 +146,13 @@ Truncates a string to a specified length with optional suffix.
 
 **Examples:**
 ```
-{{ "Hello World" | truncate: 8 }}
+{{ "Hello World" | truncate(8) }}
 # Output: "Hello..."
 
-{{ "Hello World" | truncate: 9, "…" }}
+{{ "Hello World" | truncate(9, "…") }}
 # Output: "Hello W…"
 
-{{ description | truncate: 50, "" }}
+{{ description | truncate(50, "") }}
 # Output: First 50 characters with no suffix
 ```
 
@@ -221,7 +221,7 @@ Checks if a collection, string, or map contains a specific value or key.
 
 **Syntax:**
 ```
-{{ value | contains: search_value }}
+{{ value | contains(search_value) }}
 ```
 
 **Parameters:**
@@ -229,13 +229,13 @@ Checks if a collection, string, or map contains a specific value or key.
 
 **Examples:**
 ```
-{{ "hello world" | contains: "world" }}
+{{ "hello world" | contains("world") }}
 # Output: true
 
-{{ names | contains: "Alice" }}
+{{ names | contains("Alice") }}
 # Returns true if "Alice" is in the list
 
-{{ user | contains: "email" }}
+{{ user | contains("email") }}
 # Returns true if "email" key exists in map
 ```
 
@@ -275,7 +275,7 @@ Filters a list of maps, keeping only items where a field matches a value.
 
 **Syntax:**
 ```
-{{ list | filter: field, value }}
+{{ list | filter(field, value) }}
 ```
 
 **Parameters:**
@@ -284,10 +284,10 @@ Filters a list of maps, keeping only items where a field matches a value.
 
 **Examples:**
 ```
-{{ users | filter: "status", "active" }}
+{{ users | filter("status", "active") }}
 # Output: [users where status == "active"]
 
-{{ products | filter: "category", "electronics" }}
+{{ products | filter("category", "electronics") }}
 # Returns only electronics products
 ```
 
@@ -358,7 +358,7 @@ Groups a list of maps by the value of a specified field.
 
 **Syntax:**
 ```
-{{ list | group_by: field }}
+{{ list | group_by(field) }}
 ```
 
 **Parameters:**
@@ -366,13 +366,13 @@ Groups a list of maps by the value of a specified field.
 
 **Examples:**
 ```
-{{ users | group_by: "department" }}
+{{ users | group_by("department") }}
 # Output: %{
 #   "engineering" => [alice, bob],
 #   "sales" => [charlie, diana]
 # }
 
-{{ products | group_by: "category" }}
+{{ products | group_by("category") }}
 # Groups products by their category
 ```
 
@@ -389,7 +389,7 @@ Joins elements of a list into a string with a separator.
 **Syntax:**
 ```
 {{ list | join }}
-{{ list | join: separator }}
+{{ list | join(separator) }}
 ```
 
 **Parameters:**
@@ -397,14 +397,14 @@ Joins elements of a list into a string with a separator.
 
 **Examples:**
 ```
-{{ tags | join: ", " }}
+{{ tags | join(", ") }}
 # Input: ["ruby", "elixir", "javascript"]
 # Output: "ruby, elixir, javascript"
 
-{{ lines | join: "\n" }}
+{{ lines | join("\n") }}
 # Joins with newlines (useful for CSV or plain text)
 
-{{ values | join: "-" }}
+{{ values | join("-") }}
 # Output with dash separator: "1-2-3-4"
 ```
 
@@ -501,7 +501,7 @@ Extracts a field value from each map in a list, filtering out nil values.
 
 **Syntax:**
 ```
-{{ list | map: field }}
+{{ list | map(field) }}
 ```
 
 **Parameters:**
@@ -509,14 +509,14 @@ Extracts a field value from each map in a list, filtering out nil values.
 
 **Examples:**
 ```
-{{ users | map: "name" }}
+{{ users | map("name") }}
 # Input: [
 #   %{"name" => "Alice", "age" => 30},
 #   %{"name" => "Bob", "age" => 25}
 # ]
 # Output: ["Alice", "Bob"]
 
-{{ products | map: "price" }}
+{{ products | map("price") }}
 # Extracts all prices from product list
 ```
 
@@ -532,7 +532,7 @@ Filters a list of maps, removing items where a field matches a value (opposite o
 
 **Syntax:**
 ```
-{{ list | reject: field, value }}
+{{ list | reject(field, value) }}
 ```
 
 **Parameters:**
@@ -541,10 +541,10 @@ Filters a list of maps, removing items where a field matches a value (opposite o
 
 **Examples:**
 ```
-{{ users | reject: "status", "inactive" }}
+{{ users | reject("status", "inactive") }}
 # Output: [users where status != "inactive"]
 
-{{ products | reject: "discontinued", true }}
+{{ products | reject("discontinued", true) }}
 # Returns only products that are not discontinued
 ```
 
@@ -583,8 +583,8 @@ Returns a slice (subsequence) of a list or string.
 
 **Syntax:**
 ```
-{{ value | slice: start }}
-{{ value | slice: start, length }}
+{{ value | slice(start) }}
+{{ value | slice(start, length) }}
 ```
 
 **Parameters:**
@@ -593,14 +593,14 @@ Returns a slice (subsequence) of a list or string.
 
 **Examples:**
 ```
-{{ items | slice: 2 }}
+{{ items | slice(2) }}
 # Input: ["a", "b", "c", "d", "e"]
 # Output: ["c", "d", "e"]
 
-{{ items | slice: 1, 2 }}
+{{ items | slice(1, 2) }}
 # Output: ["b", "c"]
 
-{{ "hello world" | slice: 6 }}
+{{ "hello world" | slice(6) }}
 # Output: "world"
 ```
 
@@ -772,7 +772,7 @@ Clamps a number between minimum and maximum values.
 
 **Syntax:**
 ```
-{{ value | clamp: min, max }}
+{{ value | clamp(min, max) }}
 ```
 
 **Parameters:**
@@ -781,12 +781,12 @@ Clamps a number between minimum and maximum values.
 
 **Examples:**
 ```
-{{ score | clamp: 0, 100 }}
+{{ score | clamp(0, 100) }}
 # If score is 150: returns 100
 # If score is -10: returns 0
 # If score is 50: returns 50
 
-{{ volume | clamp: 0, 10 }}
+{{ volume | clamp(0, 10) }}
 # Ensures volume stays within valid range
 ```
 
@@ -830,7 +830,7 @@ Returns the maximum value from a list or compares two numbers.
 **Syntax:**
 ```
 {{ list | max }}
-{{ number | max: other_number }}
+{{ number | max(other_number) }}
 ```
 
 **Examples:**
@@ -839,7 +839,7 @@ Returns the maximum value from a list or compares two numbers.
 # Input: [10, 50, 30, 20]
 # Output: 50
 
-{{ 15 | max: 10 }}
+{{ 15 | max(10) }}
 # Output: 15
 
 {{ values | max }}
@@ -861,7 +861,7 @@ Returns the minimum value from a list or compares two numbers.
 **Syntax:**
 ```
 {{ list | min }}
-{{ number | min: other_number }}
+{{ number | min(other_number) }}
 ```
 
 **Examples:**
@@ -870,7 +870,7 @@ Returns the minimum value from a list or compares two numbers.
 # Input: [10, 50, 30, 20]
 # Output: 10
 
-{{ 15 | min: 20 }}
+{{ 15 | min(20) }}
 # Output: 15
 
 {{ values | min }}
@@ -891,7 +891,7 @@ Returns the remainder of integer division (modulo).
 
 **Syntax:**
 ```
-{{ value | mod: divisor }}
+{{ value | mod(divisor) }}
 ```
 
 **Parameters:**
@@ -899,13 +899,13 @@ Returns the remainder of integer division (modulo).
 
 **Examples:**
 ```
-{{ 17 | mod: 5 }}
+{{ 17 | mod(5) }}
 # Output: 2
 
-{{ 10 | mod: 3 }}
+{{ 10 | mod(3) }}
 # Output: 1
 
-{% if item_index | mod: 2 == 0 %}
+{% if item_index | mod(2) == 0 %}
 # Check if number is even
 {% endif %}
 ```
@@ -922,7 +922,7 @@ Raises a number to a specified power (exponentiation).
 
 **Syntax:**
 ```
-{{ base | power: exponent }}
+{{ base | power(exponent) }}
 ```
 
 **Parameters:**
@@ -930,13 +930,13 @@ Raises a number to a specified power (exponentiation).
 
 **Examples:**
 ```
-{{ 2 | power: 3 }}
+{{ 2 | power(3) }}
 # Output: 8 (2³)
 
-{{ 3 | power: 2 }}
+{{ 3 | power(2) }}
 # Output: 9 (3²)
 
-{{ 10 | power: 3 }}
+{{ 10 | power(3) }}
 # Output: 1000
 ```
 
@@ -953,7 +953,7 @@ Rounds a number to the nearest integer or specified decimal places.
 **Syntax:**
 ```
 {{ value | round }}
-{{ value | round: decimal_places }}
+{{ value | round(decimal_places) }}
 ```
 
 **Parameters:**
@@ -964,10 +964,10 @@ Rounds a number to the nearest integer or specified decimal places.
 {{ 3.5 | round }}
 # Output: 4
 
-{{ 3.14159 | round: 2 }}
+{{ 3.14159 | round(2) }}
 # Output: 3.14
 
-{{ price | round: 2 }}
+{{ price | round(2) }}
 # Rounds to 2 decimal places (useful for currency)
 ```
 
@@ -1014,33 +1014,33 @@ Filters become powerful when chained together.
 
 **Format and truncate text:**
 ```
-{{ description | lower_case | truncate: 50 }}
+{{ description | lower_case | truncate(50) }}
 ```
 
 **Process lists:**
 ```
-{{ users | map: "email" | join: "; " | upper_case }}
+{{ users | map("email") | join("; ") | upper_case }}
 # Extracts emails, joins with semicolons, and uppercases
 ```
 
 **Combine filters for reports:**
 ```
-{{ products | filter: "in_stock", true | map: "price" | sum }}
+{{ products | filter("in_stock", true) | map("price") | sum }}
 # Sums prices of products that are in stock
 ```
 
 **Data validation:**
 ```
-{{ user_input | strip | default: "No input" | length }}
+{{ user_input | strip | default("No input") | length }}
 # Cleans input, provides default, and checks length
 ```
 
 **Complex transformations:**
 ```
 {{ items
-  | group_by: "category"
+  | group_by("category")
   | values
-  | map: "price"
+  | map("price")
   | sum
 }}
 # Groups items, gets values, extracts prices, and sums them
@@ -1052,10 +1052,10 @@ Filters become powerful when chained together.
 
 ```
 # Good: strip first, then process
-{{ input | strip | default: "value" }}
+{{ input | strip | default("value") }}
 
 # Less ideal: processing then stripping
-{{ input | default: " value " | strip }}
+{{ input | default(" value ") | strip }}
 ```
 
 ### 2. Use Type-Specific Filters
@@ -1068,22 +1068,22 @@ Filters become powerful when chained together.
 {{ items | sort | reverse | first }}
 
 # Math operations on numbers
-{{ value | abs | round: 2 }}
+{{ value | abs | round(2) }}
 ```
 
 ### 3. Provide Defaults
 
 ```
 # Defensive programming
-{{ author | default: "Anonymous" }}
-{{ price | default: 0 }}
+{{ author | default("Anonymous") }}
+{{ price | default(0) }}
 ```
 
 ### 4. Chain Logically
 
 ```
 # Clean → Extract → Transform → Format
-{{ data | strip | map: "value" | sort | join: ", " }}
+{{ data | strip | map("value") | sort | join(", ") }}
 ```
 
 ## Common Patterns
@@ -1091,14 +1091,14 @@ Filters become powerful when chained together.
 ### Formatting Numbers
 
 ```
-{{ total_price | round: 2 }}
-{{ percentage | round: 1 | append: "%" }}
+{{ total_price | round(2) }}
+{{ percentage | round(1) | append("%") }}
 ```
 
 ### Processing Text
 
 ```
-{{ title | capitalize | truncate: 30 }}
+{{ title | capitalize | truncate(30) }}
 {{ slug | lower_case }}
 ```
 
@@ -1106,15 +1106,15 @@ Filters become powerful when chained together.
 
 ```
 {{ items | length }}
-{{ tags | join: ", " }}
+{{ tags | join(", ") }}
 {{ prices | sort | first }}
 ```
 
 ### Filtering and Grouping
 
 ```
-{{ users | filter: "active", true | length }}
-{{ products | group_by: "category" }}
+{{ users | filter("active", true) | length }}
+{{ products | group_by("category") }}
 ```
 
 ## Error Handling

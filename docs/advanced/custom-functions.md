@@ -65,7 +65,7 @@ defmodule MyApp.MathFunctions do
   @doc """
   Calculate percentage of a value.
 
-  Usage: {{ amount | percentage_of: 20 }}
+  Usage: {{ amount | percentage_of(20) }}
   100 -> 20 (20% of 100)
   """
   def percentage_of(amount, [percentage]) when is_number(amount) and is_number(percentage) do
@@ -80,7 +80,7 @@ defmodule MyApp.MathFunctions do
   @doc """
   Calculate tax on amount.
 
-  Usage: {{ amount | tax: 8.5 }}
+  Usage: {{ amount | tax(8.5) }}
   Default tax rate: 10%
   """
   def tax(amount, args) when is_number(amount) do
@@ -100,7 +100,7 @@ defmodule MyApp.MathFunctions do
   @doc """
   Calculate discounted price.
 
-  Usage: {{ original_price | discount: 25 }}
+  Usage: {{ original_price | discount(25) }}
   Subtracts discount percentage from original price
   """
   def discount(original_price, [discount_percent])
@@ -117,7 +117,7 @@ defmodule MyApp.MathFunctions do
   @doc """
   Calculate compound interest.
 
-  Usage: {{ principal | compound_interest: rate, years, compounds }}
+  Usage: {{ principal | compound_interest(rate, years, compounds) }}
   compound_interest(1000, [5, 10, 12]) -> amount after 10 years at 5% compounded monthly
   """
   def compound_interest(principal, [rate, years, compounds])
@@ -145,13 +145,13 @@ context = %{
   "principal" => 1000
 }
 
-Mau.render("{{ amount | percentage_of: 20 }}", context)
+Mau.render("{{ amount | percentage_of(20) }}", context)
 # Output: "20"
 
-Mau.render("{{ price | tax: 8.5 }}", context)
+Mau.render("{{ price | tax(8.5) }}", context)
 # Output: "8.5"
 
-Mau.render("{{ price | discount: 25 }}", context)
+Mau.render("{{ price | discount(25) }}", context)
 # Output: "74.99"
 ```
 
@@ -208,7 +208,7 @@ defmodule MyApp.DateFunctions do
   @doc """
   Format date for display.
 
-  Usage: {{ date | format_date: "%B %d, %Y" }}
+  Usage: {{ date | format_date("%B %d, %Y") }}
   """
   def format_date(date_string, [format]) when is_binary(date_string) and is_binary(format) do
     try do

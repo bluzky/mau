@@ -475,7 +475,7 @@ input = %{
         },
         # Stage 2: Remove invalid formats
         %{
-          "#filter" => "{{$loop.item | contains: '@'}}"
+          "#filter" => "{{$loop.item | contains('@')}}"
         },
         # Stage 3: Normalize to lowercase
         %{

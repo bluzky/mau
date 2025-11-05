@@ -53,7 +53,7 @@ context = %{
   "name" => "Alice",
   "unknown" => nil  # Explicitly set to nil
 }
-{:ok, output} = Mau.render("Hello {{ name }}, meet {{ unknown | default: 'Friend' }}", context)
+{:ok, output} = Mau.render("Hello {{ name }}, meet {{ unknown | default('Friend') }}", context)
 # Output: "Hello Alice, meet Friend"
 ```
 
