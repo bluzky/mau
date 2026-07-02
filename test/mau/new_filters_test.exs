@@ -2,6 +2,11 @@ defmodule Mau.NewFiltersTest do
   use ExUnit.Case, async: true
   alias Mau
 
+  setup do
+    Mau.FilterRegistry.start_link([])
+    :ok
+  end
+
   describe "new collection filters" do
     test "slice filter with lists" do
       template = "{{ slice(items, 1, 3) }}"

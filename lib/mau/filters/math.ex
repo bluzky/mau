@@ -50,6 +50,26 @@ defmodule Mau.Filters.Math do
         "clamp" => %{
           description: "Clamps value between min and max",
           function: {__MODULE__, :clamp}
+        },
+        "trunc" => %{
+          description: "Truncates a number toward zero, removing the decimal part",
+          function: {__MODULE__, :trunc}
+        },
+        "div" => %{
+          description: "Integer division, returns the quotient without remainder",
+          function: {__MODULE__, :div}
+        },
+        "add" => %{
+          description: "Adds a number to the value",
+          function: {__MODULE__, :add}
+        },
+        "sub" => %{
+          description: "Subtracts a number from the value",
+          function: {__MODULE__, :sub}
+        },
+        "mul" => %{
+          description: "Multiplies the value by a number",
+          function: {__MODULE__, :mul}
         }
       }
     }
@@ -102,7 +122,7 @@ defmodule Mau.Filters.Math do
         {:ok, Kernel.round(num)}
 
       {num, [precision]} when is_number(num) and is_integer(precision) and precision >= 0 ->
-        {:ok, Float.round(num, precision)}
+        {:ok, Float.round(num * 1.0, precision)}
 
       {num, _} when is_number(num) ->
         {:ok, round(num)}
@@ -199,6 +219,65 @@ defmodule Mau.Filters.Math do
       _ ->
         {:error, "mod requires two integers"}
     end
+  end
+
+  @doc """
+  Truncates a number toward zero, removing the decimal part.
+  """
+  def trunc(value, _args) do
+    case value do
+      num when is_integer(num) -> {:ok, num}
+      num when is_float(num) -> {:ok, Kernel.trunc(num)}
+      _ -> {:error, "trunc can only be applied to numbers"}
+    end
+  end
+
+  @doc """
+  Returns the integer quotient of dividing dividend by divisor.
+  """
+  def div(dividend, [divisor]) when is_integer(dividend) and is_integer(divisor) and divisor != 0 do
+    {:ok, Kernel.div(dividend, divisor)}
+  end
+
+  def div(_, [0]) do
+    {:error, "div by zero is undefined"}
+  end
+
+  def div(_, _) do
+    {:error, "div requires two integers"}
+  end
+
+  @doc """
+  Adds a number to the value.
+  """
+  def add(value, [other]) when is_number(value) and is_number(other) do
+    {:ok, value + other}
+  end
+
+  def add(_, _) do
+    {:error, "add requires two numbers"}
+  end
+
+  @doc """
+  Subtracts a number from the value.
+  """
+  def sub(value, [other]) when is_number(value) and is_number(other) do
+    {:ok, value - other}
+  end
+
+  def sub(_, _) do
+    {:error, "sub requires two numbers"}
+  end
+
+  @doc """
+  Multiplies the value by a number.
+  """
+  def mul(value, [other]) when is_number(value) and is_number(other) do
+    {:ok, value * other}
+  end
+
+  def mul(_, _) do
+    {:error, "mul requires two numbers"}
   end
 
   @doc """

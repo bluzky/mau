@@ -198,7 +198,7 @@ defmodule Mau.Filters.Collection do
         {:ok, Enum.slice(list, start, length)}
 
       {str, [start]} when is_binary(str) and is_integer(start) ->
-        {:ok, String.slice(str, start..-1)}
+        {:ok, String.slice(str, start..-1//1)}
 
       {str, [start, length]} when is_binary(str) and is_integer(start) and is_integer(length) ->
         {:ok, String.slice(str, start, length)}
