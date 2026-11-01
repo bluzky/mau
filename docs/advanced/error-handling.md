@@ -11,32 +11,35 @@ This guide covers different approaches to error handling, from strict mode valid
 Mau can produce different types of errors:
 
 ```elixir
-# Compilation errors
-{:error, error} = Mau.compile("invalid {{ syntax")
+# Syntax errors (only returned in strict mode)
+{:error, error} = Mau.compile("invalid {{ syntax", strict_mode: true)
 
 # Runtime errors
-{:error, error} = Mau.render("{{ undefined_var }}", %{})
+{:error, error} = Mau.render("{{ 1 / 0 }}", %{})
 
 # Filter errors
 {:error, error} = Mau.render("{{ 'text' | abs }}", %{})
-
-# Type errors
-{:error, error} = Mau.render("{{ undefined_function() }}", %{})
 ```
 
 ## Strict Mode
 
-Control error reporting with strict mode:
+`strict_mode` controls what happens when a template can't be parsed. This covers invalid syntax, unclosed blocks and stray block tags such as `{% endif %}`.
 
 ```elixir
-# ❌ Lenient mode (default): Errors return gracefully
-{:ok, output} = Mau.compile("invalid {{ syntax")
-# Returns: {:error, error_message}
+# Default: the original template string is returned as the output
+{:ok, "{{ a + }}"} = Mau.render("{{ a + }}", %{})
 
-# ✅ Strict mode: More explicit error reporting
-{:ok, ast, warnings} = Mau.compile(template, strict_mode: true)
-# Returns warnings list in third element
+# Strict: a syntax error is returned, with line and column for invalid syntax
+{:error, %Mau.Error{type: :syntax}} = Mau.render("{{ a + }}", %{}, strict_mode: true)
+{:error, %Mau.Error{type: :syntax}} = Mau.compile("{{ a + }}", strict_mode: true)
+{:ok, ast, []} = Mau.compile("{{ a }}", strict_mode: true)
 ```
+
+Errors while rendering a valid template, such as division by zero, return `{:error, error}` in both modes.
+
+`render_map/3` handles failures per field by default, so a field that fails keeps its template string. With `strict_mode: true`, the whole call returns `{:error, error}`.
+
+Undefined variables are not covered by strict mode yet. They render as empty strings in both modes.
 
 ## Undefined Variables
 
@@ -63,20 +66,21 @@ Handle filter errors gracefully:
 
 ```elixir
 # Type mismatch in filter
-{:ok, output} = Mau.render("{{ 'text' | abs }}", %{})
-# Error: "abs can only be applied to numbers"
+{:error, error} = Mau.render("{{ 'text' | abs }}", %{})
+error.message
+# "Filter error in abs: \"abs can only be applied to numbers\""
 
-# Handle with validation
+# Handle the error and show a fallback
 context = %{"value" => "not_a_number"}
-{:ok, output} = Mau.render(
-  "{% if value | is_number %}
-     {{ value | abs }}
-   {% else %}
-     Invalid number
-   {% endif %}",
-  context
-)
+
+output =
+  case Mau.render("{{ value | abs }}", context) do
+    {:ok, output} -> output
+    {:error, _error} -> "Invalid number"
+  end
 ```
+
+Errors are `%Mau.Error{}` structs with `type`, `message`, `line` and `column` fields. They can't be interpolated into a string directly, so use `error.message` or `Mau.Error.format(error)`.
 
 ## Application-Level Error Handling
 
@@ -100,13 +104,13 @@ defmodule MyApp.TemplateRenderer do
         {:ok, output}
 
       {:error, error} ->
-        {:error, "Rendering failed: #{error}"}
+        {:error, "Rendering failed: #{Mau.Error.format(error)}"}
     end
   end
 
   defp get_template(name) do
     case Application.get_env(:my_app, :compiled_templates)[name] do
-      ast when is_tuple(ast) -> {:ok, ast}
+      ast when is_list(ast) -> {:ok, ast}
       _ -> {:error, "#{name} not found"}
     end
   end
@@ -125,7 +129,7 @@ defmodule MyApp.TemplateRenderer do
         {:ok, output}
 
       {:error, error} ->
-        Logger.error("Template rendering failed: #{error}")
+        Logger.error("Template rendering failed: #{Mau.Error.format(error)}")
         {:ok, render_fallback(template)}
     end
   end
@@ -142,7 +146,7 @@ end
 
 ### Graceful Degradation
 
-Provide fallback content when rendering fails:
+Provide fallback content when rendering fails. Add `strict_mode: true` if invalid templates should use the fallback too, because by default they render as their own source:
 
 ```elixir
 defmodule MyApp.SafeRenderer do
@@ -207,7 +211,7 @@ results = MyApp.BatchRenderer.render_all(templates, context)
 
 Enum.each(results, fn
   {:ok, name, output} -> IO.puts("#{name}: #{output}")
-  {:error, name, error} -> IO.puts("#{name}: ERROR - #{error}")
+  {:error, name, error} -> IO.puts("#{name}: ERROR - #{Mau.Error.format(error)}")
 end)
 ```
 
@@ -250,15 +254,17 @@ end
 
 ### Template Validation
 
+Use strict mode here, because without it an invalid template compiles successfully to plain text.
+
 ```elixir
 defmodule MyApp.TemplateValidator do
   def validate_template(template_string) do
-    case Mau.compile(template_string) do
-      {:ok, _ast} ->
+    case Mau.compile(template_string, strict_mode: true) do
+      {:ok, _ast, _warnings} ->
         :ok
 
-      {:error, reason} ->
-        {:error, "Template compilation failed: #{reason}"}
+      {:error, error} ->
+        {:error, "Template compilation failed: #{Mau.Error.format(error)}"}
     end
   end
 
@@ -324,6 +330,8 @@ end
 
 ### Error Metrics
 
+Mau doesn't emit telemetry events itself, so call these helpers from your own error handling.
+
 ```elixir
 defmodule MyApp.ErrorMetrics do
   def track_render_error(error_type, metadata \\ %{}) do
@@ -363,10 +371,10 @@ end
 
 ```elixir
 defmodule MyApp.ErrorHandler do
-  @type error_result :: {:ok, any} | {:error, String.t()}
+  @type error_result :: {:ok, any} | {:error, Mau.Error.t()}
 
   def render_with_handlers(template, context, handlers \\ []) do
-    case Mau.render(template, context) do
+    case Mau.render(template, context, strict_mode: true) do
       {:ok, output} -> {:ok, output}
       {:error, error} -> handle_error(error, handlers)
     end
@@ -386,7 +394,7 @@ end
 # Usage with multiple recovery strategies
 handlers = [
   fn {:error, error} ->
-    if String.contains?(error, "undefined") do
+    if error.type == :syntax do
       {:ok, "Default content"}
     else
       :skip
@@ -405,7 +413,7 @@ MyApp.ErrorHandler.render_with_handlers(template, context, handlers)
 ```elixir
 defmodule MyApp.UserFriendlyErrors do
   def render_safe(template, context) do
-    case Mau.render(template, context) do
+    case Mau.render(template, context, strict_mode: true) do
       {:ok, output} ->
         {:ok, output}
 
@@ -415,19 +423,15 @@ defmodule MyApp.UserFriendlyErrors do
     end
   end
 
-  defp translate_error(error) do
-    cond do
-      String.contains?(error, "undefined") ->
-        "Some data was missing. Please try again."
+  defp translate_error(%Mau.Error{type: :syntax}) do
+    "The template is misconfigured. Please contact support."
+  end
 
-      String.contains?(error, "filter") ->
-        "A formatting error occurred. Please contact support."
-
-      String.contains?(error, "syntax") ->
-        "The template is misconfigured. Please contact support."
-
-      true ->
-        "An unexpected error occurred. Please try again."
+  defp translate_error(%Mau.Error{message: message}) do
+    if String.contains?(message, "ilter") do
+      "A formatting error occurred. Please contact support."
+    else
+      "An unexpected error occurred. Please try again."
     end
   end
 end
@@ -455,7 +459,17 @@ defmodule MyApp.ErrorHandlingTest do
     assert {:error, _} = Mau.render(template, context)
   end
 
+  test "returns template source for invalid syntax by default" do
+    assert {:ok, "{{ a + }}"} = Mau.render("{{ a + }}", %{})
+  end
+
+  test "returns a syntax error in strict mode" do
+    assert {:error, %Mau.Error{type: :syntax}} =
+             Mau.render("{{ a + }}", %{}, strict_mode: true)
+  end
+
   test "validates context before rendering" do
+    template = "Hello {{ name }}"
     context = %{"name" => "Alice"}
     required = ["name", "email"]
 
@@ -464,11 +478,10 @@ defmodule MyApp.ErrorHandlingTest do
   end
 
   test "recovers from template rendering errors" do
-    template = "{{ undefined }}"
+    template = "{{ 1 / 0 }}"
     context = %{}
 
-    assert {:ok, "Fallback"} =
-             MyApp.SafeRenderer.render_or_fallback(template, context, "Fallback")
+    assert "Fallback" = MyApp.SafeRenderer.render_or_fallback(template, context, "Fallback")
   end
 end
 ```

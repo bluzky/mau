@@ -359,22 +359,26 @@ defmodule Mau.Renderer do
   defp format_value(nil), do: ""
   defp format_value(value), do: inspect(value)
 
+  defguardp is_concatenable(value) when is_binary(value) or is_number(value) or is_atom(value)
+
   # Arithmetic operation evaluation
   defp evaluate_binary_operation("+", left, right) when is_number(left) and is_number(right) do
     {:ok, left + right}
   end
 
-  defp evaluate_binary_operation("+", left, right) when is_binary(left) or is_binary(right) do
+  defp evaluate_binary_operation("+", left, right)
+       when (is_binary(left) or is_binary(right)) and is_concatenable(left) and
+              is_concatenable(right) do
     # String concatenation
     {:ok, to_string(left) <> to_string(right)}
   end
 
-  defp evaluate_binary_operation("+", nil, right) do
+  defp evaluate_binary_operation("+", nil, right) when is_concatenable(right) do
     # Treat nil as empty string for concatenation
     {:ok, to_string(right)}
   end
 
-  defp evaluate_binary_operation("+", left, nil) do
+  defp evaluate_binary_operation("+", left, nil) when is_concatenable(left) do
     # Treat nil as empty string for concatenation
     {:ok, to_string(left)}
   end

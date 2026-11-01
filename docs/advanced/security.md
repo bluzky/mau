@@ -469,7 +469,7 @@ Mau.render(pre_compiled_template, sanitized_context)
 ```elixir
 # ❌ Vulnerable: Error shows implementation details
 catch_all_error = fn error ->
-  "Error: #{error}"  # Exposes internal details
+  "Error: #{Mau.Error.format(error)}"  # Exposes internal details
 end
 
 # ✅ Safe: Generic error messages
@@ -477,6 +477,8 @@ safe_error = fn _error ->
   "An error occurred. Please try again."
 end
 ```
+
+By default, an invalid template renders as its own source, so a template with a typo can show raw template code to end users. Use `strict_mode: true` when template output reaches users, and handle the error.
 
 ### Denial of Service
 

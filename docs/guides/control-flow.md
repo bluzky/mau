@@ -430,6 +430,8 @@ Name: {{ user.name | default("Anonymous") }}
 
 ### Missing Endif
 
+A template with an unclosed block is invalid. It renders as its own source by default, and returns a syntax error with `strict_mode: true`.
+
 ```
 {# Syntax error #}
 {% if condition %}

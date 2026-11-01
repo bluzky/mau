@@ -4,6 +4,8 @@ defmodule Mau.BlockProcessor do
 
   This module takes a flat AST (list of nodes) and groups conditional tags
   (if/elsif/else/endif) into proper block structures for rendering.
+
+  Raises `Mau.Error` for unclosed blocks and stray block tags.
   """
 
   # State management for conditional block collection
@@ -47,28 +49,32 @@ defmodule Mau.BlockProcessor do
     Enum.reverse(acc)
   end
 
-  defp process_nodes([{:tag, [:if, condition], opts} | rest], acc) do
+  defp process_nodes([{:tag, [:if, condition], _opts} | rest], acc) do
     # Found an if tag - collect the entire conditional block
     case collect_conditional_block(rest, condition, [], [], nil) do
       {:ok, {block_node, remaining_nodes}} ->
         process_nodes(remaining_nodes, [block_node | acc])
 
-      {:error, _reason} ->
-        # If block collection fails, treat as individual tag
-        process_nodes(rest, [{:tag, [:if, condition], opts} | acc])
+      {:error, reason} ->
+        raise Mau.Error.syntax_error(reason)
     end
   end
 
-  defp process_nodes([{:tag, [:for, loop_variable, collection_expression], opts} | rest], acc) do
+  defp process_nodes([{:tag, [:for, loop_variable, collection_expression], _opts} | rest], acc) do
     # Found a for tag - collect the entire loop block
     case collect_loop_block(rest, loop_variable, collection_expression) do
       {:ok, {block_node, remaining_nodes}} ->
         process_nodes(remaining_nodes, [block_node | acc])
 
-      {:error, _reason} ->
-        # If block collection fails, treat as individual tag
-        process_nodes(rest, [{:tag, [:for, loop_variable, collection_expression], opts} | acc])
+      {:error, reason} ->
+        raise Mau.Error.syntax_error(reason)
     end
+  end
+
+  defp process_nodes([{:tag, [tag | _], _opts} | _rest], _acc)
+       when tag in [:elsif, :else, :endif, :endfor] do
+    # Closing and branch tags are consumed by their block, so this one has no opener
+    raise Mau.Error.syntax_error("Unexpected #{tag} tag")
   end
 
   defp process_nodes([node | rest], acc) do

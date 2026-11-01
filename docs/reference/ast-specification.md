@@ -420,18 +420,16 @@ Mark expression as static (no variable dependencies).
 ### Error Handling Options
 
 **strict_mode** - `boolean()`
-Controls error handling behavior for incomplete expressions and undefined variables.
+An option for `Mau.compile/2`, `Mau.render/3` and `Mau.render_map/3`. It isn't stored on AST nodes.
 
-- `true` - Return errors for incomplete expressions and undefined variables
-- `false` (default) - Graceful degradation (render incomplete expressions as-is, treat undefined variables as nil)
+- `true` - Return `{:error, error}` for invalid templates
+- `false` (default) - Compile an invalid template to a single text node holding its source
 
 **Examples:**
 ```elixir
-# With strict_mode: true, {{ undefined_var }} would error
-{:expression, [{:variable, ["undefined_var"], []}], [strict_mode: true]}
+{:error, %Mau.Error{type: :syntax}} = Mau.compile("{{ variable", strict_mode: true)
 
-# With strict_mode: false, incomplete {{ variable would render as-is
-{:expression, [{:variable, ["variable"], []}], [strict_mode: false]}
+{:ok, [{:text, ["{{ variable"], []}]} = Mau.compile("{{ variable")
 ```
 
 ## Complete AST Examples

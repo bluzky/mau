@@ -16,18 +16,19 @@ Compiles a template string into an Abstract Syntax Tree (AST).
 
 **Signature:**
 ```elixir
-def compile(template, opts \\ []) :: {:ok, ast} | {:error, Error.t()}
+def compile(template, opts \\ []) :: {:ok, ast} | {:ok, ast, warnings} | {:error, Error.t()}
 ```
 
 **Parameters:**
 - `template` (string) - Template source code to compile
 - `opts` (keyword list, optional):
-  - `:strict_mode` - Enable strict error reporting (default: false)
+  - `:strict_mode` - Return errors for invalid templates (default: false)
   - `:max_template_size` - Maximum allowed template size in bytes (default: 100,000)
 
 **Return Values:**
-- `{:ok, ast}` - Successfully compiled AST
-- `{:error, error}` - Compilation error
+- `{:ok, ast}` - Successfully compiled AST. Without strict mode, an invalid template compiles to a single text node holding its source.
+- `{:ok, ast, []}` - Successfully compiled AST in strict mode
+- `{:error, error}` - Size limit exceeded, or an invalid template in strict mode
 
 **Examples:**
 
@@ -36,12 +37,12 @@ def compile(template, opts \\ []) :: {:ok, ast} | {:error, Error.t()}
 {:ok, ast} = Mau.compile("Hello {{ name }}")
 
 # With options
-{:ok, ast} = Mau.compile(template, strict_mode: true)
+{:ok, ast, []} = Mau.compile(template, strict_mode: true)
 
 # Error handling
-case Mau.compile(invalid_template) do
-  {:ok, ast} -> IO.inspect(ast)
-  {:error, error} -> IO.puts("Compilation failed: #{error}")
+case Mau.compile(invalid_template, strict_mode: true) do
+  {:ok, ast, _warnings} -> IO.inspect(ast)
+  {:error, error} -> IO.puts("Compilation failed: #{Mau.Error.format(error)}")
 end
 ```
 
@@ -101,7 +102,7 @@ def render(template, context, opts \\ []) :: {:ok, result} | {:error, Error.t()}
 # Error handling
 case Mau.render(template, context) do
   {:ok, output} -> IO.puts(output)
-  {:error, error} -> IO.puts("Render failed: #{error}")
+  {:error, error} -> IO.puts("Render failed: #{Mau.Error.format(error)}")
 end
 
 # With options
@@ -117,9 +118,13 @@ end
   - Mixed content (text + expressions) always renders to string
   - Undefined variables return nil
 
-- **Undefined Variables**: In strict mode (false by default):
-  - Undefined variables render as empty strings
-  - No error is raised
+- **Invalid Templates**: Invalid syntax, unclosed blocks and stray block tags:
+  - By default, the output is the original template string
+  - With `strict_mode: true`, the result is `{:error, error}` of type `:syntax`
+
+- **Render Errors**: Failures such as division by zero return `{:error, error}` in both modes
+
+- **Undefined Variables**: Render as empty strings in both modes, and no error is returned
 
 **See Also:**
 - [Template Language Reference](template-language.md) - Template syntax
@@ -240,7 +245,7 @@ input = %{
 # Error handling
 case Mau.render_map(nested_data, context) do
   {:ok, result} -> IO.inspect(result)
-  {:error, error} -> IO.puts("Map render failed: #{error}")
+  {:error, error} -> IO.puts("Map render failed: #{Mau.Error.format(error)}")
 end
 ```
 
@@ -491,15 +496,14 @@ All Mau functions follow Elixir's standard error handling pattern.
 
 **Error Structure:**
 ```elixir
-{:error, error_message}
+{:error, %Mau.Error{type: type, message: message, line: line, column: column}}
 ```
 
+Errors can't be interpolated into a string directly. Use `error.message` or `Mau.Error.format(error)`.
+
 **Error Types:**
-- Compilation errors (invalid template syntax)
-- Runtime errors (undefined variables, filter errors)
-- Type errors (filter applied to wrong type)
-- Size errors (template exceeds max_template_size)
-- Loop limit errors (exceeds max_loop_iterations)
+- `:syntax` - Invalid templates, returned only with `strict_mode: true`. `line` and `column` are set for invalid syntax, but not for unclosed blocks or stray block tags.
+- `:runtime` - Everything else, including filter errors, size limits (`max_template_size`) and loop limits (`max_loop_iterations`)
 
 **Example Error Handling:**
 
@@ -509,20 +513,19 @@ case Mau.render(template, context) do
     IO.puts("Success: #{output}")
 
   {:error, error} ->
-    IO.puts("Error: #{error}")
+    IO.puts("Error: #{Mau.Error.format(error)}")
     # Log error, send to error tracking, etc.
 end
 
-# With rescue for unexpected errors
-try do
-  {:ok, result} = Mau.render(template, context)
-  result
-rescue
-  e ->
-    IO.puts("Unexpected error: #{Exception.message(e)}")
-    raise e
+# Treat invalid templates as errors
+case Mau.render(template, context, strict_mode: true) do
+  {:ok, output} -> output
+  {:error, %Mau.Error{type: :syntax} = error} -> handle_invalid_template(error)
+  {:error, error} -> handle_render_error(error)
 end
 ```
+
+Mau returns errors rather than raising them, so `rescue` isn't needed around `compile/2`, `render/3` or `render_map/3`.
 
 ---
 
@@ -532,7 +535,7 @@ end
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `strict_mode` | boolean | false | Enable strict error reporting |
+| `strict_mode` | boolean | false | Return errors for invalid templates |
 | `max_template_size` | integer | 100,000 | Maximum template size in bytes |
 
 ### Mau.render/3 Options
@@ -540,6 +543,7 @@ end
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `preserve_types` | boolean | false | Preserve non-string types for single values |
+| `strict_mode` | boolean | false | Return errors for invalid templates |
 | `max_template_size` | integer | 100,000 | Maximum template size in bytes |
 | `max_loop_iterations` | integer | 10,000 | Maximum iterations in loops |
 
@@ -548,6 +552,7 @@ end
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `preserve_types` | boolean | true | Preserve non-string types in results |
+| `strict_mode` | boolean | false | Fail the whole map if any value fails, instead of keeping that value's template string |
 | `max_template_size` | integer | 100,000 | Maximum template size in bytes |
 | `max_loop_iterations` | integer | 10,000 | Maximum iterations in loops |
 

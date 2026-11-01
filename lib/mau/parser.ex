@@ -674,25 +674,31 @@ defmodule Mau.Parser do
       
       iex> Mau.Parser.parse(~s(Hello {{ "world" }}!))
       {:ok, [{:text, ["Hello "], []}, {:expression, [{:literal, ["world"], []}], []}, {:text, ["!"], []}]}
+
+  Invalid syntax falls back to a single text node. Pass `strict_mode: true` to
+  get a syntax error with its location instead.
   """
-  def parse(template) when is_binary(template) do
+  def parse(template, opts \\ []) when is_binary(template) do
     case parse_template(template) do
       {:ok, nodes, "", _, _, _} ->
         {:ok, nodes}
 
-      {:ok, _nodes, _remaining, _, _, _} ->
-        # If there's remaining unparsed content, treat it as text
-        case parse_template(template) do
-          {:ok, parsed_nodes, "", _, _, _} ->
-            {:ok, parsed_nodes}
-
-          _ ->
-            # Fallback: treat entire template as text if parsing fails
-            {:ok, [Nodes.text_node(template)]}
+      {:ok, _nodes, remaining, _, {line, line_offset}, offset} ->
+        if opts[:strict_mode] do
+          message = "Invalid syntax near #{inspect(String.slice(remaining, 0, 20))}"
+          {:error, Mau.Error.syntax_error(message, line: line, column: offset - line_offset + 1)}
+        else
+          # Fallback: treat entire template as text if parsing fails
+          {:ok, [Nodes.text_node(template)]}
         end
 
-      {:error, reason, _remaining, _context, {line, column}, _offset} ->
-        error = Mau.Error.syntax_error("Parse error: #{reason}", line: line, column: column)
+      {:error, reason, _remaining, _context, {line, line_offset}, offset} ->
+        error =
+          Mau.Error.syntax_error("Parse error: #{reason}",
+            line: line,
+            column: offset - line_offset + 1
+          )
+
         {:error, error}
     end
   end
