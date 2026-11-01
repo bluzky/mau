@@ -1557,4 +1557,121 @@ defmodule Mau.MapDirectivesTest do
       assert {:ok, ^expected} = Mau.render_map(input, context)
     end
   end
+
+  describe "invalid directive arguments" do
+    @invalid [
+      %{"#map" => ["{{ l }}", "template", "extra"]},
+      %{"#map" => ["{{ l }}"]},
+      %{"#flat_map" => ["{{ l }}"]},
+      %{"#merge" => []},
+      %{"#if" => ["{{ l }}"]},
+      %{"#if" => ["{{ l }}", "a", "b", "c"]},
+      %{"#case" => ["{{ l }}", "not a list"]},
+      %{"#case" => ["{{ l }}", "not a list", "default"]},
+      %{"#cond" => ["not a list"]},
+      %{"#filter" => ["{{ l }}"]},
+      %{"#pick" => ["{{ l }}", "not a list"]},
+      %{"#pipe" => ["{{ l }}", "not a list"]}
+    ]
+
+    test "every invalid shape is treated as a regular map" do
+      for input <- @invalid do
+        [{key, args}] = Map.to_list(input)
+        rendered = Enum.map(args, &if(&1 == "{{ l }}", do: [1, 2], else: &1))
+
+        assert {:ok, %{^key => ^rendered}} = Mau.render_map(input, %{"l" => [1, 2]})
+      end
+    end
+
+    test "every invalid shape is an error in strict mode" do
+      for input <- @invalid do
+        [key] = Map.keys(input)
+
+        assert {:error, %Mau.Error{type: :runtime, message: message}} =
+                 Mau.render_map(input, %{"l" => [1, 2]}, strict_mode: true)
+
+        assert message =~ "Invalid arguments for #{key}"
+      end
+    end
+
+    test "strict mode names the expected arguments" do
+      input = %{"#map" => ["{{ l }}", "a", "b"]}
+
+      assert {:error, %Mau.Error{message: "Invalid arguments for #map, expected [collection, template]"}} =
+               Mau.render_map(input, %{"l" => []}, strict_mode: true)
+    end
+
+    test "strict mode finds an invalid directive nested in a regular map" do
+      input = %{outer: [%{"#if" => ["a"]}]}
+
+      assert {:error, %Mau.Error{type: :runtime}} =
+               Mau.render_map(input, %{}, strict_mode: true)
+    end
+
+    test "strict mode accepts valid directives and regular maps" do
+      input = %{a: %{"#if" => [true, "x"]}, b: %{"name" => "y"}}
+
+      assert {:ok, %{a: "x", b: %{"name" => "y"}}} =
+               Mau.render_map(input, %{}, strict_mode: true)
+    end
+
+    test "a valid directive wins over an invalid one" do
+      input = %{"#if" => ["a"], "#pick" => [%{"b" => 1}, ["b"]]}
+
+      assert {:ok, %{"b" => 1}} = Mau.render_map(input, %{}, strict_mode: true)
+    end
+
+    test "directives keep their precedence when a map has several" do
+      input = %{"#map" => [[1], "x"], "#merge" => [%{a: 1}]}
+
+      assert {:ok, ["x"]} = Mau.render_map(input, %{})
+    end
+
+    test "malformed #case entries are an error" do
+      for entry <- [["bad"], ["a", "b", "c"], "bad", %{}], opts <- [[], [strict_mode: true]] do
+        input = %{"#case" => ["z", [["z", "y"], entry]]}
+
+        assert {:error, %Mau.Error{type: :runtime, message: message}} =
+                 Mau.render_map(input, %{}, opts)
+
+        assert message == "Invalid entry in #case, expected [pattern, template], got #{inspect(entry)}"
+      end
+    end
+
+    test "malformed #cond entries are an error" do
+      for entry <- [["bad"], ["a", "b", "c"], "bad", %{}], opts <- [[], [strict_mode: true]] do
+        input = %{"#cond" => [[[true, "y"], entry]]}
+
+        assert {:error, %Mau.Error{type: :runtime, message: message}} =
+                 Mau.render_map(input, %{}, opts)
+
+        assert message == "Invalid entry in #cond, expected [condition, template], got #{inspect(entry)}"
+      end
+    end
+
+    test "malformed entries are an error inside a pipe" do
+      for directive <- [%{"#case" => [["bad"]]}, %{"#cond" => [[["bad"]]]}] do
+        input = %{"#pipe" => ["x", [directive]]}
+
+        assert {:error, %Mau.Error{message: "Invalid entry in" <> _}} = Mau.render_map(input, %{})
+      end
+    end
+
+    test "well-formed entries are accepted" do
+      assert {:ok, "y"} =
+               Mau.render_map(%{"#case" => ["a", [["a", "y"]]]}, %{}, strict_mode: true)
+
+      assert {:ok, "y"} = Mau.render_map(%{"#cond" => [[[true, "y"]]]}, %{}, strict_mode: true)
+      assert {:ok, nil} = Mau.render_map(%{"#case" => ["a", []]}, %{}, strict_mode: true)
+      assert {:ok, nil} = Mau.render_map(%{"#cond" => [[]]}, %{}, strict_mode: true)
+    end
+
+    test "apply_directive raises on invalid arguments" do
+      render = fn template, _context, _opts -> template end
+
+      assert_raise Mau.Error, ~r/Invalid arguments for #map/, fn ->
+        Mau.MapDirectives.apply_directive({:map, [1, 2, 3]}, %{}, [], render)
+      end
+    end
+  end
 end

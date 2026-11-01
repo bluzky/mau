@@ -171,6 +171,8 @@ defmodule Mau do
         MapDirectives.apply_directive({directive_type, args}, context, opts, &render_map_recursive/3)
 
       :none ->
+        if opts[:strict_mode], do: MapDirectives.validate!(map)
+
         # Regular map - recursively process all values
         map
         |> Enum.map(fn {key, value} ->
