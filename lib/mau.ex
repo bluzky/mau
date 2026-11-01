@@ -27,9 +27,9 @@ defmodule Mau do
   alias Mau.MapDirectives
 
   @doc """
-  Compiles a template string into an AST.
+  Compiles a template string into an AST ready for `render/3`.
 
-  Handles text and expression blocks.
+  Runs the same parse, whitespace and block stages as rendering a string.
 
   ## Options
   - `:strict_mode` - boolean, default `false`
@@ -41,8 +41,7 @@ defmodule Mau do
       {:ok, [{:text, ["Hello world"], []}]}
   """
   def compile(template, opts \\ []) when is_binary(template) do
-    with :ok <- validate_template_size(template, opts),
-         {:ok, ast} <- Parser.parse(template) do
+    with {:ok, ast} <- build_ast(template, opts) do
       if opts[:strict_mode] do
         {:ok, ast, []}
       else
@@ -79,11 +78,8 @@ defmodule Mau do
   def render(template, context, opts \\ [])
 
   def render(template, context, opts) when is_binary(template) and is_map(context) do
-    with :ok <- validate_template_size(template, opts),
-         {:ok, ast} <- Parser.parse(template),
-         trimmed_ast <- WhitespaceProcessor.apply_whitespace_control(ast),
-         processed_ast <- BlockProcessor.process_blocks(trimmed_ast),
-         {:ok, result} <- Renderer.render(processed_ast, context, opts) do
+    with {:ok, ast} <- build_ast(template, opts),
+         {:ok, result} <- Renderer.render(ast, context, opts) do
       {:ok, result}
     end
   end
@@ -114,6 +110,16 @@ defmodule Mau do
       {:ok, result}
     rescue
       e -> {:error, Mau.Error.runtime_error("Error rendering map: #{Exception.message(e)}")}
+    end
+  end
+
+  # Shared compile pipeline for compile/2 and render/3
+  defp build_ast(template, opts) do
+    with :ok <- validate_template_size(template, opts),
+         {:ok, ast} <- Parser.parse(template),
+         trimmed_ast <- WhitespaceProcessor.apply_whitespace_control(ast),
+         processed_ast <- BlockProcessor.process_blocks(trimmed_ast) do
+      {:ok, processed_ast}
     end
   end
 
