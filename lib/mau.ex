@@ -59,8 +59,9 @@ defmodule Mau do
   ## Options
   - `:preserve_types` - boolean, default `false`. When `true`, preserves data types
     for single-value templates (templates that render to a single expression result).
-  - `:strict_mode` - boolean, default `false`. When `true`, invalid templates return
-    `{:error, error}`. When `false`, they render as the original template string.
+  - `:strict_mode` - boolean, default `false`. When `true`, invalid templates and
+    undefined variables return `{:error, error}`. When `false`, invalid templates
+    render as the original template string and undefined variables as `nil`.
   - `:max_template_size` - integer, maximum template size in bytes (default 100,000)
   - `:max_loop_iterations` - integer, maximum loop iterations (default 10000)
 

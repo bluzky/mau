@@ -23,7 +23,7 @@ Mau can produce different types of errors:
 
 ## Strict Mode
 
-`strict_mode` controls what happens when a template can't be parsed. This covers invalid syntax, unclosed blocks and stray block tags such as `{% endif %}`.
+`strict_mode` turns invalid templates and undefined variables into errors. Invalid templates include invalid syntax, unclosed blocks and stray block tags such as `{% endif %}`.
 
 ```elixir
 # Default: the original template string is returned as the output
@@ -39,7 +39,30 @@ Errors while rendering a valid template, such as division by zero, return `{:err
 
 `render_map/3` handles failures per field by default, so a field that fails keeps its template string. With `strict_mode: true`, the whole call returns `{:error, error}`.
 
-Undefined variables are not covered by strict mode yet. They render as empty strings in both modes.
+Undefined variables render as empty strings by default. In strict mode, using one returns an error of type `:undefined_variable`:
+
+```elixir
+{:error, %Mau.Error{message: "Undefined variable: user.nmae"}} =
+  Mau.render("{{ user.nmae }}", %{"user" => %{}}, strict_mode: true)
+```
+
+A variable can still be missing in strict mode when it's checked explicitly:
+
+```elixir
+"{% if nickname %}...{% endif %}"     # Used directly as a condition
+"{{ nickname or fallback }}"          # Direct operand of and, or, &&, || or not
+"{{ nickname | default('Friend') }}"  # Direct input to default
+```
+
+This only applies to the variable itself, so `{% if nickname == 'x' %}` and `{{ nickname | upper_case | default('x') }}` are errors.
+
+These aren't errors in strict mode:
+
+- A variable or key that exists with the value `nil`
+- A property of `nil`, such as `{{ user.profile.name }}` when `profile` is `nil`
+- An index that's out of range, such as `{{ items[5] }}`
+
+Map directives render their conditions as ordinary templates, so `"#if"`, `"#filter"` and `"#cond"` conditions need `default` when a variable can be missing: `"{{ item.active | default(false) }}"`.
 
 ## Undefined Variables
 

@@ -64,7 +64,7 @@ defmodule Mau.StrictModeTest do
       {"{{ 1e308 * 10 }}", %{}},
       {"{{ 'x' + m }}", %{"m" => %{"a" => 1}}},
       {"{{ m + 'x' }}", %{"m" => %{"a" => 1}}},
-      {"{{ n + m }}", %{"m" => %{"a" => 1}}},
+      {"{{ n + m }}", %{"n" => nil, "m" => %{"a" => 1}}},
       {"{{ 1 / 0 }}", %{}}
     ]
 
@@ -86,6 +86,114 @@ defmodule Mau.StrictModeTest do
       assert Mau.render("{{ 'x' + n }}", context) == {:ok, "x1"}
       assert Mau.render("{{ 'x' + b }}", context) == {:ok, "xtrue"}
       assert Mau.render("{{ 'x' + missing }}", context) == {:ok, "x"}
+    end
+  end
+
+  describe "undefined variables" do
+    @context %{
+      "user" => %{"name" => "Al", "nick" => nil},
+      "n" => nil,
+      "l" => [1],
+      "s" => "text"
+    }
+
+    defp strict(template, context \\ @context) do
+      Mau.render(template, context, strict_mode: true)
+    end
+
+    test "are errors when used as values in strict mode" do
+      for {template, name} <- [
+            {"{{ nmae }}", "nmae"},
+            {"{{ user.missing }}", "user.missing"},
+            {"{{ missing.deep.path }}", "missing"},
+            {"{{ user.name.first }}", "user.name.first"},
+            {"{{ l[missing] }}", "missing"},
+            {"{{ missing + 1 }}", "missing"},
+            {"{{ 'x' + missing }}", "missing"},
+            {"{{ missing > 1 }}", "missing"},
+            {"{{ missing == 1 }}", "missing"},
+            {"{{ missing | upper_case }}", "missing"},
+            {"{{ missing | length }}", "missing"},
+            {"{{ missing | upper_case | default('d') }}", "missing"},
+            {"{% if missing == 1 %}y{% endif %}", "missing"},
+            {"{% for x in missing %}a{% endfor %}", "missing"},
+            {"{% assign x = missing %}", "missing"}
+          ] do
+        message = "Undefined variable: #{name}"
+
+        assert {:error, %Error{type: :undefined_variable, message: ^message}} = strict(template)
+      end
+    end
+
+    test "keep rendering as nil by default" do
+      assert Mau.render("{{ nmae }}", @context) == {:ok, ""}
+      assert Mau.render("{{ user.missing }}", @context) == {:ok, ""}
+      assert Mau.render("{{ missing.deep.path }}", @context) == {:ok, ""}
+      assert Mau.render("{{ missing + 1 }}", @context) == {:ok, "1"}
+    end
+
+    test "existing nil values are not errors" do
+      assert strict("{{ n }}") == {:ok, ""}
+      assert strict("{{ user.nick }}") == {:ok, ""}
+      assert strict("{{ n.anything }}") == {:ok, ""}
+      assert strict("{{ user.nick.first }}") == {:ok, ""}
+    end
+
+    test "out of range indexes are not errors" do
+      assert strict("{{ l[5] }}") == {:ok, ""}
+      assert strict("{{ l[5].name }}") == {:ok, ""}
+    end
+
+    test "atom keys count as defined when accessing a path" do
+      assert strict("{{ user.name }}", %{user: %{name: "Al"}}) == {:ok, "Al"}
+    end
+
+    test "are allowed in conditions" do
+      assert strict("{% if missing %}y{% else %}n{% endif %}") == {:ok, "n"}
+      assert strict("{% if user.missing %}y{% else %}n{% endif %}") == {:ok, "n"}
+      assert strict("{% if n %}y{% elsif missing %}e{% else %}n{% endif %}") == {:ok, "n"}
+      assert strict("{% if missing and s %}y{% else %}n{% endif %}") == {:ok, "n"}
+      assert strict("{% if not missing %}y{% endif %}") == {:ok, "y"}
+      assert strict("{{ missing or s }}") == {:ok, "true"}
+      assert strict("{{ missing and s }}") == {:ok, "false"}
+      assert strict("{{ missing || s }}") == {:ok, "text"}
+      assert strict("{{ missing && s }}") == {:ok, ""}
+    end
+
+    test "are allowed as the input to default" do
+      assert strict("{{ missing | default('d') }}") == {:ok, "d"}
+      assert strict("{{ user.missing | default('d') }}") == {:ok, "d"}
+      assert strict("{{ default(missing, 'd') }}") == {:ok, "d"}
+      assert {:error, %Error{type: :undefined_variable}} = strict("{{ s | default(missing) }}")
+    end
+
+    test "are errors inside loops and branches that run" do
+      assert {:error, %Error{type: :undefined_variable}} =
+               strict("{% for x in l %}{{ x.missing }}{% endfor %}")
+
+      assert strict("{% if n %}{{ missing }}{% endif %}") == {:ok, ""}
+    end
+
+    test "loop and assigned variables are defined" do
+      assert strict("{% for x in l %}{{ x }}{{ forloop.index }}{% endfor %}") == {:ok, "10"}
+      assert strict("{% assign a = 1 %}{{ a }}") == {:ok, "1"}
+    end
+
+    test "are errors with preserve_types and compiled templates" do
+      assert {:error, %Error{type: :undefined_variable}} =
+               Mau.render("{{ nmae }}", @context, strict_mode: true, preserve_types: true)
+
+      {:ok, ast} = Mau.compile("{{ nmae }}")
+
+      assert {:error, %Error{type: :undefined_variable}} =
+               Mau.render(ast, @context, strict_mode: true)
+    end
+
+    test "fail the whole map in render_map" do
+      assert {:error, %Error{type: :undefined_variable}} =
+               Mau.render_map(%{a: "{{ nmae }}", b: "{{ s }}"}, @context, strict_mode: true)
+
+      assert Mau.render_map(%{a: "{{ nmae }}"}, @context) == {:ok, %{a: nil}}
     end
   end
 

@@ -502,15 +502,15 @@ Value: {{ 42 }}          # -> "Value: 42" (String)
 
 ### Strict Mode
 
-**strict_mode: true** - Return errors for invalid templates
+**strict_mode: true** - Return errors for invalid templates and undefined variables
 - Incomplete expression: `{{ variable` → Syntax error
 - Unclosed block: `{% if a %}x` → Syntax error
 - Stray block tag: `{% endif %}` → Syntax error
+- Undefined variable: `{{ unknown_var }}` → Error, unless checked with `if`, a logical operator or `default`
 
 **strict_mode: false** (default) - Graceful degradation
 - Any invalid template → The whole template is output as-is, including any valid tags
-
-Undefined variables are treated as nil/empty in both modes.
+- Undefined variable: `{{ unknown_var }}` → Treated as nil/empty
 
 ### Missing Variables
 

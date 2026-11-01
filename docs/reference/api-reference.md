@@ -124,7 +124,7 @@ end
 
 - **Render Errors**: Failures such as division by zero return `{:error, error}` in both modes
 
-- **Undefined Variables**: Render as empty strings in both modes, and no error is returned
+- **Undefined Variables**: Render as empty strings by default. With `strict_mode: true`, the result is `{:error, error}` of type `:undefined_variable`, unless the variable is checked with `if`, a logical operator or `default`. See [Error Handling](../advanced/error-handling.md#strict-mode).
 
 **See Also:**
 - [Template Language Reference](template-language.md) - Template syntax
@@ -503,6 +503,7 @@ Errors can't be interpolated into a string directly. Use `error.message` or `Mau
 
 **Error Types:**
 - `:syntax` - Invalid templates, returned only with `strict_mode: true`. `line` and `column` are set for invalid syntax, but not for unclosed blocks or stray block tags.
+- `:undefined_variable` - Undefined variables, returned only with `strict_mode: true`
 - `:runtime` - Everything else, including filter errors, size limits (`max_template_size`) and loop limits (`max_loop_iterations`)
 
 **Example Error Handling:**
@@ -543,7 +544,7 @@ Mau returns errors rather than raising them, so `rescue` isn't needed around `co
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `preserve_types` | boolean | false | Preserve non-string types for single values |
-| `strict_mode` | boolean | false | Return errors for invalid templates |
+| `strict_mode` | boolean | false | Return errors for invalid templates and undefined variables |
 | `max_template_size` | integer | 100,000 | Maximum template size in bytes |
 | `max_loop_iterations` | integer | 10,000 | Maximum iterations in loops |
 

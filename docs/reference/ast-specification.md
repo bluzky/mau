@@ -422,7 +422,7 @@ Mark expression as static (no variable dependencies).
 **strict_mode** - `boolean()`
 An option for `Mau.compile/2`, `Mau.render/3` and `Mau.render_map/3`. It isn't stored on AST nodes.
 
-- `true` - Return `{:error, error}` for invalid templates
+- `true` - Return `{:error, error}` for invalid templates and undefined variables
 - `false` (default) - Compile an invalid template to a single text node holding its source
 
 **Examples:**
