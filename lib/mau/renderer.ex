@@ -306,7 +306,7 @@ defmodule Mau.Renderer do
 
   defp resolve_value_access({:index, index}, value, context, opts) do
     with {:ok, resolved_index} <- resolve_index_value(index, context, opts) do
-      {:ok, get_list_element(value, resolved_index)}
+      fetch_element(value, resolved_index)
     end
   end
 
@@ -381,31 +381,32 @@ defmodule Mau.Renderer do
   defp is_valid_index_or_key(value) when is_atom(value), do: true
   defp is_valid_index_or_key(_), do: false
 
-  # Gets an element from list/map by index/key - returns the value directly (nil if not found)
-  defp get_list_element(list, index) when is_list(list) and is_integer(index) and index >= 0 do
-    Enum.at(list, index)
+  # Gets an element from a list or map. A list index past the end is nil, because
+  # list lengths vary with the data, while a missing map key is undefined like `.`
+  defp fetch_element(list, index) when is_list(list) and is_integer(index) and index >= 0 do
+    {:ok, Enum.at(list, index)}
   end
 
-  defp get_list_element(list, index) when is_list(list) and is_integer(index) and index < 0 do
+  defp fetch_element(list, index) when is_list(list) and is_integer(index) and index < 0 do
     # Negative indices are not supported
-    nil
+    {:ok, nil}
   end
 
-  defp get_list_element(map, key) when is_map(map) and is_binary(key) do
-    case fetch_key(map, key) do
-      {:ok, value} -> value
-      :error -> nil
+  defp fetch_element(map, key) when is_map(map) and is_binary(key) do
+    with :error <- fetch_key(map, key) do
+      :undefined
     end
   end
 
-  defp get_list_element(map, key) when is_map(map) and is_atom(key) do
-    Map.get(map, key)
+  defp fetch_element(map, key) when is_map(map) and is_atom(key) do
+    with :error <- Map.fetch(map, key) do
+      :undefined
+    end
   end
 
-  defp get_list_element(_collection, _key) do
-    # All other cases (unsupported collection types or key types)
-    nil
-  end
+  defp fetch_element(nil, _key), do: {:ok, nil}
+
+  defp fetch_element(_collection, _key), do: :undefined
 
   # Formats values for output - optimized for common cases
   defp format_value(value) when is_binary(value), do: value

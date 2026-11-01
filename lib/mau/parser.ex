@@ -90,8 +90,6 @@ defmodule Mau.Parser do
       number_literal,
       # Literal string key like ["key"], ["name"]
       string_literal,
-      # Literal atom key like [:key], [:name]
-      atom_literal,
       # Variable expression like [key], [index], [user.id]
       variable_path
     ])

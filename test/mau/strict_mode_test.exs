@@ -218,4 +218,47 @@ defmodule Mau.StrictModeTest do
                Mau.render_map(input, %{"l" => [1]}, strict_mode: true)
     end
   end
+
+  describe "index access in strict mode" do
+    @context %{"user" => %{"name" => "x"}, "s" => "text", "n" => nil, "l" => [1], "key" => "nope"}
+
+    defp strict_index(template), do: Mau.render(template, @context, strict_mode: true)
+
+    test "a missing map key is an error, as it is for dot access" do
+      for template <- [~s/{{ user["nope"] }}/, "{{ user.nope }}", "{{ user[key] }}"] do
+        assert {:error, %Mau.Error{type: :undefined_variable}} = strict_index(template)
+      end
+    end
+
+    test "names the missing path" do
+      assert {:error, %Mau.Error{message: message}} = strict_index(~s/{{ user["nope"] }}/)
+      assert message =~ ~s/user["nope"]/
+    end
+
+    test "existing keys resolve, including nil values" do
+      assert {:ok, "x"} = strict_index(~s/{{ user["name"] }}/)
+      assert {:ok, ""} = Mau.render(~s/{{ m["a"] }}/, %{"m" => %{"a" => nil}}, strict_mode: true)
+      assert {:ok, "x"} = Mau.render(~s/{{ m["a"] }}/, %{"m" => %{a: "x"}}, strict_mode: true)
+    end
+
+    test "indexing a scalar is an error, as it is for dot access" do
+      assert {:error, %Mau.Error{type: :undefined_variable}} = strict_index(~s/{{ s["a"] }}/)
+      assert {:error, %Mau.Error{type: :undefined_variable}} = strict_index("{{ s.a }}")
+    end
+
+    test "indexing nil and a list index past the end stay nil" do
+      assert {:ok, ""} = strict_index(~s/{{ n["a"] }}/)
+      assert {:ok, ""} = strict_index("{{ l[5] }}")
+    end
+
+    test "conditions and default still tolerate a missing key" do
+      assert {:ok, "F"} = strict_index(~s/{% if user["nope"] %}T{% else %}F{% endif %}/)
+      assert {:ok, "d"} = strict_index(~s/{{ user["nope"] | default("d") }}/)
+    end
+
+    test "default mode stays lenient" do
+      assert {:ok, ""} = Mau.render(~s/{{ user["nope"] }}/, @context)
+      assert {:ok, ""} = Mau.render(~s/{{ s["a"] }}/, @context)
+    end
+  end
 end

@@ -46,6 +46,8 @@ Undefined variables render as empty strings by default. In strict mode, using on
   Mau.render("{{ user.nmae }}", %{"user" => %{}}, strict_mode: true)
 ```
 
+A missing map key is treated the same way in `{{ user["nmae"] }}`.
+
 A variable can still be missing in strict mode when it's checked explicitly:
 
 ```elixir

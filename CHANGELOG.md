@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `#filter` keeps items that are `0`, `""` or `[]`
   - A directive condition that renders to an empty string from several nodes, such as `"{{ a }}{{ b }}"`, is now truthy. Use a single expression
 - **Breaking: `or` returns the right value when the left side is falsy,** as Elixir does, so `{{ false or "x" }}` is `x` instead of `true`. `{% if %}` conditions behave the same.
+- **Breaking: `user[:name]` is no longer valid syntax.** Use `user.name` or `user["name"]`, which both read atom keys. `{{ :name }}` as a value is unchanged.
+- In strict mode, `{{ user["nope"] }}` with a missing map key is now an `:undefined_variable` error, matching `{{ user.nope }}`. An index past the end of a list is still `nil`.
 
 ### Fixed
 - Atom keys now resolve the same way in `{{ name }}`, `{{ user.name }}` and `{{ user["name"] }}`. A string key takes priority, and `{{ name }}` with an atom key no longer returns an error in strict mode.

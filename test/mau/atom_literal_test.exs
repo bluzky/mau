@@ -36,9 +36,9 @@ defmodule Mau.AtomLiteralTest do
         "user" => %{:name => "Alice", :age => 30, :active => true}
       }
 
-      assert {:ok, "Alice"} = Mau.render("{{ user[:name] }}", context)
-      assert {:ok, "30"} = Mau.render("{{ user[:age] }}", context)
-      assert {:ok, "true"} = Mau.render("{{ user[:active] }}", context)
+      assert {:ok, "Alice"} = Mau.render("{{ user[\"name\"] }}", context)
+      assert {:ok, "30"} = Mau.render("{{ user[\"age\"] }}", context)
+      assert {:ok, "true"} = Mau.render("{{ user[\"active\"] }}", context)
     end
 
     test "accesses root context with atom keys using dot notation" do
@@ -98,7 +98,7 @@ defmodule Mau.AtomLiteralTest do
 
     test "returns empty string for non-existent atom keys" do
       context = %{"user" => %{:name => "Alice"}}
-      assert {:ok, ""} = Mau.render("{{ user[:missing] }}", context)
+      assert {:ok, ""} = Mau.render("{{ user[\"missing\"] }}", context)
     end
 
     test "works with nested atom key access" do
@@ -108,8 +108,8 @@ defmodule Mau.AtomLiteralTest do
         }
       }
 
-      assert {:ok, "localhost"} = Mau.render("{{ config[:database][:host] }}", context)
-      assert {:ok, "5432"} = Mau.render("{{ config[:database][:port] }}", context)
+      assert {:ok, "localhost"} = Mau.render("{{ config[\"database\"][\"host\"] }}", context)
+      assert {:ok, "5432"} = Mau.render("{{ config[\"database\"][\"port\"] }}", context)
     end
 
     test "combines with other access patterns" do
@@ -122,8 +122,8 @@ defmodule Mau.AtomLiteralTest do
         }
       }
 
-      assert {:ok, "Alice"} = Mau.render("{{ data[:users][0][\"name\"] }}", context)
-      assert {:ok, "2"} = Mau.render("{{ data[:users][1][:id] }}", context)
+      assert {:ok, "Alice"} = Mau.render("{{ data[\"users\"][0][\"name\"] }}", context)
+      assert {:ok, "2"} = Mau.render("{{ data[\"users\"][1][\"id\"] }}", context)
     end
   end
 
@@ -163,7 +163,7 @@ defmodule Mau.AtomLiteralTest do
       }
 
       template =
-        "Users: {{ data[:users][0] }}, {{ data[:users][1] }}. Count: {{ data[\"count\"] }}. Active: {{ data[:active] }}"
+        "Users: {{ data[\"users\"][0] }}, {{ data[\"users\"][1] }}. Count: {{ data[\"count\"] }}. Active: {{ data[\"active\"] }}"
 
       expected = "Users: Alice, Bob. Count: 2. Active: true"
       assert {:ok, ^expected} = Mau.render(template, context)
@@ -203,8 +203,8 @@ defmodule Mau.AtomLiteralTest do
       {:ok, ast2} = Parser.parse("{{ user[\"key\"] }}")
       assert [{:expression, [_], []}] = ast2
 
-      {:ok, ast3} = Parser.parse("{{ data[:atom] }}")
-      assert [{:expression, [_], []}] = ast3
+      assert {:error, %Mau.Error{type: :syntax}} =
+               Mau.render("{{ data[:atom] }}", %{}, strict_mode: true)
     end
 
     test "renders variable index templates with undefined variables as empty" do
