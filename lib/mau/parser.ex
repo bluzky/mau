@@ -769,8 +769,9 @@ defmodule Mau.Parser do
 
   # Atom literal helpers (kept for internal combinator use)
   defp build_atom_literal([":" | atom_chars]) do
-    atom_name = :binary.list_to_bin(atom_chars)
-    {:literal, [String.to_atom(atom_name)], []}
+    atom_chars
+    |> :binary.list_to_bin()
+    |> Nodes.atom_literal_node()
   end
 
   # Array literal helpers

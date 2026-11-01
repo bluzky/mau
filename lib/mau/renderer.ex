@@ -252,7 +252,7 @@ defmodule Mau.Renderer do
     case Map.get(context, identifier) do
       nil ->
         # Fallback to atom key if string key not found
-        case Map.fetch(context, String.to_atom(identifier)) do
+        case fetch_atom_key(context, identifier) do
           {:ok, value} -> {:ok, value}
           :error -> if Map.has_key?(context, identifier), do: {:ok, nil}, else: :error
         end
@@ -260,6 +260,13 @@ defmodule Mau.Renderer do
       value ->
         {:ok, value}
     end
+  end
+
+  defp fetch_atom_key(map, name) do
+    Map.fetch(map, String.to_existing_atom(name))
+  rescue
+    # The atom doesn't exist, so no map can have it as a key
+    ArgumentError -> :error
   end
 
   # Continues path traversal from a resolved value (not the initial context map)
@@ -297,7 +304,7 @@ defmodule Mau.Renderer do
   # Unified access resolution - handles both property and index access
   defp resolve_value_access({:property, property}, value, _context, _opts) when is_map(value) do
     with :error <- Map.fetch(value, property),
-         :error <- Map.fetch(value, String.to_atom(property)) do
+         :error <- fetch_atom_key(value, property) do
       :undefined
     end
   end

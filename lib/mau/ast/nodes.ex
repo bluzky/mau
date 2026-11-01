@@ -24,10 +24,15 @@ defmodule Mau.AST.Nodes do
 
   @doc """
   Creates an atom literal node for atom values.
+
+  Templates must not grow the atom table, so a name that isn't already an atom
+  becomes the string `":name"`. It renders the same, and it can't equal any
+  context value because that atom doesn't exist.
   """
-  @compile {:inline, atom_literal_node: 1, atom_literal_node: 2}
   def atom_literal_node(atom_name, opts \\ []) when is_binary(atom_name) do
-    {:literal, [String.to_atom(atom_name)], opts}
+    {:literal, [String.to_existing_atom(atom_name)], opts}
+  rescue
+    ArgumentError -> {:literal, [":" <> atom_name], opts}
   end
 
   @doc """
