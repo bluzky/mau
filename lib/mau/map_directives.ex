@@ -180,9 +180,8 @@ defmodule Mau.MapDirectives do
     def apply_directive({:if, [condition_template, true_template]}, context, opts, render_fn) do
     # Render the condition to get a boolean value
     condition_result = render_fn.(condition_template, context, opts)
-    condition = truthy?(condition_result)
 
-    if condition do
+    if condition_result do
       render_fn.(true_template, context, opts)
     else
       nil
@@ -192,9 +191,8 @@ defmodule Mau.MapDirectives do
   def apply_directive({:if, [condition_template, true_template, false_template]}, context, opts, render_fn) do
     # Render the condition to get a boolean value
     condition_result = render_fn.(condition_template, context, opts)
-    condition = truthy?(condition_result)
 
-    if condition do
+    if condition_result do
       render_fn.(true_template, context, opts)
     else
       render_fn.(false_template, context, opts)
@@ -273,14 +271,14 @@ defmodule Mau.MapDirectives do
 
   def apply_directive({:cond, [conditions]}, context, opts, render_fn) when is_list(conditions) do
     # Find the first condition that evaluates to true
-    result = Enum.find_value(conditions, fn
+    match_result = Enum.find_value(conditions, fn
       [condition_template, template] ->
         # Render the condition
         condition_result = render_fn.(condition_template, context, opts)
 
-        # Check if condition is truthy
-        if truthy?(condition_result) do
-          render_fn.(template, context, opts)
+        # Wrapped so a branch that renders to false or nil still counts as a match
+        if condition_result do
+          {:ok, render_fn.(template, context, opts)}
         else
           nil
         end
@@ -290,7 +288,10 @@ defmodule Mau.MapDirectives do
         nil
     end)
 
-    result
+    case match_result do
+      {:ok, result} -> result
+      nil -> nil
+    end
   end
 
   def apply_directive({:cond, _invalid_args}, _context, _opts, _render_fn) do
@@ -324,7 +325,7 @@ defmodule Mau.MapDirectives do
       # Render the condition template
       condition_result = render_fn.(condition_template, item_context, opts)
       # Check if condition is truthy
-      truthy?(condition_result)
+      condition_result
     end)
     |> Enum.map(fn {item, _index} -> item end)
   end
@@ -388,14 +389,6 @@ defmodule Mau.MapDirectives do
     end)
     |> Map.new()
   end
-
-  # Helper to check if a value is truthy
-  defp truthy?(nil), do: false
-  defp truthy?(false), do: false
-  defp truthy?([]), do: false
-  defp truthy?({}), do: false
-  defp truthy?(""), do: false
-  defp truthy?(_), do: true
 
   # Helper to get a list of items, spending them against the render's limits
   defp iterable_items(collection, opts) do

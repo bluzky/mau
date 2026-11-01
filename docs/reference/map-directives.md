@@ -512,8 +512,10 @@ Conditionally renders one of two templates based on a boolean condition.
 
 #### Truthy/Falsy Values
 
-**Truthy:** `true`, non-empty strings, non-zero numbers, non-empty lists/maps, any other value
-**Falsy:** `nil`, `false`, `""` (empty string), `[]` (empty list), `{}` (empty map)
+**Falsy:** only `nil` and `false`
+**Truthy:** everything else, including `0`, `""` (empty string), `[]` (empty list), `{}` (empty map)
+
+A condition that mixes text or several expressions renders to a string, so it's always truthy, even when that string is empty. Use a single expression such as `"{{ user.active }}"`.
 
 #### Examples
 
@@ -624,7 +626,7 @@ Evaluates conditions in order and renders the template for the first truthy cond
 
 - `conditions` - List of `[condition_template, template]` pairs
 - Each condition is evaluated in order
-- First truthy condition's template is rendered
+- First truthy condition's template is rendered, and its result is returned even if it's `false` or `nil`
 - Returns `nil` if no condition matches
 
 #### Default Case

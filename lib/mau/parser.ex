@@ -192,29 +192,29 @@ defmodule Mau.Parser do
   # COMPARISON EXPRESSION PARSING
   # ============================================================================
 
-  # Equality operators - ==, !=
-  equality_operator = Expression.equality_operator()
+  # Relational operators - >, >=, <, <= (bind tighter than equality)
+  relational_operator = Expression.relational_operator()
 
-  equality_expression =
+  relational_expression =
     additive_expression
     |> repeat(
       ignore(optional_whitespace)
-      |> concat(equality_operator)
+      |> concat(relational_operator)
       |> ignore(optional_whitespace)
       |> concat(additive_expression)
     )
     |> reduce(:build_binary_operation)
 
-  # Relational operators - >, >=, <, <=
-  relational_operator = Expression.relational_operator()
+  # Equality operators - ==, !=
+  equality_operator = Expression.equality_operator()
 
-  relational_expression =
-    equality_expression
+  equality_expression =
+    relational_expression
     |> repeat(
       ignore(optional_whitespace)
-      |> concat(relational_operator)
+      |> concat(equality_operator)
       |> ignore(optional_whitespace)
-      |> concat(equality_expression)
+      |> concat(relational_expression)
     )
     |> reduce(:build_binary_operation)
 
@@ -233,7 +233,7 @@ defmodule Mau.Parser do
       |> reduce(:build_unary_operation),
 
       # No unary operator
-      relational_expression
+      equality_expression
     ])
 
   # ============================================================================
@@ -247,7 +247,7 @@ defmodule Mau.Parser do
       ignore(optional_whitespace)
       |> choice([
         string("&&"),
-        string("and")
+        string("and") |> lookahead_not(identifier_char)
       ])
       |> ignore(optional_whitespace)
       |> concat(unary_expression)
@@ -261,7 +261,7 @@ defmodule Mau.Parser do
       ignore(optional_whitespace)
       |> choice([
         string("||"),
-        string("or")
+        string("or") |> lookahead_not(identifier_char)
       ])
       |> ignore(optional_whitespace)
       |> concat(logical_and_expression)

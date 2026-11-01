@@ -154,7 +154,7 @@ defmodule Mau.StrictModeTest do
       assert strict("{% if n %}y{% elsif missing %}e{% else %}n{% endif %}") == {:ok, "n"}
       assert strict("{% if missing and s %}y{% else %}n{% endif %}") == {:ok, "n"}
       assert strict("{% if not missing %}y{% endif %}") == {:ok, "y"}
-      assert strict("{{ missing or s }}") == {:ok, "true"}
+      assert strict("{{ missing or s }}") == {:ok, "text"}
       assert strict("{{ missing and s }}") == {:ok, "false"}
       assert strict("{{ missing || s }}") == {:ok, "text"}
       assert strict("{{ missing && s }}") == {:ok, ""}

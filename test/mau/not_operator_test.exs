@@ -33,12 +33,12 @@ defmodule Mau.NotOperatorTest do
       assert result == "false"
     end
 
-    test "parses and evaluates not with falsy values" do
+    test "parses and evaluates not with an empty string" do
       template = "{{ not empty_string }}"
       context = %{"empty_string" => ""}
 
       assert {:ok, result} = Mau.render(template, context)
-      assert result == "true"
+      assert result == "false"
     end
 
     test "parses and evaluates not with nil" do

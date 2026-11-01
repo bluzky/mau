@@ -157,13 +157,15 @@ context = MyApp.ContextSanitizer.sanitize_context(user_input)
 {:ok, output} = Mau.render(template, context)
 ```
 
+Don't combine this with the `escape_html` filter, or the output is escaped twice.
+
 ---
 
 ## Output Encoding
 
 ### HTML Escaping
 
-Always escape HTML content:
+Mau doesn't escape output automatically, so always escape user content in HTML with the built-in `escape_html` filter. It escapes `&`, `<`, `>`, `"` and `'`, which makes it safe for element content and quoted attributes. It isn't safe for JavaScript, URLs or unquoted attributes.
 
 ```elixir
 # ❌ Dangerous: XSS vulnerability
@@ -510,7 +512,7 @@ defmodule MyApp.SecurityTests do
   use ExUnit.Case
 
   test "escapes HTML special characters" do
-    template = "<div>{{ content }}</div>"
+    template = "<div>{{ content | escape_html }}</div>"
     context = %{"content" => "<script>alert('XSS')</script>"}
 
     {:ok, output} = Mau.render(template, context)

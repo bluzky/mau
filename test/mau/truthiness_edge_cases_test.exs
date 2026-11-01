@@ -61,19 +61,19 @@ defmodule Mau.TruthinessEdgeCasesTest do
   end
 
   describe "String Truthiness" do
-    test "empty string is falsy" do
+    test "empty string is truthy" do
       template = """
       {% if empty_string %}
-        Should not appear
+        Empty string is truthy
       {% else %}
-        Empty string is falsy
+        Should not appear
       {% endif %}
       """
 
       context = %{"empty_string" => ""}
 
       assert {:ok, result} = Mau.render(template, context)
-      assert String.contains?(result, "Empty string is falsy")
+      assert String.contains?(result, "Empty string is truthy")
       refute String.contains?(result, "Should not appear")
     end
 
@@ -137,51 +137,51 @@ defmodule Mau.TruthinessEdgeCasesTest do
   end
 
   describe "Numeric Truthiness" do
-    test "zero integer is falsy" do
+    test "zero integer is truthy" do
       template = """
       {% if zero_int %}
-        Should not appear
+        Zero integer is truthy
       {% else %}
-        Zero integer is falsy
+        Should not appear
       {% endif %}
       """
 
       context = %{"zero_int" => 0}
 
       assert {:ok, result} = Mau.render(template, context)
-      assert String.contains?(result, "Zero integer is falsy")
+      assert String.contains?(result, "Zero integer is truthy")
       refute String.contains?(result, "Should not appear")
     end
 
-    test "zero float is falsy" do
+    test "zero float is truthy" do
       template = """
       {% if zero_float %}
-        Should not appear
+        Zero float is truthy
       {% else %}
-        Zero float is falsy
+        Should not appear
       {% endif %}
       """
 
       context = %{"zero_float" => 0.0}
 
       assert {:ok, result} = Mau.render(template, context)
-      assert String.contains?(result, "Zero float is falsy")
+      assert String.contains?(result, "Zero float is truthy")
       refute String.contains?(result, "Should not appear")
     end
 
-    test "negative zero float is falsy" do
+    test "negative zero float is truthy" do
       template = """
       {% if neg_zero_float %}
-        Should not appear
+        Negative zero is truthy
       {% else %}
-        Negative zero is falsy
+        Should not appear
       {% endif %}
       """
 
       context = %{"neg_zero_float" => -0.0}
 
       assert {:ok, result} = Mau.render(template, context)
-      assert String.contains?(result, "Negative zero is falsy")
+      assert String.contains?(result, "Negative zero is truthy")
       refute String.contains?(result, "Should not appear")
     end
 
@@ -265,19 +265,19 @@ defmodule Mau.TruthinessEdgeCasesTest do
   end
 
   describe "Collection Truthiness" do
-    test "empty list is falsy" do
+    test "empty list is truthy" do
       template = """
       {% if empty_list %}
-        Should not appear
+        Empty list is truthy
       {% else %}
-        Empty list is falsy
+        Should not appear
       {% endif %}
       """
 
       context = %{"empty_list" => []}
 
       assert {:ok, result} = Mau.render(template, context)
-      assert String.contains?(result, "Empty list is falsy")
+      assert String.contains?(result, "Empty list is truthy")
       refute String.contains?(result, "Should not appear")
     end
 
@@ -320,19 +320,19 @@ defmodule Mau.TruthinessEdgeCasesTest do
       assert String.contains?(result, "List with falsy elements is truthy")
     end
 
-    test "empty map is falsy" do
+    test "empty map is truthy" do
       template = """
       {% if empty_map %}
-        Should not appear
+        Empty map is truthy
       {% else %}
-        Empty map is falsy
+        Should not appear
       {% endif %}
       """
 
       context = %{"empty_map" => %{}}
 
       assert {:ok, result} = Mau.render(template, context)
-      assert String.contains?(result, "Empty map is falsy")
+      assert String.contains?(result, "Empty map is truthy")
       refute String.contains?(result, "Should not appear")
     end
 
@@ -366,7 +366,7 @@ defmodule Mau.TruthinessEdgeCasesTest do
   describe "Mixed Data Type Conditions" do
     test "comparing different falsy values" do
       template = """
-      {% if nil_val or false_val or empty_string or zero_int or empty_list %}
+      {% if nil_val or false_val or undefined_val %}
         Should not appear
       {% else %}
         All falsy values
@@ -375,10 +375,7 @@ defmodule Mau.TruthinessEdgeCasesTest do
 
       context = %{
         "nil_val" => nil,
-        "false_val" => false,
-        "empty_string" => "",
-        "zero_int" => 0,
-        "empty_list" => []
+        "false_val" => false
       }
 
       assert {:ok, result} = Mau.render(template, context)
@@ -418,7 +415,7 @@ defmodule Mau.TruthinessEdgeCasesTest do
 
       context = %{
         "truthy_val" => "hello",
-        "falsy_val" => 0
+        "falsy_val" => false
       }
 
       assert {:ok, result} = Mau.render(template, context)
@@ -480,7 +477,7 @@ defmodule Mau.TruthinessEdgeCasesTest do
       {% endif %}
       """
 
-      context = %{"items" => [0, 1, 2]}
+      context = %{"items" => [nil, 1, 2]}
 
       assert {:ok, result} = Mau.render(template, context)
       assert String.contains?(result, "First item is falsy or missing")
@@ -521,7 +518,7 @@ defmodule Mau.TruthinessEdgeCasesTest do
         "user" => %{"active" => false},
         "score" => 0,
         # items is truthy but items[0] is falsy
-        "items" => [0]
+        "items" => [false]
       }
 
       assert {:ok, result3} = Mau.render(template, context3)
@@ -550,10 +547,10 @@ defmodule Mau.TruthinessEdgeCasesTest do
       assert {:ok, result} = Mau.render(template, context)
       assert String.contains?(result, "NIL")
       assert String.contains?(result, "FALSE")
-      assert String.contains?(result, "EMPTY_STR")
-      assert String.contains?(result, "ZERO_INT")
-      assert String.contains?(result, "EMPTY_LIST")
-      assert String.contains?(result, "EMPTY_MAP")
+      refute String.contains?(result, "EMPTY_STR")
+      refute String.contains?(result, "ZERO_INT")
+      refute String.contains?(result, "EMPTY_LIST")
+      refute String.contains?(result, "EMPTY_MAP")
     end
 
     test "not operator with various truthy values" do
@@ -596,10 +593,10 @@ defmodule Mau.TruthinessEdgeCasesTest do
 
       assert {:ok, result} = Mau.render(template, context)
       assert String.contains?(result, "Truthy: 1")
-      assert String.contains?(result, "Falsy: 0")
+      assert String.contains?(result, "Truthy: 0")
       assert String.contains?(result, "Truthy: hello")
       # empty string
-      assert String.contains?(result, "Falsy: ")
+      assert String.contains?(result, "Truthy: \n")
       assert String.contains?(result, "Truthy: true")
       assert String.contains?(result, "Falsy: false")
       # Note: nil might render as empty string
@@ -607,7 +604,7 @@ defmodule Mau.TruthinessEdgeCasesTest do
 
     test "conditional loop based on collection truthiness" do
       template = """
-      {% if items %}
+      {% if length(items) > 0 %}
         Items exist:
         {% for item in items %}
           - {{ item }}
@@ -617,7 +614,7 @@ defmodule Mau.TruthinessEdgeCasesTest do
       {% endif %}
       """
 
-      # Test with empty array
+      # Test with empty array, which needs an explicit check
       context_empty = %{"items" => []}
       assert {:ok, result_empty} = Mau.render(template, context_empty)
       assert String.contains?(result_empty, "No items")
@@ -629,6 +626,89 @@ defmodule Mau.TruthinessEdgeCasesTest do
       assert String.contains?(result_full, "Items exist:")
       assert String.contains?(result_full, "- a")
       refute String.contains?(result_full, "No items")
+    end
+  end
+
+  describe "One rule on every path" do
+    @truthy [0, 0.0, -0.0, "", [], %{}, "0", 1, true]
+    @falsy [nil, false]
+
+    defp if_tag(value), do: Mau.render("{% if a %}T{% else %}F{% endif %}", %{"a" => value})
+
+    defp elsif_tag(value) do
+      Mau.render("{% if false %}x{% elsif a %}T{% else %}F{% endif %}", %{"a" => value})
+    end
+
+    defp if_directive(condition, value) do
+      {:ok, %{"r" => result}} =
+        Mau.render_map(%{"r" => %{"#if" => [condition, "T", "F"]}}, %{"a" => value})
+
+      result
+    end
+
+    defp cond_directive(value) do
+      {:ok, %{"r" => result}} =
+        Mau.render_map(%{"r" => %{"#cond" => [[["{{ a }}", "T"], [true, "F"]]]}}, %{"a" => value})
+
+      result
+    end
+
+    defp filter_directive(value) do
+      {:ok, %{"r" => result}} =
+        Mau.render_map(%{"r" => %{"#filter" => ["{{ l }}", "{{ $loop.item }}"]}}, %{"l" => [value]})
+
+      result
+    end
+
+    test "truthy values are truthy for tags, operators and directives" do
+      for value <- @truthy do
+        context = %{"a" => value}
+
+        assert {:ok, "T"} = if_tag(value)
+        assert {:ok, "T"} = elsif_tag(value)
+        assert {:ok, "false"} = Mau.render("{{ not a }}", context)
+        assert {:ok, "true"} = Mau.render("{{ a and true }}", context)
+        assert {:ok, "true"} = Mau.render("{{ a or false }}", context)
+        assert {:ok, "yes"} = Mau.render("{{ a && 'yes' }}", context)
+        assert "T" = if_directive("{{ a }}", value)
+        assert "F" = if_directive("{{ not a }}", value)
+        assert "T" = cond_directive(value)
+        assert [^value] = filter_directive(value)
+      end
+    end
+
+    test "falsy values are falsy for tags, operators and directives" do
+      for value <- @falsy do
+        context = %{"a" => value}
+
+        assert {:ok, "F"} = if_tag(value)
+        assert {:ok, "F"} = elsif_tag(value)
+        assert {:ok, "true"} = Mau.render("{{ not a }}", context)
+        assert {:ok, "false"} = Mau.render("{{ a and true }}", context)
+        assert {:ok, "false"} = Mau.render("{{ a or false }}", context)
+        assert {:ok, "no"} = Mau.render("{{ a || 'no' }}", context)
+        assert "F" = if_directive("{{ a }}", value)
+        assert "T" = if_directive("{{ not a }}", value)
+        assert "F" = cond_directive(value)
+        assert [] = filter_directive(value)
+      end
+    end
+
+    test "undefined variables stay falsy in directives" do
+      assert {:ok, %{"r" => "F"}} =
+               Mau.render_map(%{"r" => %{"#if" => ["{{ missing }}", "T", "F"]}}, %{})
+
+      assert {:ok, %{"r" => "F"}} =
+               Mau.render_map(%{"r" => %{"#if" => ["{{ a.missing }}", "T", "F"]}}, %{"a" => %{}})
+    end
+
+    test "emptiness is checked explicitly" do
+      context = %{"items" => [], "name" => "", "count" => 0}
+
+      assert {:ok, "N"} = Mau.render("{% if length(items) > 0 %}Y{% else %}N{% endif %}", context)
+      assert {:ok, "N"} = Mau.render("{% if items != [] %}Y{% else %}N{% endif %}", context)
+      assert {:ok, "N"} = Mau.render("{% if name != \"\" %}Y{% else %}N{% endif %}", context)
+      assert {:ok, "N"} = Mau.render("{% if count != 0 %}Y{% else %}N{% endif %}", context)
     end
   end
 
@@ -720,9 +800,9 @@ defmodule Mau.TruthinessEdgeCasesTest do
       items =
         Enum.map(0..999, fn i ->
           case rem(i, 4) do
-            # falsy
+            # truthy
             0 -> 0
-            # falsy  
+            # truthy
             1 -> ""
             # falsy
             2 -> nil

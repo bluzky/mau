@@ -165,38 +165,31 @@ Mau supports two styles of logical operators with **different behavior**:
 
 #### Word-based Operators: `and` / `or` / `not`
 
-**Returns boolean values** (`true` or `false`) using Liquid-style truthiness:
+**The left side decides, as in Elixir.** `and` returns `false` when the left side is falsy, `or` returns `true` when it's truthy, and otherwise both return the right value. `not` always returns a boolean.
 
 ```liquid
-{{ user.active and user.verified }}        # Returns: true or false
+{{ user.active and user.verified }}        # Returns: false or user.verified
 {{ role == "admin" or role == "moderator" }}  # Returns: true or false
 {{ not user.blocked }}                     # Returns: true or false
 ```
 
-**Truthiness (Liquid-style):**
-- Falsy values: `nil`, `false`, `0`, `""` (empty string), `[]` (empty list), `{}` (empty map)
-- Everything else is truthy
-
 **Examples:**
 ```liquid
-{{ 0 and "hello" }}          # false (0 is falsy)
-{{ "" or "world" }}          # true (returns boolean, not the value)
-{{ "hello" and "world" }}    # true (returns boolean)
+{{ nil and "hello" }}        # false (nil is falsy)
+{{ "hello" and "world" }}    # "world" (returns right value)
+{{ "" or "world" }}          # true ("" is truthy)
+{{ nil or "world" }}         # "world" (returns right value)
 ```
 
 #### Symbol-based Operators: `&&` / `||` / `!`
 
-**Returns actual values** (not booleans) using Elixir-style truthiness:
+**Returns actual values** (not booleans):
 
 ```liquid
 {{ user.active && user.verified }}        # Returns: right value or false/nil
 {{ role == "admin" || role == "moderator" }}  # Returns: first truthy value
 {{ !user.blocked }}                       # Returns: true or false
 ```
-
-**Truthiness (Elixir-style):**
-- Falsy values: **only** `nil` and `false`
-- Everything else is truthy (including `0`, `""`, `[]`, `{}`)
 
 **Examples:**
 ```liquid
@@ -207,17 +200,23 @@ Mau supports two styles of logical operators with **different behavior**:
 {{ nil && "test" }}          # nil (short-circuits, returns nil)
 ```
 
+#### Truthiness
+
+All operators, `{% if %}` tags and map directives use Elixir truthiness:
+- Falsy values: **only** `nil` and `false`
+- Everything else is truthy (including `0`, `""`, `[]`, `{}`)
+
+Check for empty values explicitly: `{% if length(items) > 0 %}`, `{% if name != "" %}`, `{% if count != 0 %}`.
+
 #### Choosing Between Operators
 
 Use **`and` / `or` / `not`** when:
-- You need boolean results for conditions
-- You want Liquid-like behavior where `0` and `""` are falsy
+- You're writing conditions
 - You're writing templates familiar to Liquid users
 
 Use **`&&` / `||` / `!`** when:
-- You need the actual values (for default value patterns)
-- You want Elixir-like behavior where only `nil` and `false` are falsy
-- You're using `||` for default values: `{{ user.name || "Guest" }}`
+- You need the left value back (for default value patterns)
+- You're using `||` for default values: `{{ user.name || "Guest" }}` keeps the name, while `or` would print `true`
 
 **Complex Conditions:**
 ```liquid

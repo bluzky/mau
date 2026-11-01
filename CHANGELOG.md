@@ -7,7 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **Breaking: one truthiness rule everywhere.** Only `nil` and `false` are falsy for `{% if %}`, `{% elsif %}`, `and`, `or`, `not`, `&&`, `||`, `#if`, `#cond` and `#filter`. `0`, `0.0`, `""`, `[]` and `{}` are now truthy.
+  - Check for empty values explicitly: `{% if length(items) > 0 %}`, `{% if name != "" %}`, `{% if count != 0 %}`
+  - `#filter` keeps items that are `0`, `""` or `[]`
+  - A directive condition that renders to an empty string from several nodes, such as `"{{ a }}{{ b }}"`, is now truthy. Use a single expression
+- **Breaking: `or` returns the right value when the left side is falsy,** as Elixir does, so `{{ false or "x" }}` is `x` instead of `true`. `{% if %}` conditions behave the same.
+
+### Fixed
+- Atom keys now resolve the same way in `{{ name }}`, `{{ user.name }}` and `{{ user["name"] }}`. A string key takes priority, and `{{ name }}` with an atom key no longer returns an error in strict mode.
+- `<`, `<=`, `>` and `>=` now bind tighter than `==` and `!=`, so `{{ 1 < 2 == true }}` works.
+- `and` and `or` now need a word boundary, so `{{ a orb }}` is a syntax error instead of `a or b`.
+- `#cond` now stops at the first matching branch even if its result is `false` or `nil`, instead of moving on to the next branch.
+
 ### Added
+- `escape_html` filter for escaping user content in HTML. Output is still not escaped by default.
 - **Group 10: Whitespace Control** - Complete implementation
   - **Task 10.1: Trim Token Parser** - Complete trim detection for expressions and tags
     - Expression trim parsing: `{{-`, `-}}`, `{{-` `-}}`

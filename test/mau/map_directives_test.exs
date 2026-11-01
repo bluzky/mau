@@ -914,7 +914,7 @@ defmodule Mau.MapDirectivesTest do
     end
 
     test "handles various falsy values" do
-      falsy_values = [false, nil, [], {}, ""]
+      falsy_values = [false, nil]
 
       Enum.each(falsy_values, fn value ->
         input = %{
@@ -929,6 +929,27 @@ defmodule Mau.MapDirectivesTest do
 
         context = %{}
         expected = %{result: %{success: false}}
+
+        assert {:ok, ^expected} = Mau.render_map(input, context)
+      end)
+    end
+
+    test "treats zero and empty values as truthy" do
+      truthy_values = [0, 0.0, "", [], %{}]
+
+      Enum.each(truthy_values, fn value ->
+        input = %{
+          result: %{
+            "#if" => [
+              value,
+              %{success: true},
+              %{success: false}
+            ]
+          }
+        }
+
+        context = %{}
+        expected = %{result: %{success: true}}
 
         assert {:ok, ^expected} = Mau.render_map(input, context)
       end)

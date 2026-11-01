@@ -73,6 +73,29 @@ defmodule Mau.AtomLiteralTest do
       assert {:ok, "Charlie"} = Mau.render("{{ user.name }}", context2)
     end
 
+    test "resolves atom keys the same way for every access form" do
+      nested = %{user: %{name: "x"}}
+
+      assert {:ok, "x"} = Mau.render("{{ name }}", %{name: "x"})
+      assert {:ok, "x"} = Mau.render("{{ user.name }}", nested)
+      assert {:ok, "x"} = Mau.render(~s({{ user["name"] }}), nested)
+      assert {:ok, "x"} = Mau.render("{{ user[key] }}", Map.put(nested, :key, "name"))
+    end
+
+    test "resolves atom keys in strict mode" do
+      assert {:ok, "x"} = Mau.render("{{ name }}", %{name: "x"}, strict_mode: true)
+    end
+
+    test "prefers a string key over an atom key" do
+      assert {:ok, "s"} = Mau.render("{{ name }}", %{"name" => "s", name: "a"})
+      assert {:ok, ""} = Mau.render("{{ name }}", %{"name" => nil, name: "a"})
+      assert {:ok, "s"} = Mau.render(~s({{ m["name"] }}), %{"m" => %{"name" => "s", name: "a"}})
+    end
+
+    test "assign shadows an atom key" do
+      assert {:ok, "2"} = Mau.render("{% assign x = 2 %}{{ x }}", %{x: 1})
+    end
+
     test "returns empty string for non-existent atom keys" do
       context = %{"user" => %{:name => "Alice"}}
       assert {:ok, ""} = Mau.render("{{ user[:missing] }}", context)

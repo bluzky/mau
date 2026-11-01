@@ -7,8 +7,8 @@ defmodule Mau.ElixirStyleOperatorsTest do
   - Only false and nil are falsy (0, "", [], {} are all truthy)
   - Short-circuit evaluation
 
-  For comparison, `and` and `or` operators maintain their original behavior
-  where 0, "", [], {} are considered falsy.
+  `and` and `or` use the same truthiness, but return `false` or `true` when
+  the left side decides the result, as Elixir does.
   """
 
   use ExUnit.Case
@@ -198,9 +198,9 @@ defmodule Mau.ElixirStyleOperatorsTest do
       assert {:ok, "world"} = Mau.render("{{ \"\" && \"world\" }}", %{})
     end
 
-    test "and uses original truthiness (0, empty string are falsy)" do
-      assert {:ok, "false"} = Mau.render("{{ 0 and \"hello\" }}", %{})
-      assert {:ok, "false"} = Mau.render("{{ \"\" and \"world\" }}", %{})
+    test "and uses the same truthiness (0, empty string are truthy)" do
+      assert {:ok, "hello"} = Mau.render("{{ 0 and \"hello\" }}", %{})
+      assert {:ok, "world"} = Mau.render("{{ \"\" and \"world\" }}", %{})
     end
 
     test "|| uses Elixir truthiness (0, empty string are truthy)" do
@@ -208,9 +208,16 @@ defmodule Mau.ElixirStyleOperatorsTest do
       assert {:ok, ""} = Mau.render("{{ \"\" || \"world\" }}", %{})
     end
 
-    test "or uses original truthiness (0, empty string are falsy)" do
+    test "or uses the same truthiness and returns true when the left side decides" do
       assert {:ok, "true"} = Mau.render("{{ 0 or \"hello\" }}", %{})
       assert {:ok, "true"} = Mau.render("{{ \"\" or \"world\" }}", %{})
+    end
+
+    test "or returns the right value when the left side is falsy" do
+      assert {:ok, "world"} = Mau.render("{{ false or \"world\" }}", %{})
+      assert {:ok, "world"} = Mau.render("{{ missing or \"world\" }}", %{})
+      assert {:ok, 0} = Mau.render("{{ false or 0 }}", %{}, preserve_types: true)
+      assert {:ok, nil} = Mau.render("{{ false or nil_value }}", %{"nil_value" => nil}, preserve_types: true)
     end
 
     test "&& returns actual values, and also returns actual values when truthy" do

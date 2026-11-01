@@ -175,13 +175,6 @@ defmodule Mau.Renderer do
     {:ok, value}
   end
 
-  defp evaluate_expression({:variable, [var_name], []}, context, opts) when is_binary(var_name) do
-    case Map.fetch(context, var_name) do
-      {:ok, value} -> {:ok, value}
-      :error -> undefined_variable([var_name], opts)
-    end
-  end
-
   defp evaluate_expression({:variable, path, _opts}, context, opts) do
     extract_variable_value_with_context(path, context, context, opts)
   end
@@ -235,7 +228,7 @@ defmodule Mau.Renderer do
 
   defp extract_variable_value_with_context([identifier | path_rest], context, original_context, opts)
        when is_binary(identifier) do
-    case fetch_root_variable(context, identifier) do
+    case fetch_key(context, identifier) do
       {:ok, nil} ->
         {:ok, nil}
 
@@ -258,17 +251,10 @@ defmodule Mau.Renderer do
     {:ok, nil}
   end
 
-  defp fetch_root_variable(context, identifier) do
-    case Map.get(context, identifier) do
-      nil ->
-        # Fallback to atom key if string key not found
-        case fetch_atom_key(context, identifier) do
-          {:ok, value} -> {:ok, value}
-          :error -> if Map.has_key?(context, identifier), do: {:ok, nil}, else: :error
-        end
-
-      value ->
-        {:ok, value}
+  # Every lookup by name goes through here: the string key, then the atom key
+  defp fetch_key(map, name) do
+    with :error <- Map.fetch(map, name) do
+      fetch_atom_key(map, name)
     end
   end
 
@@ -313,8 +299,7 @@ defmodule Mau.Renderer do
 
   # Unified access resolution - handles both property and index access
   defp resolve_value_access({:property, property}, value, _context, _opts) when is_map(value) do
-    with :error <- Map.fetch(value, property),
-         :error <- fetch_atom_key(value, property) do
+    with :error <- fetch_key(value, property) do
       :undefined
     end
   end
@@ -407,7 +392,10 @@ defmodule Mau.Renderer do
   end
 
   defp get_list_element(map, key) when is_map(map) and is_binary(key) do
-    Map.get(map, key)
+    case fetch_key(map, key) do
+      {:ok, value} -> value
+      :error -> nil
+    end
   end
 
   defp get_list_element(map, key) when is_map(map) and is_atom(key) do
@@ -533,7 +521,7 @@ defmodule Mau.Renderer do
   defp evaluate_logical_operation("and", left, right, context, opts) do
     case evaluate_condition(left, context, opts) do
       {:ok, left_value} ->
-        if is_truthy(left_value) do
+        if left_value do
           evaluate_condition(right, context, opts)
         else
           {:ok, false}
@@ -544,12 +532,12 @@ defmodule Mau.Renderer do
     end
   end
 
-  # Elixir-style && operator - returns actual values (not booleans)
-  # Only false and nil are falsy in Elixir
+  # && operator - returns actual values (not booleans)
+  # Only false and nil are falsy
   defp evaluate_logical_operation("&&", left, right, context, opts) do
     case evaluate_condition(left, context, opts) do
       {:ok, left_value} ->
-        if is_elixir_truthy(left_value) do
+        if left_value do
           # If left is truthy, return right value (without evaluating to boolean)
           evaluate_condition(right, context, opts)
         else
@@ -565,13 +553,10 @@ defmodule Mau.Renderer do
   defp evaluate_logical_operation("or", left, right, context, opts) do
     case evaluate_condition(left, context, opts) do
       {:ok, left_value} ->
-        if is_truthy(left_value) do
+        if left_value do
           {:ok, true}
         else
-          case evaluate_condition(right, context, opts) do
-            {:ok, right_value} -> {:ok, is_truthy(right_value)}
-            {:error, error} -> {:error, error}
-          end
+          evaluate_condition(right, context, opts)
         end
 
       {:error, error} ->
@@ -579,12 +564,12 @@ defmodule Mau.Renderer do
     end
   end
 
-  # Elixir-style || operator - returns actual values (not booleans)
-  # Only false and nil are falsy in Elixir
+  # || operator - returns actual values (not booleans)
+  # Only false and nil are falsy
   defp evaluate_logical_operation("||", left, right, context, opts) do
     case evaluate_condition(left, context, opts) do
       {:ok, left_value} ->
-        if is_elixir_truthy(left_value) do
+        if left_value do
           # If left is truthy, return left value
           {:ok, left_value}
         else
@@ -600,7 +585,7 @@ defmodule Mau.Renderer do
   # Unary operation evaluation
   defp evaluate_unary_operation("not", operand, context, opts) do
     case evaluate_condition(operand, context, opts) do
-      {:ok, value} -> {:ok, !is_truthy(value)}
+      {:ok, value} -> {:ok, !value}
       {:error, error} -> {:error, error}
     end
   end
@@ -679,22 +664,6 @@ defmodule Mau.Renderer do
     end
   end
 
-  # Truthiness evaluation rules (for `and` and `or` operators)
-  defp is_truthy(nil), do: false
-  defp is_truthy(false), do: false
-  defp is_truthy(""), do: false
-  defp is_truthy(0), do: false
-  defp is_truthy(value) when is_float(value) and value == 0.0, do: false
-  defp is_truthy([]), do: false
-  defp is_truthy(map) when is_map(map), do: map_size(map) > 0
-  defp is_truthy(_), do: true
-
-  # Elixir-style truthiness evaluation (for `&&` and `||` operators)
-  # In Elixir, only false and nil are falsy
-  defp is_elixir_truthy(nil), do: false
-  defp is_elixir_truthy(false), do: false
-  defp is_elixir_truthy(_), do: true
-
   # Tag rendering functions
 
   defp render_tag_with_context(:assign, [variable_name, expression], context, opts) do
@@ -715,7 +684,7 @@ defmodule Mau.Renderer do
       {:ok, value} ->
         # For now, store the condition result in a special context key
         # This is a placeholder - proper block handling will be implemented later
-        updated_context = Map.put(context, :__if_condition__, is_truthy(value))
+        updated_context = Map.put(context, :__if_condition__, !!value)
         {:ok, "", updated_context}
 
       {:error, error} ->
@@ -727,7 +696,7 @@ defmodule Mau.Renderer do
     case evaluate_condition(condition, context, opts) do
       {:ok, value} ->
         # Placeholder implementation
-        updated_context = Map.put(context, :__elsif_condition__, is_truthy(value))
+        updated_context = Map.put(context, :__elsif_condition__, !!value)
         {:ok, "", updated_context}
 
       {:error, error} ->
@@ -772,7 +741,7 @@ defmodule Mau.Renderer do
       {condition, content} ->
         case evaluate_condition(condition, context, opts) do
           {:ok, condition_value} ->
-            if is_truthy(condition_value) do
+            if condition_value do
               # Render if branch content
               render_conditional_content(content, context, opts)
             else
@@ -802,7 +771,7 @@ defmodule Mau.Renderer do
   defp render_elsif_branches([{condition, content} | rest_branches], else_branch, context, opts) do
     case evaluate_condition(condition, context, opts) do
       {:ok, condition_value} ->
-        if is_truthy(condition_value) do
+        if condition_value do
           # Render this elsif branch content
           render_conditional_content(content, context, opts)
         else

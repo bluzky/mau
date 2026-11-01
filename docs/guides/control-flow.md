@@ -135,17 +135,14 @@ Values are evaluated as truthy or falsy:
 **Falsy:**
 - `nil` (null)
 - `false`
-- `""` (empty string)
-- `[]` (empty list)
-- `{}` (empty map/object)
 
 **Truthy:**
 - Everything else, including:
   - `true`
-  - Non-empty strings: `"hello"`
+  - Strings, including `""` (empty string)
   - Numbers: `0`, `1`, `-1` (all numbers are truthy)
-  - Non-empty lists
-  - Non-empty maps
+  - Lists, including `[]` (empty list)
+  - Maps, including `{}` (empty map/object)
 
 ### Using Truthiness
 
@@ -157,12 +154,12 @@ Check if value exists:
 {% endif %}
 ```
 
-This renders only if email is defined and not empty.
+This renders only if email is defined and not `nil` or `false`. An empty string is truthy, so check for it with `{% if user.email != "" %}`.
 
 Check if list has items:
 
 ```
-{% if items %}
+{% if length(items) > 0 %}
   {{ items | length }} items found
 {% else %}
   No items
@@ -304,7 +301,7 @@ Output: `Item1, Item2, Item3`
 Check if loop will run:
 
 ```
-{% if items %}
+{% if length(items) > 0 %}
   {% for item in items %}
     {{ item }}
   {% endfor %}
@@ -422,10 +419,7 @@ Name: {{ user.name | default("Anonymous") }}
 {% if items == [] %}
 
 {# Right - check length #}
-{% if items | length == 0 %}
-
-{# Or - check truthiness #}
-{% if items %}
+{% if length(items) == 0 %}
 ```
 
 ### Missing Endif
