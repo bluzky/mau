@@ -806,7 +806,12 @@ defmodule Mau.Renderer do
          {:ok, items} <- ensure_iterable(collection),
          {:ok, acc_result, updated_context} <-
            render_loop_items(items, loop_variable, content, context, opts) do
-      updated_context = Map.drop(updated_context, [loop_variable, "forloop"])
+      # Puts back what the loop shadowed, and keeps everything else it assigned
+      loop_keys = [loop_variable, "forloop"]
+
+      updated_context =
+        updated_context |> Map.drop(loop_keys) |> Map.merge(Map.take(context, loop_keys))
+
       {:ok, Enum.reverse(acc_result), updated_context}
     end
   end
