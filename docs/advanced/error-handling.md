@@ -35,9 +35,9 @@ Mau can produce different types of errors:
 {:ok, ast, []} = Mau.compile("{{ a }}", strict_mode: true)
 ```
 
-Errors while rendering a valid template, such as division by zero, return `{:error, error}` in both modes.
+Errors while rendering a valid template, such as division by zero, return `{:error, error}` in both modes. Resource limits return errors of type `:limit`.
 
-`render_map/3` handles failures per field by default, so a field that fails keeps its template string. With `strict_mode: true`, the whole call returns `{:error, error}`.
+`render_map/3` handles failures per field by default, so a field that fails keeps its template string. With `strict_mode: true`, the whole call returns `{:error, error}`. Limit errors always fail the whole call.
 
 Undefined variables render as empty strings by default. In strict mode, using one returns an error of type `:undefined_variable`:
 

@@ -6,6 +6,8 @@ defmodule Mau.Renderer do
   For Group 1, only handles text node rendering.
   """
 
+  alias Mau.Budget
+
   @doc """
   Renders an AST node to a string.
 
@@ -30,9 +32,11 @@ defmodule Mau.Renderer do
   end
 
   # Renders a node and returns {result, updated_context} - main rendering pipeline
-  defp render_node_with_context({:text, [content], _opts}, context, _render_opts)
+  defp render_node_with_context({:text, [content], _opts}, context, render_opts)
        when is_binary(content) do
-    {:ok, content, context}
+    with :ok <- Budget.spend_output(byte_size(content), render_opts) do
+      {:ok, content, context}
+    end
   end
 
   defp render_node_with_context({:comment, [_content], _opts}, context, _render_opts) do
@@ -40,9 +44,10 @@ defmodule Mau.Renderer do
   end
 
   defp render_node_with_context({:expression, [expression_ast], _opts}, context, render_opts) do
-    case evaluate_expression(expression_ast, context, render_opts) do
-      {:ok, value} -> {:ok, format_value(value), context}
-      {:error, error} -> {:error, error}
+    with {:ok, value} <- evaluate_expression(expression_ast, context, render_opts),
+         output = format_value(value),
+         :ok <- Budget.spend_output(byte_size(output), render_opts) do
+      {:ok, output, context}
     end
   end
 
@@ -151,7 +156,10 @@ defmodule Mau.Renderer do
     # Check if any elements are expressions (tuples) that need evaluation
     if Enum.any?(elements, &is_tuple/1) do
       # Elements contain AST expressions, need to evaluate them
-      evaluate_array_elements(elements, context, [], opts)
+      with {:ok, values} <- evaluate_array_elements(elements, context, [], opts),
+           :ok <- Budget.check_collection(values, opts) do
+        {:ok, values}
+      end
     else
       # Elements are already primitive values (unlikely but handle for completeness)
       {:ok, elements}
@@ -180,8 +188,10 @@ defmodule Mau.Renderer do
 
   defp evaluate_expression({:binary_op, [operator, left, right], _opts}, context, opts) do
     with {:ok, left_value} <- evaluate_expression(left, context, opts),
-         {:ok, right_value} <- evaluate_expression(right, context, opts) do
-      evaluate_binary_operation(operator, left_value, right_value)
+         {:ok, right_value} <- evaluate_expression(right, context, opts),
+         {:ok, result} <- evaluate_binary_operation(operator, left_value, right_value),
+         :ok <- Budget.check_value(result, opts) do
+      {:ok, result}
     end
   end
 
@@ -604,7 +614,9 @@ defmodule Mau.Renderer do
              Enum.drop(evaluated_args, 1)
            ) do
         {:ok, result} ->
-          {:ok, result}
+          with :ok <- Budget.check_value(result, opts) do
+            {:ok, result}
+          end
 
         {:error, :filter_not_found} ->
           error = Mau.Error.runtime_error("Unknown filter or function: #{function_name}")
@@ -837,16 +849,9 @@ defmodule Mau.Renderer do
     do: {:error, Mau.Error.runtime_error("For loop iterable must be a list")}
 
   defp render_loop_items(items, loop_variable, content, context, opts) do
-    # Check max_loop_iterations limit (default 10000)
-    max_iterations = opts[:max_loop_iterations] || 10000
     item_count = length(items)
 
-    if item_count > max_iterations do
-      {:error,
-       Mau.Error.runtime_error(
-         "Loop iteration count #{item_count} exceeds maximum #{max_iterations}"
-       )}
-    else
+    with :ok <- Budget.spend_iterations(item_count, opts) do
       loop_context = create_loop_context(context, loop_variable, items, item_count)
 
       Enum.reduce_while(items, {:ok, [], loop_context}, fn item, {:ok, acc, loop_context} ->

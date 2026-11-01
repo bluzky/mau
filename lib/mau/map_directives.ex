@@ -24,6 +24,8 @@ defmodule Mau.MapDirectives do
   2. Implement the corresponding `apply_*_directive/3` function
   """
 
+  alias Mau.Budget
+
   
   @doc """
   Checks if a map contains a directive and returns the directive type and arguments.
@@ -93,7 +95,7 @@ defmodule Mau.MapDirectives do
     collection = render_fn.(collection_template, context, opts)
 
     # Ensure we have a list to iterate over
-    items = ensure_list(collection)
+    items = iterable_items(collection, opts)
 
     # Get parent loop reference if it exists
     parent_loop = context["$loop"]
@@ -126,7 +128,7 @@ defmodule Mau.MapDirectives do
     collection = render_fn.(collection_template, context, opts)
 
     # Ensure we have a list to iterate over
-    items = ensure_list(collection)
+    items = iterable_items(collection, opts)
 
     # Get parent loop reference if it exists
     parent_loop = context["$loop"]
@@ -301,7 +303,7 @@ defmodule Mau.MapDirectives do
     collection = render_fn.(collection_template, context, opts)
 
     # Ensure we have a list to filter
-    items = ensure_list(collection)
+    items = iterable_items(collection, opts)
 
     # Get parent loop reference if it exists
     parent_loop = context["$loop"]
@@ -394,6 +396,16 @@ defmodule Mau.MapDirectives do
   defp truthy?({}), do: false
   defp truthy?(""), do: false
   defp truthy?(_), do: true
+
+  # Helper to get a list of items, spending them against the render's limits
+  defp iterable_items(collection, opts) do
+    items = ensure_list(collection)
+
+    case Budget.spend_iterations(length(items), opts) do
+      :ok -> items
+      {:error, error} -> raise error
+    end
+  end
 
   # Helper to ensure value is a list
   defp ensure_list(value) when is_list(value), do: value

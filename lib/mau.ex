@@ -24,6 +24,7 @@ defmodule Mau do
   alias Mau.Renderer
   alias Mau.AST.Nodes
   alias Mau.BlockProcessor
+  alias Mau.Budget
   alias Mau.WhitespaceProcessor
   alias Mau.MapDirectives
 
@@ -63,7 +64,11 @@ defmodule Mau do
     undefined variables return `{:error, error}`. When `false`, invalid templates
     render as the original template string and undefined variables as `nil`.
   - `:max_template_size` - integer, maximum template size in bytes (default 100,000)
-  - `:max_loop_iterations` - integer, maximum loop iterations (default 10000)
+  - `:max_loop_iterations` - integer, maximum iterations of any one loop (default 10000)
+  - `:max_total_iterations` - integer, maximum iterations across the whole render
+    (default 1000000)
+  - `:max_output_size` - integer, maximum output in bytes across the whole render, and
+    maximum size of any string it builds (default 10000000)
 
   Errors while rendering a valid template return `{:error, error}` in both modes.
 
@@ -114,7 +119,7 @@ defmodule Mau do
       {:ok, %{message: "Hello world"}}
   """
   def render_map(nested_map, context, opts \\ []) when is_map(nested_map) and is_map(context) do
-    opts = Keyword.put_new(opts, :preserve_types, true)
+    opts = opts |> Keyword.put_new(:preserve_types, true) |> Budget.ensure()
 
     try do
       result = render_map_recursive(nested_map, context, opts)
@@ -150,7 +155,7 @@ defmodule Mau do
   end
 
   defp render_ast(ast, context, opts) do
-    Renderer.render(ast, context, opts)
+    Renderer.render(ast, context, Budget.ensure(opts))
   rescue
     e -> {:error, Mau.Error.runtime_error("Error rendering template: #{Exception.message(e)}")}
   end
@@ -184,6 +189,7 @@ defmodule Mau do
       case render(value, context, opts) do
         {:ok, result} -> result
         # Return original value if rendering fails, unless strict
+        {:error, %Mau.Error{type: :limit} = error} -> raise error
         {:error, error} -> if opts[:strict_mode], do: raise(error), else: value
       end
     else

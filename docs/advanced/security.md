@@ -422,7 +422,7 @@ end
 - [ ] Custom filters reviewed for vulnerabilities
 - [ ] Rate limiting configured
 - [ ] Template size limits set
-- [ ] Loop iteration limits configured
+- [ ] Loop iteration, total iteration and output limits configured
 
 ### Runtime
 
@@ -491,9 +491,13 @@ Mau.render(
   user_template,
   huge_context,
   max_template_size: 100_000,
-  max_loop_iterations: 10_000
+  max_loop_iterations: 10_000,
+  max_total_iterations: 1_000_000,
+  max_output_size: 10_000_000
 )
 ```
+
+`max_loop_iterations` applies to each loop, so nested loops multiply. `max_total_iterations` and `max_output_size` cover the whole render, including every `render_map/3` field and directive. Going over any of these limits returns an error of type `:limit`.
 
 ---
 

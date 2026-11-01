@@ -504,7 +504,8 @@ Errors can't be interpolated into a string directly. Use `error.message` or `Mau
 **Error Types:**
 - `:syntax` - Invalid templates, returned only with `strict_mode: true`. `line` and `column` are set for invalid syntax, but not for unclosed blocks or stray block tags.
 - `:undefined_variable` - Undefined variables, returned only with `strict_mode: true`
-- `:runtime` - Everything else, including filter errors, size limits (`max_template_size`) and loop limits (`max_loop_iterations`)
+- `:limit` - Resource limits during a render (`max_loop_iterations`, `max_total_iterations`, `max_output_size`). These fail the whole call in every mode, including `render_map/3`.
+- `:runtime` - Everything else, including filter errors and the template size limit (`max_template_size`)
 
 **Example Error Handling:**
 
@@ -546,7 +547,9 @@ Mau returns errors rather than raising them, so `rescue` isn't needed around `co
 | `preserve_types` | boolean | false | Preserve non-string types for single values |
 | `strict_mode` | boolean | false | Return errors for invalid templates and undefined variables |
 | `max_template_size` | integer | 100,000 | Maximum template size in bytes |
-| `max_loop_iterations` | integer | 10,000 | Maximum iterations in loops |
+| `max_loop_iterations` | integer | 10,000 | Maximum iterations of any one loop |
+| `max_total_iterations` | integer | 1,000,000 | Maximum iterations across the whole render, which also caps the expanded size of array literals |
+| `max_output_size` | integer | 10,000,000 | Maximum output in bytes across the whole render, and maximum size of any string built |
 
 ### Mau.render_map/3 Options
 
@@ -555,7 +558,9 @@ Mau returns errors rather than raising them, so `rescue` isn't needed around `co
 | `preserve_types` | boolean | true | Preserve non-string types in results |
 | `strict_mode` | boolean | false | Fail the whole map if any value fails, instead of keeping that value's template string |
 | `max_template_size` | integer | 100,000 | Maximum template size in bytes |
-| `max_loop_iterations` | integer | 10,000 | Maximum iterations in loops |
+| `max_loop_iterations` | integer | 10,000 | Maximum iterations of any one loop or `#map`, `#flat_map` or `#filter` directive |
+| `max_total_iterations` | integer | 1,000,000 | Maximum iterations across all fields and directives |
+| `max_output_size` | integer | 10,000,000 | Maximum output in bytes across all fields, and maximum size of any string built |
 
 ---
 
