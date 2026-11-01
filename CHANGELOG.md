@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - In strict mode, `{{ user["nope"] }}` with a missing map key is now an `:undefined_variable` error, matching `{{ user.nope }}`. An index past the end of a list is still `nil`.
 
 ### Fixed
+- With `preserve_types`, including every `render_map/3` field, a single-expression template no longer evaluates twice, so its filters run once.
 - Atom keys now resolve the same way in `{{ name }}`, `{{ user.name }}` and `{{ user["name"] }}`. A string key takes priority, and `{{ name }}` with an atom key no longer returns an error in strict mode.
 - `<`, `<=`, `>` and `>=` now bind tighter than `==` and `!=`, so `{{ 1 < 2 == true }}` works.
 - `and` and `or` now need a word boundary, so `{{ a orb }}` is a syntax error instead of `a or b`.
