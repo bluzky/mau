@@ -8,22 +8,15 @@ defmodule Mau.FilterRegistry.CompileTimeHelpers do
     end
 
     load_module_filters = fn module, acc ->
-      try do
-        if Code.ensure_loaded?(module) and function_exported?(module, :spec, 0) do
-          spec = module.spec()
+      # Waits for modules still being compiled, and raises instead of
+      # silently building a registry with missing filters.
+      Code.ensure_compiled!(module)
 
-          spec.filters
-          |> Enum.reduce(acc, fn {name, filter_spec}, map_acc ->
-            normalized_name = normalize_name.(name)
-            Map.put(map_acc, normalized_name, filter_spec.function)
-          end)
-        else
-          acc
-        end
-      rescue
-        _ ->
-          acc
-      end
+      module.spec().filters
+      |> Enum.reduce(acc, fn {name, filter_spec}, map_acc ->
+        normalized_name = normalize_name.(name)
+        Map.put(map_acc, normalized_name, filter_spec.function)
+      end)
     end
 
     modules
