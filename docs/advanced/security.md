@@ -157,13 +157,15 @@ context = MyApp.ContextSanitizer.sanitize_context(user_input)
 {:ok, output} = Mau.render(template, context)
 ```
 
+Don't combine this with the `escape_html` filter, or the output is escaped twice.
+
 ---
 
 ## Output Encoding
 
 ### HTML Escaping
 
-Always escape HTML content:
+Mau doesn't escape output automatically, so always escape user content in HTML with the built-in `escape_html` filter. It escapes `&`, `<`, `>`, `"` and `'`, which makes it safe for element content and quoted attributes. It isn't safe for JavaScript, URLs or unquoted attributes.
 
 ```elixir
 # ❌ Dangerous: XSS vulnerability
@@ -422,7 +424,7 @@ end
 - [ ] Custom filters reviewed for vulnerabilities
 - [ ] Rate limiting configured
 - [ ] Template size limits set
-- [ ] Loop iteration limits configured
+- [ ] Loop iteration, total iteration and output limits configured
 
 ### Runtime
 
@@ -469,7 +471,7 @@ Mau.render(pre_compiled_template, sanitized_context)
 ```elixir
 # ❌ Vulnerable: Error shows implementation details
 catch_all_error = fn error ->
-  "Error: #{error}"  # Exposes internal details
+  "Error: #{Mau.Error.format(error)}"  # Exposes internal details
 end
 
 # ✅ Safe: Generic error messages
@@ -477,6 +479,8 @@ safe_error = fn _error ->
   "An error occurred. Please try again."
 end
 ```
+
+By default, an invalid template renders as its own source, so a template with a typo can show raw template code to end users. Use `strict_mode: true` when template output reaches users, and handle the error.
 
 ### Denial of Service
 
@@ -489,9 +493,13 @@ Mau.render(
   user_template,
   huge_context,
   max_template_size: 100_000,
-  max_loop_iterations: 10_000
+  max_loop_iterations: 10_000,
+  max_total_iterations: 1_000_000,
+  max_output_size: 10_000_000
 )
 ```
+
+`max_loop_iterations` applies to each loop, so nested loops multiply. `max_total_iterations` and `max_output_size` cover the whole render, including every `render_map/3` field and directive. Going over any of these limits returns an error of type `:limit`.
 
 ---
 
@@ -504,7 +512,7 @@ defmodule MyApp.SecurityTests do
   use ExUnit.Case
 
   test "escapes HTML special characters" do
-    template = "<div>{{ content }}</div>"
+    template = "<div>{{ content | escape_html }}</div>"
     context = %{"content" => "<script>alert('XSS')</script>"}
 
     {:ok, output} = Mau.render(template, context)

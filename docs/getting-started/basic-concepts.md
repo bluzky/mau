@@ -278,17 +278,14 @@ In conditionals, values are evaluated as truthy or falsy:
 **Falsy values:**
 - `false`
 - `nil`
-- `""` (empty string)
-- `[]` (empty list)
-- `{}` (empty map)
 
 **Truthy values:**
 - Everything else, including:
   - `true`
-  - Non-empty strings: `"hello"`
-  - Non-zero numbers: `5`, `-1`
-  - Non-empty lists: `[1, 2, 3]`
-  - Non-empty maps: `%{"key" => "value"}`
+  - Strings, including `""` (empty string)
+  - Numbers, including `0`
+  - Lists, including `[]` (empty list)
+  - Maps, including `{}` (empty map)
 
 Example:
 

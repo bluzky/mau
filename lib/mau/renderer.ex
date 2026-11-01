@@ -6,6 +6,8 @@ defmodule Mau.Renderer do
   For Group 1, only handles text node rendering.
   """
 
+  alias Mau.Budget
+
   @doc """
   Renders an AST node to a string.
 
@@ -30,19 +32,22 @@ defmodule Mau.Renderer do
   end
 
   # Renders a node and returns {result, updated_context} - main rendering pipeline
-  defp render_node_with_context({:text, [content], _opts}, context, _render_opts)
+  defp render_node_with_context({:text, [content], _opts}, context, render_opts)
        when is_binary(content) do
-    {:ok, content, context}
+    with :ok <- Budget.spend_output(byte_size(content), render_opts) do
+      {:ok, content, context}
+    end
   end
 
   defp render_node_with_context({:comment, [_content], _opts}, context, _render_opts) do
     {:ok, "", context}
   end
 
-  defp render_node_with_context({:expression, [expression_ast], _opts}, context, _render_opts) do
-    case evaluate_expression(expression_ast, context) do
-      {:ok, value} -> {:ok, format_value(value), context}
-      {:error, error} -> {:error, error}
+  defp render_node_with_context({:expression, [expression_ast], _opts}, context, render_opts) do
+    with {:ok, value} <- evaluate_expression(expression_ast, context, render_opts),
+         output = format_value(value),
+         :ok <- Budget.spend_output(byte_size(output), render_opts) do
+      {:ok, output, context}
     end
   end
 
@@ -75,7 +80,7 @@ defmodule Mau.Renderer do
       {:ok, parts, _context} ->
         if opts[:preserve_types] && is_single_value_template?(nodes, parts) do
           # Extract the raw value from single expression templates
-          extract_single_value(nodes, context)
+          extract_single_value(nodes, context, opts)
         else
           {:ok, IO.iodata_to_binary(parts)}
         end
@@ -90,7 +95,7 @@ defmodule Mau.Renderer do
       # For single expression nodes, evaluate and return the raw value
       case ast do
         {:expression, [expression_ast], _opts} ->
-          evaluate_expression(expression_ast, context)
+          evaluate_expression(expression_ast, context, opts)
 
         _ ->
           render_node(ast, context, opts)
@@ -115,11 +120,11 @@ defmodule Mau.Renderer do
   end
 
   # Extracts the raw value from a single expression template
-  defp extract_single_value([{:expression, [expression_ast], _opts}], context) do
-    evaluate_expression(expression_ast, context)
+  defp extract_single_value([{:expression, [expression_ast], _opts}], context, opts) do
+    evaluate_expression(expression_ast, context, opts)
   end
 
-  defp extract_single_value(_, _),
+  defp extract_single_value(_, _, _),
     do: {:error, Mau.Error.runtime_error("Not a single value template")}
 
   # 3-argument version for main render function
@@ -147,11 +152,14 @@ defmodule Mau.Renderer do
 
   # Evaluates expressions - handles literals, variables, and arithmetic operations
   # Array literal evaluation - evaluate each element expression
-  defp evaluate_expression({:literal, [elements], _opts}, context) when is_list(elements) do
+  defp evaluate_expression({:literal, [elements], _opts}, context, opts) when is_list(elements) do
     # Check if any elements are expressions (tuples) that need evaluation
     if Enum.any?(elements, &is_tuple/1) do
       # Elements contain AST expressions, need to evaluate them
-      evaluate_array_elements(elements, context, [])
+      with {:ok, values} <- evaluate_array_elements(elements, context, [], opts),
+           :ok <- Budget.check_collection(values, opts) do
+        {:ok, values}
+      end
     else
       # Elements are already primitive values (unlikely but handle for completeness)
       {:ok, elements}
@@ -159,47 +167,52 @@ defmodule Mau.Renderer do
   end
 
   # Optimized literal evaluation - skip list pattern matching for single values
-  defp evaluate_expression({:literal, [value], []}, _context) do
+  defp evaluate_expression({:literal, [value], []}, _context, _render_opts) do
     {:ok, value}
   end
 
-  defp evaluate_expression({:literal, [value], _opts}, _context) do
+  defp evaluate_expression({:literal, [value], _opts}, _context, _render_opts) do
     {:ok, value}
   end
 
-  defp evaluate_expression({:variable, [var_name], []}, context) when is_binary(var_name) do
-    case Map.get(context, var_name) do
-      nil -> {:ok, nil}
-      value -> {:ok, value}
+  defp evaluate_expression({:variable, path, _opts}, context, opts) do
+    extract_variable_value_with_context(path, context, context, opts)
+  end
+
+  defp evaluate_expression({:binary_op, [operator, left, right], _opts}, context, opts) do
+    with {:ok, left_value} <- evaluate_expression(left, context, opts),
+         {:ok, right_value} <- evaluate_expression(right, context, opts),
+         {:ok, result} <- evaluate_binary_operation(operator, left_value, right_value),
+         :ok <- Budget.check_value(result, opts) do
+      {:ok, result}
     end
   end
 
-  defp evaluate_expression({:variable, path, _opts}, context) do
-    extract_variable_value_with_context(path, context, context)
+  defp evaluate_expression({:logical_op, [operator, left, right], _opts}, context, opts) do
+    evaluate_logical_operation(operator, left, right, context, opts)
   end
 
-  defp evaluate_expression({:binary_op, [operator, left, right], _opts}, context) do
-    with {:ok, left_value} <- evaluate_expression(left, context),
-         {:ok, right_value} <- evaluate_expression(right, context) do
-      evaluate_binary_operation(operator, left_value, right_value)
-    end
+  defp evaluate_expression({:unary_op, [operator, operand], _opts}, context, opts) do
+    evaluate_unary_operation(operator, operand, context, opts)
   end
 
-  defp evaluate_expression({:logical_op, [operator, left, right], _opts}, context) do
-    evaluate_logical_operation(operator, left, right, context)
+  defp evaluate_expression({:call, [function_name, args], _opts}, context, opts) do
+    evaluate_call(function_name, args, context, opts)
   end
 
-  defp evaluate_expression({:unary_op, [operator, operand], _opts}, context) do
-    evaluate_unary_operation(operator, operand, context)
-  end
-
-  defp evaluate_expression({:call, [function_name, args], _opts}, context) do
-    evaluate_call(function_name, args, context)
-  end
-
-  defp evaluate_expression(expression, _context) do
+  defp evaluate_expression(expression, _context, _render_opts) do
     error = Mau.Error.runtime_error("Unknown expression type: #{inspect(expression)}")
     {:error, error}
+  end
+
+  # Evaluates an expression used as a condition, where a variable may be missing.
+  # Only a bare variable is exempt from strict mode, so `{% if a == 1 %}` still errors.
+  defp evaluate_condition({:variable, _path, _opts} = variable, context, opts) do
+    evaluate_expression(variable, context, Keyword.put(opts, :strict_mode, false))
+  end
+
+  defp evaluate_condition(expression, context, opts) do
+    evaluate_expression(expression, context, opts)
   end
 
   # ============================================================================
@@ -213,74 +226,115 @@ defmodule Mau.Renderer do
   # - Array access: "items[0]", "items[index]"
   # - Complex paths: "users[0].profile.name"
 
-  defp extract_variable_value_with_context([identifier], context, _original_context)
+  defp extract_variable_value_with_context([identifier | path_rest], context, original_context, opts)
        when is_binary(identifier) do
-    case Map.get(context, identifier) do
-      nil ->
-        # Fallback to atom key if string key not found
-        case Map.get(context, String.to_atom(identifier)) do
-          nil -> {:ok, nil}
-          value -> {:ok, value}
-        end
+    case fetch_key(context, identifier) do
+      {:ok, nil} ->
+        {:ok, nil}
 
-      value ->
-        {:ok, value}
-    end
-  end
+      {:ok, value} ->
+        extract_variable_value_with_context_from_value(
+          path_rest,
+          value,
+          original_context,
+          opts,
+          [identifier]
+        )
 
-  # Complex path handling (property access, array indices, etc.)
-  defp extract_variable_value_with_context([identifier | path_rest], context, original_context)
-       when is_binary(identifier) and path_rest != [] do
-    case Map.get(context, identifier) do
-      nil ->
-        # Fallback to atom key if string key not found
-        case Map.get(context, String.to_atom(identifier)) do
-          nil -> {:ok, nil}
-          value -> extract_variable_value_with_context_from_value(path_rest, value, original_context)
-        end
-
-      value ->
-        extract_variable_value_with_context_from_value(path_rest, value, original_context)
+      :error ->
+        undefined_variable([identifier], opts)
     end
   end
 
   # Fallback for edge cases
-  defp extract_variable_value_with_context(_path, _context, _original_context) do
+  defp extract_variable_value_with_context(_path, _context, _original_context, _opts) do
     {:ok, nil}
   end
 
+  # Every lookup by name goes through here: the string key, then the atom key
+  defp fetch_key(map, name) do
+    with :error <- Map.fetch(map, name) do
+      fetch_atom_key(map, name)
+    end
+  end
+
+  defp fetch_atom_key(map, name) do
+    Map.fetch(map, String.to_existing_atom(name))
+  rescue
+    # The atom doesn't exist, so no map can have it as a key
+    ArgumentError -> :error
+  end
+
   # Continues path traversal from a resolved value (not the initial context map)
-  defp extract_variable_value_with_context_from_value([], value, _original_context) do
+  defp extract_variable_value_with_context_from_value([], value, _original_context, _opts, _seen) do
     {:ok, value}
   end
 
   defp extract_variable_value_with_context_from_value(
          [access | path_rest],
          value,
-         original_context
+         original_context,
+         opts,
+         seen
        ) do
-    with {:ok, accessed_value} <- resolve_value_access(access, value, original_context) do
-      extract_variable_value_with_context_from_value(path_rest, accessed_value, original_context)
+    seen = [access | seen]
+
+    case resolve_value_access(access, value, original_context, opts) do
+      {:ok, accessed_value} ->
+        extract_variable_value_with_context_from_value(
+          path_rest,
+          accessed_value,
+          original_context,
+          opts,
+          seen
+        )
+
+      :undefined ->
+        undefined_variable(Enum.reverse(seen), opts)
+
+      {:error, error} ->
+        {:error, error}
     end
   end
 
   # Unified access resolution - handles both property and index access
-  defp resolve_value_access({:property, property}, value, _context) when is_map(value) do
-    case Map.fetch(value, property) do
-      {:ok, new_value} -> {:ok, new_value}
-      # Property not found, return nil
-      :error -> {:ok, Map.get(value, String.to_atom(property))}
+  defp resolve_value_access({:property, property}, value, _context, _opts) when is_map(value) do
+    with :error <- fetch_key(value, property) do
+      :undefined
     end
   end
 
-  defp resolve_value_access({:index, index}, value, context) do
-    with {:ok, resolved_index} <- resolve_index_value(index, context) do
-      {:ok, get_list_element(value, resolved_index)}
+  defp resolve_value_access({:index, index}, value, context, opts) do
+    with {:ok, resolved_index} <- resolve_index_value(index, context, opts) do
+      fetch_element(value, resolved_index)
     end
   end
 
-  defp resolve_value_access(_access, _value, _context) do
+  # Anything past an existing nil is nil, so optional data doesn't need a guard
+  defp resolve_value_access(_access, nil, _context, _opts) do
     {:ok, nil}
+  end
+
+  defp resolve_value_access(_access, _value, _context, _opts) do
+    :undefined
+  end
+
+  # A missing variable is nil, unless strict mode reports it
+  defp undefined_variable(path, opts) do
+    if opts[:strict_mode] do
+      {:error, Mau.Error.undefined_variable_error("Undefined variable: #{format_path(path)}")}
+    else
+      {:ok, nil}
+    end
+  end
+
+  defp format_path(path) do
+    Enum.map_join(path, fn
+      {:property, property} -> ".#{property}"
+      {:index, {:literal, [value], _opts}} -> "[#{inspect(value)}]"
+      {:index, _index} -> "[...]"
+      identifier -> identifier
+    end)
   end
 
   # Resolves index values from literals, variables, or direct values
@@ -288,7 +342,7 @@ defmodule Mau.Renderer do
   # - {:literal, [42], []} -> 42 (if valid)
   # - {:variable, ["index"], []} -> evaluates variable "index" (if valid)
   # - 42 -> 42 (direct value, if valid)
-  defp resolve_index_value({:literal, [literal_value], _opts}, _context) do
+  defp resolve_index_value({:literal, [literal_value], _opts}, _context, _render_opts) do
     if is_valid_index_or_key(literal_value) do
       {:ok, literal_value}
     else
@@ -297,8 +351,8 @@ defmodule Mau.Renderer do
     end
   end
 
-  defp resolve_index_value({:variable, _path, _opts} = var_expr, context) do
-    case evaluate_expression(var_expr, context) do
+  defp resolve_index_value({:variable, _path, _opts} = var_expr, context, opts) do
+    case evaluate_expression(var_expr, context, opts) do
       {:ok, value} ->
         if is_valid_index_or_key(value) do
           {:ok, value}
@@ -311,7 +365,7 @@ defmodule Mau.Renderer do
     end
   end
 
-  defp resolve_index_value(direct_value, _context) do
+  defp resolve_index_value(direct_value, _context, _render_opts) do
     if is_valid_index_or_key(direct_value) do
       {:ok, direct_value}
     else
@@ -327,28 +381,32 @@ defmodule Mau.Renderer do
   defp is_valid_index_or_key(value) when is_atom(value), do: true
   defp is_valid_index_or_key(_), do: false
 
-  # Gets an element from list/map by index/key - returns the value directly (nil if not found)
-  defp get_list_element(list, index) when is_list(list) and is_integer(index) and index >= 0 do
-    Enum.at(list, index)
+  # Gets an element from a list or map. A list index past the end is nil, because
+  # list lengths vary with the data, while a missing map key is undefined like `.`
+  defp fetch_element(list, index) when is_list(list) and is_integer(index) and index >= 0 do
+    {:ok, Enum.at(list, index)}
   end
 
-  defp get_list_element(list, index) when is_list(list) and is_integer(index) and index < 0 do
+  defp fetch_element(list, index) when is_list(list) and is_integer(index) and index < 0 do
     # Negative indices are not supported
-    nil
+    {:ok, nil}
   end
 
-  defp get_list_element(map, key) when is_map(map) and is_binary(key) do
-    Map.get(map, key)
+  defp fetch_element(map, key) when is_map(map) and is_binary(key) do
+    with :error <- fetch_key(map, key) do
+      :undefined
+    end
   end
 
-  defp get_list_element(map, key) when is_map(map) and is_atom(key) do
-    Map.get(map, key)
+  defp fetch_element(map, key) when is_map(map) and is_atom(key) do
+    with :error <- Map.fetch(map, key) do
+      :undefined
+    end
   end
 
-  defp get_list_element(_collection, _key) do
-    # All other cases (unsupported collection types or key types)
-    nil
-  end
+  defp fetch_element(nil, _key), do: {:ok, nil}
+
+  defp fetch_element(_collection, _key), do: :undefined
 
   # Formats values for output - optimized for common cases
   defp format_value(value) when is_binary(value), do: value
@@ -359,22 +417,26 @@ defmodule Mau.Renderer do
   defp format_value(nil), do: ""
   defp format_value(value), do: inspect(value)
 
+  defguardp is_concatenable(value) when is_binary(value) or is_number(value) or is_atom(value)
+
   # Arithmetic operation evaluation
   defp evaluate_binary_operation("+", left, right) when is_number(left) and is_number(right) do
     {:ok, left + right}
   end
 
-  defp evaluate_binary_operation("+", left, right) when is_binary(left) or is_binary(right) do
+  defp evaluate_binary_operation("+", left, right)
+       when (is_binary(left) or is_binary(right)) and is_concatenable(left) and
+              is_concatenable(right) do
     # String concatenation
     {:ok, to_string(left) <> to_string(right)}
   end
 
-  defp evaluate_binary_operation("+", nil, right) do
+  defp evaluate_binary_operation("+", nil, right) when is_concatenable(right) do
     # Treat nil as empty string for concatenation
     {:ok, to_string(right)}
   end
 
-  defp evaluate_binary_operation("+", left, nil) do
+  defp evaluate_binary_operation("+", left, nil) when is_concatenable(left) do
     # Treat nil as empty string for concatenation
     {:ok, to_string(left)}
   end
@@ -457,11 +519,11 @@ defmodule Mau.Renderer do
   end
 
   # Logical operation evaluation with short-circuiting
-  defp evaluate_logical_operation("and", left, right, context) do
-    case evaluate_expression(left, context) do
+  defp evaluate_logical_operation("and", left, right, context, opts) do
+    case evaluate_condition(left, context, opts) do
       {:ok, left_value} ->
-        if is_truthy(left_value) do
-          evaluate_expression(right, context)
+        if left_value do
+          evaluate_condition(right, context, opts)
         else
           {:ok, false}
         end
@@ -471,14 +533,14 @@ defmodule Mau.Renderer do
     end
   end
 
-  # Elixir-style && operator - returns actual values (not booleans)
-  # Only false and nil are falsy in Elixir
-  defp evaluate_logical_operation("&&", left, right, context) do
-    case evaluate_expression(left, context) do
+  # && operator - returns actual values (not booleans)
+  # Only false and nil are falsy
+  defp evaluate_logical_operation("&&", left, right, context, opts) do
+    case evaluate_condition(left, context, opts) do
       {:ok, left_value} ->
-        if is_elixir_truthy(left_value) do
+        if left_value do
           # If left is truthy, return right value (without evaluating to boolean)
-          evaluate_expression(right, context)
+          evaluate_condition(right, context, opts)
         else
           # If left is falsy, return left value
           {:ok, left_value}
@@ -489,16 +551,13 @@ defmodule Mau.Renderer do
     end
   end
 
-  defp evaluate_logical_operation("or", left, right, context) do
-    case evaluate_expression(left, context) do
+  defp evaluate_logical_operation("or", left, right, context, opts) do
+    case evaluate_condition(left, context, opts) do
       {:ok, left_value} ->
-        if is_truthy(left_value) do
+        if left_value do
           {:ok, true}
         else
-          case evaluate_expression(right, context) do
-            {:ok, right_value} -> {:ok, is_truthy(right_value)}
-            {:error, error} -> {:error, error}
-          end
+          evaluate_condition(right, context, opts)
         end
 
       {:error, error} ->
@@ -506,17 +565,17 @@ defmodule Mau.Renderer do
     end
   end
 
-  # Elixir-style || operator - returns actual values (not booleans)
-  # Only false and nil are falsy in Elixir
-  defp evaluate_logical_operation("||", left, right, context) do
-    case evaluate_expression(left, context) do
+  # || operator - returns actual values (not booleans)
+  # Only false and nil are falsy
+  defp evaluate_logical_operation("||", left, right, context, opts) do
+    case evaluate_condition(left, context, opts) do
       {:ok, left_value} ->
-        if is_elixir_truthy(left_value) do
+        if left_value do
           # If left is truthy, return left value
           {:ok, left_value}
         else
           # If left is falsy, return right value (without evaluating to boolean)
-          evaluate_expression(right, context)
+          evaluate_condition(right, context, opts)
         end
 
       {:error, error} ->
@@ -525,23 +584,25 @@ defmodule Mau.Renderer do
   end
 
   # Unary operation evaluation
-  defp evaluate_unary_operation("not", operand, context) do
-    case evaluate_expression(operand, context) do
-      {:ok, value} -> {:ok, !is_truthy(value)}
+  defp evaluate_unary_operation("not", operand, context, opts) do
+    case evaluate_condition(operand, context, opts) do
+      {:ok, value} -> {:ok, !value}
       {:error, error} -> {:error, error}
     end
   end
 
   # Filter/function call evaluation
-  defp evaluate_call(function_name, args, context) do
-    with {:ok, evaluated_args} <- evaluate_arguments(args, context) do
+  defp evaluate_call(function_name, args, context, opts) do
+    with {:ok, evaluated_args} <- evaluate_call_arguments(function_name, args, context, opts) do
       case Mau.FilterRegistry.apply(
              function_name,
              List.first(evaluated_args, nil),
              Enum.drop(evaluated_args, 1)
            ) do
         {:ok, result} ->
-          {:ok, result}
+          with :ok <- Budget.check_value(result, opts) do
+            {:ok, result}
+          end
 
         {:error, :filter_not_found} ->
           error = Mau.Error.runtime_error("Unknown filter or function: #{function_name}")
@@ -558,19 +619,31 @@ defmodule Mau.Renderer do
     end
   end
 
-  # Evaluates a list of arguments with optimized tail recursion
-  defp evaluate_arguments(args, context) do
-    evaluate_arguments_fast(args, context, [])
+  # `default` exists to handle missing values, so its input may be undefined
+  defp evaluate_call_arguments("default", [value | args], context, opts) do
+    with {:ok, evaluated_value} <- evaluate_condition(value, context, opts),
+         {:ok, evaluated_args} <- evaluate_arguments(args, context, opts) do
+      {:ok, [evaluated_value | evaluated_args]}
+    end
   end
 
-  defp evaluate_arguments_fast([], _context, acc) do
+  defp evaluate_call_arguments(_function_name, args, context, opts) do
+    evaluate_arguments(args, context, opts)
+  end
+
+  # Evaluates a list of arguments with optimized tail recursion
+  defp evaluate_arguments(args, context, opts) do
+    evaluate_arguments_fast(args, context, [], opts)
+  end
+
+  defp evaluate_arguments_fast([], _context, acc, _opts) do
     {:ok, Enum.reverse(acc)}
   end
 
-  defp evaluate_arguments_fast([arg | rest], context, acc) do
-    case evaluate_expression(arg, context) do
+  defp evaluate_arguments_fast([arg | rest], context, acc, opts) do
+    case evaluate_expression(arg, context, opts) do
       {:ok, value} ->
-        evaluate_arguments_fast(rest, context, [value | acc])
+        evaluate_arguments_fast(rest, context, [value | acc], opts)
 
       {:error, error} ->
         {:error, error}
@@ -578,40 +651,24 @@ defmodule Mau.Renderer do
   end
 
   # Evaluates array literal elements (each element is an AST expression)
-  defp evaluate_array_elements([], _context, acc) do
+  defp evaluate_array_elements([], _context, acc, _opts) do
     {:ok, Enum.reverse(acc)}
   end
 
-  defp evaluate_array_elements([element | rest], context, acc) do
-    case evaluate_expression(element, context) do
+  defp evaluate_array_elements([element | rest], context, acc, opts) do
+    case evaluate_expression(element, context, opts) do
       {:ok, value} ->
-        evaluate_array_elements(rest, context, [value | acc])
+        evaluate_array_elements(rest, context, [value | acc], opts)
 
       {:error, error} ->
         {:error, error}
     end
   end
 
-  # Truthiness evaluation rules (for `and` and `or` operators)
-  defp is_truthy(nil), do: false
-  defp is_truthy(false), do: false
-  defp is_truthy(""), do: false
-  defp is_truthy(0), do: false
-  defp is_truthy(value) when is_float(value) and value == 0.0, do: false
-  defp is_truthy([]), do: false
-  defp is_truthy(map) when is_map(map), do: map_size(map) > 0
-  defp is_truthy(_), do: true
-
-  # Elixir-style truthiness evaluation (for `&&` and `||` operators)
-  # In Elixir, only false and nil are falsy
-  defp is_elixir_truthy(nil), do: false
-  defp is_elixir_truthy(false), do: false
-  defp is_elixir_truthy(_), do: true
-
   # Tag rendering functions
 
-  defp render_tag_with_context(:assign, [variable_name, expression], context, _opts) do
-    case evaluate_expression(expression, context) do
+  defp render_tag_with_context(:assign, [variable_name, expression], context, opts) do
+    case evaluate_expression(expression, context, opts) do
       {:ok, value} ->
         updated_context = Map.put(context, variable_name, value)
         # Assignment produces no output
@@ -623,12 +680,12 @@ defmodule Mau.Renderer do
   end
 
   # Conditional tags - these need special handling as they work in blocks
-  defp render_tag_with_context(:if, [condition], context, _opts) do
-    case evaluate_expression(condition, context) do
+  defp render_tag_with_context(:if, [condition], context, opts) do
+    case evaluate_condition(condition, context, opts) do
       {:ok, value} ->
         # For now, store the condition result in a special context key
         # This is a placeholder - proper block handling will be implemented later
-        updated_context = Map.put(context, :__if_condition__, is_truthy(value))
+        updated_context = Map.put(context, :__if_condition__, !!value)
         {:ok, "", updated_context}
 
       {:error, error} ->
@@ -636,11 +693,11 @@ defmodule Mau.Renderer do
     end
   end
 
-  defp render_tag_with_context(:elsif, [condition], context, _opts) do
-    case evaluate_expression(condition, context) do
+  defp render_tag_with_context(:elsif, [condition], context, opts) do
+    case evaluate_condition(condition, context, opts) do
       {:ok, value} ->
         # Placeholder implementation
-        updated_context = Map.put(context, :__elsif_condition__, is_truthy(value))
+        updated_context = Map.put(context, :__elsif_condition__, !!value)
         {:ok, "", updated_context}
 
       {:error, error} ->
@@ -683,9 +740,9 @@ defmodule Mau.Renderer do
 
     case if_branch do
       {condition, content} ->
-        case evaluate_expression(condition, context) do
+        case evaluate_condition(condition, context, opts) do
           {:ok, condition_value} ->
-            if is_truthy(condition_value) do
+            if condition_value do
               # Render if branch content
               render_conditional_content(content, context, opts)
             else
@@ -713,9 +770,9 @@ defmodule Mau.Renderer do
   end
 
   defp render_elsif_branches([{condition, content} | rest_branches], else_branch, context, opts) do
-    case evaluate_expression(condition, context) do
+    case evaluate_condition(condition, context, opts) do
       {:ok, condition_value} ->
-        if is_truthy(condition_value) do
+        if condition_value do
           # Render this elsif branch content
           render_conditional_content(content, context, opts)
         else
@@ -746,11 +803,16 @@ defmodule Mau.Renderer do
     collection_expression = Keyword.get(block_data, :collection_expression)
     content = Keyword.get(block_data, :content, [])
 
-    with {:ok, collection} <- evaluate_expression(collection_expression, context),
+    with {:ok, collection} <- evaluate_expression(collection_expression, context, opts),
          {:ok, items} <- ensure_iterable(collection),
          {:ok, acc_result, updated_context} <-
            render_loop_items(items, loop_variable, content, context, opts) do
-      updated_context = Map.drop(updated_context, [loop_variable, "forloop"])
+      # Puts back what the loop shadowed, and keeps everything else it assigned
+      loop_keys = [loop_variable, "forloop"]
+
+      updated_context =
+        updated_context |> Map.drop(loop_keys) |> Map.merge(Map.take(context, loop_keys))
+
       {:ok, Enum.reverse(acc_result), updated_context}
     end
   end
@@ -762,16 +824,9 @@ defmodule Mau.Renderer do
     do: {:error, Mau.Error.runtime_error("For loop iterable must be a list")}
 
   defp render_loop_items(items, loop_variable, content, context, opts) do
-    # Check max_loop_iterations limit (default 10000)
-    max_iterations = opts[:max_loop_iterations] || 10000
     item_count = length(items)
 
-    if item_count > max_iterations do
-      {:error,
-       Mau.Error.runtime_error(
-         "Loop iteration count #{item_count} exceeds maximum #{max_iterations}"
-       )}
-    else
+    with :ok <- Budget.spend_iterations(item_count, opts) do
       loop_context = create_loop_context(context, loop_variable, items, item_count)
 
       Enum.reduce_while(items, {:ok, [], loop_context}, fn item, {:ok, acc, loop_context} ->

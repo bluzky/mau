@@ -32,9 +32,9 @@ defmodule Mau.ArrayIndexTest do
                Parser.parse_variable_path("data[\"key\"]")
     end
 
-    test "parses atom key index" do
-      assert {:ok, {:variable, ["config", {:index, {:literal, [:name], []}}], []}} =
-               Parser.parse_variable_path("config[:name]")
+    test "rejects atom key index" do
+      assert {:error, %Mau.Error{type: :syntax}} =
+               Mau.render("{{ config[:name] }}", %{}, strict_mode: true)
     end
 
     test "parses array index with whitespace" do

@@ -301,5 +301,32 @@ defmodule Mau.CondDirectiveTest do
       {:ok, result} = Mau.render_map(template, context)
       assert result == %{"action" => "Process immediately"}
     end
+
+    test "stops at a matching branch that renders to false or nil" do
+      for value <- [false, nil] do
+        input = %{"r" => %{"#cond" => [[[true, value], [true, "second"]]]}}
+
+        assert {:ok, %{"r" => ^value}} = Mau.render_map(input, %{})
+      end
+    end
+
+    test "stops at a matching branch whose template renders to false or nil" do
+      input = %{"r" => %{"#cond" => [[["{{ a }}", "{{ b }}"], [true, "second"]]]}}
+
+      assert {:ok, %{"r" => false}} = Mau.render_map(input, %{"a" => true, "b" => false})
+      assert {:ok, %{"r" => nil}} = Mau.render_map(input, %{"a" => true, "b" => nil})
+    end
+
+    test "does not evaluate later branches after a false result" do
+      input = %{"r" => %{"#cond" => [[[true, false], ["{{ 1 / 0 }}", "second"]]]}}
+
+      assert {:ok, %{"r" => false}} = Mau.render_map(input, %{})
+    end
+
+    test "returns nil when no branch matches" do
+      input = %{"r" => %{"#cond" => [[[false, "first"], [nil, "second"]]]}}
+
+      assert {:ok, %{"r" => nil}} = Mau.render_map(input, %{})
+    end
   end
 end

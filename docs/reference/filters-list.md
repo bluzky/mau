@@ -5,7 +5,7 @@ Comprehensive alphabetical reference of all available filters in Mau template en
 ## Overview
 
 Mau provides 40+ built-in filters organized into four categories:
-- **String filters** (6 filters) - Text manipulation and formatting
+- **String filters** (7 filters) - Text manipulation and formatting
 - **Collection filters** (18 filters) - List and map operations
 - **Math filters** (10 filters) - Numerical operations
 - **Type filters** (6 filters) - Type conversion and checking
@@ -79,6 +79,28 @@ Returns the input value, or a default value if input is nil or empty string.
 **Note:** Only triggers on nil or empty string (""), not other falsy values like 0 or false
 
 **See Also:** [`contains`](#contains)
+
+---
+
+### escape_html
+
+Escapes the HTML special characters `&`, `<`, `>`, `"` and `'`.
+
+**Syntax:**
+```
+{{ value | escape_html }}
+```
+
+**Examples:**
+```
+<p>{{ comment | escape_html }}</p>
+# Input: "<script>alert('XSS')</script>"
+# Output: <p>&lt;script&gt;alert(&#x27;XSS&#x27;)&lt;/script&gt;</p>
+```
+
+**Returns:** Escaped string. `nil`, booleans and numbers are returned unchanged, and lists and maps are escaped as their rendered text.
+
+**Note:** Safe for element content and quoted attributes, not for JavaScript, URLs or unquoted attributes. Apply it last, because later filters such as `truncate` can cut through an entity.
 
 ---
 

@@ -2,6 +2,33 @@ defmodule MauTest do
   use ExUnit.Case
   doctest Mau
 
+  describe "compile then render" do
+    @context %{"a" => false, "b" => 2, "l" => [1, 2], "name" => "Mau"}
+
+    test "matches direct render" do
+      for template <- [
+            "Hello {{ name }}",
+            "{% if a %}YES{% else %}NO{% endif %}",
+            "{% if a %}1{% elsif b %}2{% else %}3{% endif %}",
+            "{% for x in l %}{{ x }}{% endfor %}",
+            "{% for x in l %}{% if x == 2 %}{{ x }}{% endif %}{% endfor %}",
+            "{% assign c = b %}{{ c }}",
+            "a  {{- name -}}  z",
+            "x\n  {%- if b -%}  y  {%- endif -%}\n z"
+          ] do
+        assert {:ok, ast} = Mau.compile(template)
+        assert Mau.render(ast, @context) == Mau.render(template, @context)
+      end
+    end
+
+    test "matches direct render with preserve_types" do
+      assert {:ok, ast} = Mau.compile("{{ l }}")
+
+      assert Mau.render(ast, @context, preserve_types: true) ==
+               Mau.render("{{ l }}", @context, preserve_types: true)
+    end
+  end
+
   describe "Integration Tests - Group 1: Plain Text Templates" do
     test "compile and render plain text" do
       assert {:ok, [{:text, ["Hello world"], []}]} = Mau.compile("Hello world")

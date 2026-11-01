@@ -260,7 +260,7 @@ defmodule Mau.ConditionalShortCircuitingTest do
 
     test "chained or with all falsy values" do
       template = """
-      {% if false or nil_value or zero_value or empty_string %}
+      {% if false or nil_value or undefined_value %}
         Should not appear
       {% else %}
         All or values are falsy
@@ -268,9 +268,7 @@ defmodule Mau.ConditionalShortCircuitingTest do
       """
 
       context = %{
-        "nil_value" => nil,
-        "zero_value" => 0,
-        "empty_string" => ""
+        "nil_value" => nil
       }
 
       assert {:ok, result} = Mau.render(template, context)

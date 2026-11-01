@@ -7,7 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **Breaking: one truthiness rule everywhere.** Only `nil` and `false` are falsy for `{% if %}`, `{% elsif %}`, `and`, `or`, `not`, `&&`, `||`, `#if`, `#cond` and `#filter`. `0`, `0.0`, `""`, `[]` and `{}` are now truthy.
+  - Check for empty values explicitly: `{% if length(items) > 0 %}`, `{% if name != "" %}`, `{% if count != 0 %}`
+  - `#filter` keeps items that are `0`, `""` or `[]`
+  - A directive condition that renders to an empty string from several nodes, such as `"{{ a }}{{ b }}"`, is now truthy. Use a single expression
+- **Breaking: `or` returns the right value when the left side is falsy,** as Elixir does, so `{{ false or "x" }}` is `x` instead of `true`. `{% if %}` conditions behave the same.
+- **Breaking: `user[:name]` is no longer valid syntax.** Use `user.name` or `user["name"]`, which both read atom keys. `{{ :name }}` as a value is unchanged.
+- In strict mode, `{{ user["nope"] }}` with a missing map key is now an `:undefined_variable` error, matching `{{ user.nope }}`. An index past the end of a list is still `nil`.
+
+### Fixed
+- Atom keys now resolve the same way in `{{ name }}`, `{{ user.name }}` and `{{ user["name"] }}`. A string key takes priority, and `{{ name }}` with an atom key no longer returns an error in strict mode.
+- `<`, `<=`, `>` and `>=` now bind tighter than `==` and `!=`, so `{{ 1 < 2 == true }}` works.
+- `and` and `or` now need a word boundary, so `{{ a orb }}` is a syntax error instead of `a or b`.
+- `#cond` now stops at the first matching branch even if its result is `false` or `nil`, instead of moving on to the next branch.
+- Function and filter arguments can now be any expression, such as `upper_case(a + b)` or nested calls. These used to make the whole template render as its source.
+- Loops now restore what they shadow: an outer variable with the loop variable's name, the outer `forloop` after an inner loop, and a `forloop` key in the context. These used to be deleted.
+
 ### Added
+- `escape_html` filter for escaping user content in HTML. Output is still not escaped by default.
 - **Group 10: Whitespace Control** - Complete implementation
   - **Task 10.1: Trim Token Parser** - Complete trim detection for expressions and tags
     - Expression trim parsing: `{{-`, `-}}`, `{{-` `-}}`

@@ -22,18 +22,22 @@ defmodule Mau do
 
   alias Mau.Parser
   alias Mau.Renderer
+  alias Mau.AST.Nodes
   alias Mau.BlockProcessor
+  alias Mau.Budget
   alias Mau.WhitespaceProcessor
   alias Mau.MapDirectives
 
   @doc """
-  Compiles a template string into an AST.
+  Compiles a template string into an AST ready for `render/3`.
 
-  Handles text and expression blocks.
+  Runs the same parse, whitespace and block stages as rendering a string.
 
   ## Options
-  - `:strict_mode` - boolean, default `false`
-  - `:max_template_size` - integer, maximum template size in bytes (no limit by default)
+  - `:strict_mode` - boolean, default `false`. When `true`, invalid templates return
+    `{:error, error}`. When `false`, they compile to a single text node holding the
+    original template string.
+  - `:max_template_size` - integer, maximum template size in bytes (default 100,000)
 
   ## Examples
 
@@ -41,8 +45,7 @@ defmodule Mau do
       {:ok, [{:text, ["Hello world"], []}]}
   """
   def compile(template, opts \\ []) when is_binary(template) do
-    with :ok <- validate_template_size(template, opts),
-         {:ok, ast} <- Parser.parse(template) do
+    with {:ok, ast} <- build_ast(template, opts) do
       if opts[:strict_mode] do
         {:ok, ast, []}
       else
@@ -57,8 +60,17 @@ defmodule Mau do
   ## Options
   - `:preserve_types` - boolean, default `false`. When `true`, preserves data types
     for single-value templates (templates that render to a single expression result).
-  - `:max_template_size` - integer, maximum template size in bytes (no limit by default)
-  - `:max_loop_iterations` - integer, maximum loop iterations (default 10000)
+  - `:strict_mode` - boolean, default `false`. When `true`, invalid templates and
+    undefined variables return `{:error, error}`. When `false`, invalid templates
+    render as the original template string and undefined variables as `nil`.
+  - `:max_template_size` - integer, maximum template size in bytes (default 100,000)
+  - `:max_loop_iterations` - integer, maximum iterations of any one loop (default 10000)
+  - `:max_total_iterations` - integer, maximum iterations across the whole render
+    (default 1000000)
+  - `:max_output_size` - integer, maximum output in bytes across the whole render, and
+    maximum size of any string it builds (default 10000000)
+
+  Errors while rendering a valid template return `{:error, error}` in both modes.
 
   ## Examples
 
@@ -79,25 +91,25 @@ defmodule Mau do
   def render(template, context, opts \\ [])
 
   def render(template, context, opts) when is_binary(template) and is_map(context) do
-    with :ok <- validate_template_size(template, opts),
-         {:ok, ast} <- Parser.parse(template),
-         trimmed_ast <- WhitespaceProcessor.apply_whitespace_control(ast),
-         processed_ast <- BlockProcessor.process_blocks(trimmed_ast),
-         {:ok, result} <- Renderer.render(processed_ast, context, opts) do
+    with {:ok, ast} <- build_ast(template, opts),
+         {:ok, result} <- render_ast(ast, context, opts) do
       {:ok, result}
     end
   end
 
   def render(ast, context, opts) when is_tuple(ast) and is_map(context) do
-    Renderer.render(ast, context, opts)
+    render_ast(ast, context, opts)
   end
 
   def render(nodes, context, opts) when is_list(nodes) and is_map(context) do
-    Renderer.render(nodes, context, opts)
+    render_ast(nodes, context, opts)
   end
 
   @doc """
   Recursively renders template strings in nested maps.
+
+  When a value fails to render, it keeps its template string. With
+  `strict_mode: true`, the whole call returns `{:error, error}` instead.
 
   For Group 1, only handles plain text templates.
 
@@ -107,17 +119,51 @@ defmodule Mau do
       {:ok, %{message: "Hello world"}}
   """
   def render_map(nested_map, context, opts \\ []) when is_map(nested_map) and is_map(context) do
-    opts = Keyword.put_new(opts, :preserve_types, true)
+    opts = opts |> Keyword.put_new(:preserve_types, true) |> Budget.ensure()
 
     try do
       result = render_map_recursive(nested_map, context, opts)
       {:ok, result}
     rescue
+      e in Mau.Error -> {:error, e}
       e -> {:error, Mau.Error.runtime_error("Error rendering map: #{Exception.message(e)}")}
     end
   end
 
+  # Shared compile pipeline for compile/2 and render/3
+  defp build_ast(template, opts) do
+    with :ok <- validate_template_size(template, opts) do
+      case process_template(template) do
+        {:ok, ast} ->
+          {:ok, ast}
+
+        {:error, error} ->
+          if opts[:strict_mode], do: {:error, error}, else: {:ok, [Nodes.text_node(template)]}
+      end
+    end
+  end
+
+  defp process_template(template) do
+    with {:ok, ast} <- Parser.parse(template, strict_mode: true),
+         trimmed_ast <- WhitespaceProcessor.apply_whitespace_control(ast),
+         processed_ast <- BlockProcessor.process_blocks(trimmed_ast) do
+      {:ok, processed_ast}
+    end
+  rescue
+    e in Mau.Error -> {:error, e}
+    e -> {:error, Mau.Error.syntax_error("Parse error: #{Exception.message(e)}")}
+  end
+
+  defp render_ast(ast, context, opts) do
+    Renderer.render(ast, context, Budget.ensure(opts))
+  rescue
+    e -> {:error, Mau.Error.runtime_error("Error rendering template: #{Exception.message(e)}")}
+  end
+
   # Private helper for recursive map rendering
+  # Already-rendered data injected by #pipe - never treat it as a template
+  defp render_map_recursive({:mau_value, value}, _context, _opts), do: value
+
   defp render_map_recursive(map, context, opts) when is_map(map) do
     # Try to match special directive patterns
     case MapDirectives.match_directive(map) do
@@ -142,8 +188,9 @@ defmodule Mau do
     if has_template_syntax?(value) do
       case render(value, context, opts) do
         {:ok, result} -> result
-        # Return original value if rendering fails
-        {:error, _} -> value
+        # Return original value if rendering fails, unless strict
+        {:error, %Mau.Error{type: :limit} = error} -> raise error
+        {:error, error} -> if opts[:strict_mode], do: raise(error), else: value
       end
     else
       # Return as-is if no template syntax

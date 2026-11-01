@@ -349,21 +349,36 @@ defmodule Mau.BooleanEvaluatorTest do
                  %{}
                )
 
-      # Falsy values
-      assert {:ok, "false"} =
+      assert {:ok, "true"} =
                Renderer.render_node(
                  {:expression,
                   [{:logical_op, ["and", {:literal, [0], []}, {:literal, [true], []}], []}], []},
                  %{}
                )
 
-      assert {:ok, "false"} =
+      assert {:ok, "true"} =
                Renderer.render_node(
                  {:expression,
                   [{:logical_op, ["and", {:literal, [""], []}, {:literal, [true], []}], []}], []},
                  %{}
                )
 
+      assert {:ok, "true"} =
+               Renderer.render_node(
+                 {:expression,
+                  [{:logical_op, ["and", {:literal, [[]], []}, {:literal, [true], []}], []}], []},
+                 %{}
+               )
+
+      assert {:ok, "true"} =
+               Renderer.render_node(
+                 {:expression,
+                  [{:logical_op, ["and", {:literal, [%{}], []}, {:literal, [true], []}], []}],
+                  []},
+                 %{}
+               )
+
+      # Falsy values
       assert {:ok, "false"} =
                Renderer.render_node(
                  {:expression,
@@ -375,21 +390,14 @@ defmodule Mau.BooleanEvaluatorTest do
       assert {:ok, "false"} =
                Renderer.render_node(
                  {:expression,
-                  [{:logical_op, ["and", {:literal, [[]], []}, {:literal, [true], []}], []}], []},
-                 %{}
-               )
-
-      assert {:ok, "false"} =
-               Renderer.render_node(
-                 {:expression,
-                  [{:logical_op, ["and", {:literal, [%{}], []}, {:literal, [true], []}], []}],
+                  [{:logical_op, ["and", {:literal, [false], []}, {:literal, [true], []}], []}],
                   []},
                  %{}
                )
     end
 
     test "handles float zero correctly in truthiness" do
-      assert {:ok, "false"} =
+      assert {:ok, "true"} =
                Renderer.render_node(
                  {:expression,
                   [{:logical_op, ["and", {:literal, [0.0], []}, {:literal, [true], []}], []}],
@@ -494,8 +502,8 @@ defmodule Mau.BooleanEvaluatorTest do
     end
 
     test "handles operator precedence correctly in evaluation" do
-      # This tests that the parser created the correct precedence structure
-      # 2 + 3 > 4 should be parsed as (2 + 3) > 4, not 2 + (3 > 4)
+      # This evaluates a hand-built (2 + 3) > 4 tree. Parsing is covered in
+      # boolean_integration_test.exs
 
       # 2 + 3 > 4 = 5 > 4 = True
       precedence_expr =

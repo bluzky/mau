@@ -9,7 +9,7 @@ defmodule Mau.Error do
   defexception [:type, :message, :line, :column, :source_file, :context]
 
   @type t :: %__MODULE__{
-          type: :syntax | :runtime | :type | :undefined_variable,
+          type: :syntax | :runtime | :type | :undefined_variable | :limit,
           message: String.t(),
           line: integer() | nil,
           column: integer() | nil,
@@ -65,6 +65,20 @@ defmodule Mau.Error do
   def undefined_variable_error(message, opts \\ []) do
     %__MODULE__{
       type: :undefined_variable,
+      message: message,
+      line: opts[:line],
+      column: opts[:column],
+      source_file: opts[:source_file],
+      context: opts[:context] || %{}
+    }
+  end
+
+  @doc """
+  Creates a new resource limit error.
+  """
+  def limit_error(message, opts \\ []) do
+    %__MODULE__{
+      type: :limit,
       message: message,
       line: opts[:line],
       column: opts[:column],

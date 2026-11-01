@@ -3,6 +3,28 @@ defmodule Mau.FilterRegistryTest do
   doctest Mau.FilterRegistry
 
   alias Mau.FilterRegistry
+  alias Mau.FilterRegistry.CompileTimeHelpers
+
+  describe "compile-time filter map" do
+    test "registers every filter from every built-in module" do
+      for module <- [Mau.Filters.String, Mau.Filters.Collection, Mau.Filters.Math],
+          {name, filter_spec} <- module.spec().filters do
+        assert FilterRegistry.get(name) == {:ok, filter_spec.function}
+      end
+    end
+
+    test "raises when a filter module does not exist" do
+      assert_raise ArgumentError, fn ->
+        CompileTimeHelpers.build_filter_map([Mau.Filters.DoesNotExist])
+      end
+    end
+
+    test "raises when a filter module has no spec" do
+      assert_raise UndefinedFunctionError, fn ->
+        CompileTimeHelpers.build_filter_map([Mau.FilterRegistry])
+      end
+    end
+  end
 
   describe "get/1" do
     test "returns built-in string filters" do

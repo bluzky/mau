@@ -137,21 +137,21 @@ defmodule Mau.BooleanIntegrationTest do
       }
 
       # Falsy values
-      assert {:ok, "false"} = Mau.render("{{ empty_string and true }}", context)
-      assert {:ok, "false"} = Mau.render("{{ zero and true }}", context)
-      assert {:ok, "false"} = Mau.render("{{ empty_list and true }}", context)
-      assert {:ok, "false"} = Mau.render("{{ empty_map and true }}", context)
       assert {:ok, "false"} = Mau.render("{{ nil_value and true }}", context)
       assert {:ok, "false"} = Mau.render("{{ false_value and true }}", context)
 
       # Truthy values
+      assert {:ok, "true"} = Mau.render("{{ empty_string and true }}", context)
+      assert {:ok, "true"} = Mau.render("{{ zero and true }}", context)
+      assert {:ok, "true"} = Mau.render("{{ empty_list and true }}", context)
+      assert {:ok, "true"} = Mau.render("{{ empty_map and true }}", context)
       assert {:ok, "true"} = Mau.render("{{ non_empty_string and true }}", context)
       assert {:ok, "true"} = Mau.render("{{ positive_number and true }}", context)
       assert {:ok, "true"} = Mau.render("{{ non_empty_list and true }}", context)
 
       # OR with falsy first operand
-      assert {:ok, "true"} = Mau.render("{{ empty_string or true }}", context)
-      assert {:ok, "false"} = Mau.render("{{ empty_string or false }}", context)
+      assert {:ok, "true"} = Mau.render("{{ nil_value or true }}", context)
+      assert {:ok, "false"} = Mau.render("{{ nil_value or false }}", context)
     end
 
     test "handles complex nested expressions" do
@@ -230,9 +230,59 @@ defmodule Mau.BooleanIntegrationTest do
     end
 
     test "handles float zero correctly" do
-      assert {:ok, "false"} = Mau.render("{{ 0.0 and true }}", %{})
+      assert {:ok, "true"} = Mau.render("{{ 0.0 and true }}", %{})
       assert {:ok, "true"} = Mau.render("{{ 0.1 and true }}", %{})
       assert {:ok, "true"} = Mau.render("{{ -0.1 and true }}", %{})
+    end
+  end
+
+  describe "Comparison precedence" do
+    test "relational operators bind tighter than equality" do
+      assert {:ok, "true"} = Mau.render("{{ 1 < 2 == true }}", %{})
+      assert {:ok, "true"} = Mau.render("{{ true == 1 < 2 }}", %{})
+      assert {:ok, "false"} = Mau.render("{{ 1 == 1 < 2 }}", %{})
+      assert {:ok, "true"} = Mau.render("{{ x < y != y < x }}", %{"x" => 1, "y" => 2})
+    end
+
+    test "builds the comparison tree with relational operators inside equality" do
+      assert {:ok, [{:expression, [{:binary_op, ["==", {:binary_op, ["<", _, _], _}, _], _}], _}]} =
+               Mau.Parser.parse("{{ 1 < 2 == true }}")
+    end
+
+    test "keeps arithmetic above comparison and logic below it" do
+      assert {:ok, "true"} = Mau.render("{{ 1 + 1 < 3 == true }}", %{})
+      assert {:ok, "true"} = Mau.render("{{ 1 == 1 and 2 > 1 }}", %{})
+      assert {:ok, "true"} = Mau.render("{{ not 1 < 2 == false }}", %{})
+    end
+
+    test "comparing a boolean to a number is still an error" do
+      assert {:error, %Mau.Error{type: :runtime}} = Mau.render("{{ 1 < 2 < 3 }}", %{})
+    end
+  end
+
+  describe "Keyword boundaries" do
+    @context %{"a" => true, "b" => false, "orb" => "O", "andy" => "A"}
+
+    test "and and or need a word boundary after them" do
+      for template <- ["{{ a orb }}", "{{ a andy }}", "{{ a or_b }}", "{{ a or1 }}", "{% if a orb %}T{% endif %}"] do
+        assert {:error, %Mau.Error{type: :syntax}} = Mau.render(template, @context, strict_mode: true)
+        assert {:ok, ^template} = Mau.render(template, @context)
+      end
+    end
+
+    test "operators still work next to punctuation and whitespace" do
+      assert {:ok, "true"} = Mau.render("{{ a or(b) }}", @context)
+      assert {:ok, "false"} = Mau.render("{{ a and(b) }}", @context)
+      assert {:ok, "true"} = Mau.render("{{ (a)or(b) }}", @context)
+      assert {:ok, "true"} = Mau.render("{{ a or\nb }}", @context)
+      assert {:ok, "x"} = Mau.render("{{ a and'x' }}", @context)
+    end
+
+    test "variables that start with a keyword work as operands" do
+      assert {:ok, "true"} = Mau.render("{{ a or orb }}", @context)
+      assert {:ok, "true"} = Mau.render("{{ orb or a }}", @context)
+      assert {:ok, "true"} = Mau.render("{{ andy and a }}", @context)
+      assert {:ok, "O"} = Mau.render("{{ orb }}", @context)
     end
   end
 end

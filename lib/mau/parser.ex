@@ -90,8 +90,6 @@ defmodule Mau.Parser do
       number_literal,
       # Literal string key like ["key"], ["name"]
       string_literal,
-      # Literal atom key like [:key], [:name]
-      atom_literal,
       # Variable expression like [key], [index], [user.id]
       variable_path
     ])
@@ -149,15 +147,15 @@ defmodule Mau.Parser do
   # FUNCTION CALL AND FILTER PARSING
   # ============================================================================
 
-  # Argument list for function calls - uses primary expressions to avoid circular dependencies
+  # Argument list for function calls - each argument is a full expression
   defcombinatorp(
     :argument_list,
-    primary_expression
+    parsec(:pipe_expression)
     |> repeat(
       ignore(optional_whitespace)
       |> ignore(string(","))
       |> ignore(optional_whitespace)
-      |> concat(primary_expression)
+      |> concat(parsec(:pipe_expression))
     )
     |> reduce(:build_argument_list)
   )
@@ -192,29 +190,29 @@ defmodule Mau.Parser do
   # COMPARISON EXPRESSION PARSING
   # ============================================================================
 
-  # Equality operators - ==, !=
-  equality_operator = Expression.equality_operator()
+  # Relational operators - >, >=, <, <= (bind tighter than equality)
+  relational_operator = Expression.relational_operator()
 
-  equality_expression =
+  relational_expression =
     additive_expression
     |> repeat(
       ignore(optional_whitespace)
-      |> concat(equality_operator)
+      |> concat(relational_operator)
       |> ignore(optional_whitespace)
       |> concat(additive_expression)
     )
     |> reduce(:build_binary_operation)
 
-  # Relational operators - >, >=, <, <=
-  relational_operator = Expression.relational_operator()
+  # Equality operators - ==, !=
+  equality_operator = Expression.equality_operator()
 
-  relational_expression =
-    equality_expression
+  equality_expression =
+    relational_expression
     |> repeat(
       ignore(optional_whitespace)
-      |> concat(relational_operator)
+      |> concat(equality_operator)
       |> ignore(optional_whitespace)
-      |> concat(equality_expression)
+      |> concat(relational_expression)
     )
     |> reduce(:build_binary_operation)
 
@@ -233,7 +231,7 @@ defmodule Mau.Parser do
       |> reduce(:build_unary_operation),
 
       # No unary operator
-      relational_expression
+      equality_expression
     ])
 
   # ============================================================================
@@ -247,7 +245,7 @@ defmodule Mau.Parser do
       ignore(optional_whitespace)
       |> choice([
         string("&&"),
-        string("and")
+        string("and") |> lookahead_not(identifier_char)
       ])
       |> ignore(optional_whitespace)
       |> concat(unary_expression)
@@ -261,7 +259,7 @@ defmodule Mau.Parser do
       ignore(optional_whitespace)
       |> choice([
         string("||"),
-        string("or")
+        string("or") |> lookahead_not(identifier_char)
       ])
       |> ignore(optional_whitespace)
       |> concat(logical_and_expression)
@@ -674,25 +672,31 @@ defmodule Mau.Parser do
       
       iex> Mau.Parser.parse(~s(Hello {{ "world" }}!))
       {:ok, [{:text, ["Hello "], []}, {:expression, [{:literal, ["world"], []}], []}, {:text, ["!"], []}]}
+
+  Invalid syntax falls back to a single text node. Pass `strict_mode: true` to
+  get a syntax error with its location instead.
   """
-  def parse(template) when is_binary(template) do
+  def parse(template, opts \\ []) when is_binary(template) do
     case parse_template(template) do
       {:ok, nodes, "", _, _, _} ->
         {:ok, nodes}
 
-      {:ok, _nodes, _remaining, _, _, _} ->
-        # If there's remaining unparsed content, treat it as text
-        case parse_template(template) do
-          {:ok, parsed_nodes, "", _, _, _} ->
-            {:ok, parsed_nodes}
-
-          _ ->
-            # Fallback: treat entire template as text if parsing fails
-            {:ok, [Nodes.text_node(template)]}
+      {:ok, _nodes, remaining, _, {line, line_offset}, offset} ->
+        if opts[:strict_mode] do
+          message = "Invalid syntax near #{inspect(String.slice(remaining, 0, 20))}"
+          {:error, Mau.Error.syntax_error(message, line: line, column: offset - line_offset + 1)}
+        else
+          # Fallback: treat entire template as text if parsing fails
+          {:ok, [Nodes.text_node(template)]}
         end
 
-      {:error, reason, _remaining, _context, {line, column}, _offset} ->
-        error = Mau.Error.syntax_error("Parse error: #{reason}", line: line, column: column)
+      {:error, reason, _remaining, _context, {line, line_offset}, offset} ->
+        error =
+          Mau.Error.syntax_error("Parse error: #{reason}",
+            line: line,
+            column: offset - line_offset + 1
+          )
+
         {:error, error}
     end
   end
@@ -763,8 +767,9 @@ defmodule Mau.Parser do
 
   # Atom literal helpers (kept for internal combinator use)
   defp build_atom_literal([":" | atom_chars]) do
-    atom_name = :binary.list_to_bin(atom_chars)
-    {:literal, [String.to_atom(atom_name)], []}
+    atom_chars
+    |> :binary.list_to_bin()
+    |> Nodes.atom_literal_node()
   end
 
   # Array literal helpers

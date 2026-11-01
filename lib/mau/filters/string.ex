@@ -34,6 +34,10 @@ defmodule Mau.Filters.String do
         "default" => %{
           description: "Returns default value if input is nil or empty",
           function: {__MODULE__, :default}
+        },
+        "escape_html" => %{
+          description: "Escapes HTML special characters",
+          function: {__MODULE__, :escape_html}
         }
       }
     }
@@ -126,5 +130,29 @@ defmodule Mau.Filters.String do
       _ ->
         {:error, "default requires a default value"}
     end
+  end
+
+  @doc """
+  Escapes the HTML special characters `&`, `<`, `>`, `"` and `'`.
+
+  Lists, maps and other values that render through `inspect` are escaped as
+  their rendered text, so nested strings can't reach the output unescaped.
+  """
+  def escape_html(value, _args) do
+    case value do
+      str when is_binary(str) -> {:ok, escape_html_text(str)}
+      safe when is_nil(safe) or is_boolean(safe) or is_number(safe) -> {:ok, safe}
+      _ -> {:ok, value |> inspect() |> escape_html_text()}
+    end
+  end
+
+  defp escape_html_text(text) do
+    String.replace(text, ["&", "<", ">", "\"", "'"], fn
+      "&" -> "&amp;"
+      "<" -> "&lt;"
+      ">" -> "&gt;"
+      "\"" -> "&quot;"
+      "'" -> "&#x27;"
+    end)
   end
 end

@@ -111,7 +111,7 @@ context = %{
 
 ## Undefined Variables
 
-Accessing undefined variables returns empty string:
+Accessing undefined variables returns empty string by default. With `strict_mode: true`, it returns an error instead (see [Error Handling](../advanced/error-handling.md#strict-mode)):
 
 ```
 context = %{"greeting" => "Hello"}
