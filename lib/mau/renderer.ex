@@ -44,9 +44,7 @@ defmodule Mau.Renderer do
   end
 
   defp render_node_with_context({:expression, [expression_ast], _opts}, context, render_opts) do
-    with {:ok, value} <- evaluate_expression(expression_ast, context, render_opts),
-         output = format_value(value),
-         :ok <- Budget.spend_output(byte_size(output), render_opts) do
+    with {:ok, _value, output} <- evaluate_output(expression_ast, context, render_opts) do
       {:ok, output, context}
     end
   end
@@ -76,17 +74,13 @@ defmodule Mau.Renderer do
   def render(data, context, opts \\ [])
 
   def render(nodes, context, opts) when is_list(nodes) and is_map(context) do
-    case render_nodes(nodes, context, opts) do
-      {:ok, parts, _context} ->
-        if opts[:preserve_types] && is_single_value_template?(nodes, parts) do
-          # Extract the raw value from single expression templates
-          extract_single_value(nodes, context, opts)
-        else
-          {:ok, IO.iodata_to_binary(parts)}
-        end
-
-      {:error, error} ->
-        {:error, error}
+    if opts[:preserve_types] && is_single_value_template?(nodes) do
+      # Extract the raw value from single expression templates
+      extract_single_value(nodes, context, opts)
+    else
+      with {:ok, parts, _context} <- render_nodes(nodes, context, opts) do
+        {:ok, IO.iodata_to_binary(parts)}
+      end
     end
   end
 
@@ -112,7 +106,7 @@ defmodule Mau.Renderer do
   defp is_single_expression?(_), do: false
 
   # Checks if a list of nodes represents a single value template
-  defp is_single_value_template?(nodes, _parts) do
+  defp is_single_value_template?(nodes) do
     case nodes do
       [{:expression, _expression_ast, _opts}] -> true
       _ -> false
@@ -121,11 +115,19 @@ defmodule Mau.Renderer do
 
   # Extracts the raw value from a single expression template
   defp extract_single_value([{:expression, [expression_ast], _opts}], context, opts) do
-    evaluate_expression(expression_ast, context, opts)
+    with {:ok, value, _output} <- evaluate_output(expression_ast, context, opts) do
+      {:ok, value}
+    end
   end
 
-  defp extract_single_value(_, _, _),
-    do: {:error, Mau.Error.runtime_error("Not a single value template")}
+  # Evaluates an expression bound for the output, spending its formatted size
+  defp evaluate_output(expression_ast, context, opts) do
+    with {:ok, value} <- evaluate_expression(expression_ast, context, opts),
+         output = format_value(value),
+         :ok <- Budget.spend_output(byte_size(output), opts) do
+      {:ok, value, output}
+    end
+  end
 
   # 3-argument version for main render function
   defp render_nodes(nodes, context, opts) when is_list(opts) do

@@ -13,10 +13,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `#filter` keeps items that are `0`, `""` or `[]`
   - A directive condition that renders to an empty string from several nodes, such as `"{{ a }}{{ b }}"`, is now truthy. Use a single expression
 - **Breaking: `or` returns the right value when the left side is falsy,** as Elixir does, so `{{ false or "x" }}` is `x` instead of `true`. `{% if %}` conditions behave the same.
+- **Breaking: a malformed `#case` or `#cond` entry is now an error** in every mode, even if an earlier entry matches. These entries used to be skipped. Each entry must have two elements.
 - **Breaking: `user[:name]` is no longer valid syntax.** Use `user.name` or `user["name"]`, which both read atom keys. `{{ :name }}` as a value is unchanged.
 - In strict mode, `{{ user["nope"] }}` with a missing map key is now an `:undefined_variable` error, matching `{{ user.nope }}`. An index past the end of a list is still `nil`.
 
 ### Fixed
+- Invalid directive arguments are now always treated as a regular map, as documented. `#map` with the wrong number of arguments, and `#case`, `#cond` or `#pick` with a non-list where a list is needed, used to return `[]`, `nil` or `%{}`. With `strict_mode: true`, invalid directive arguments now return an error.
+- `#cond` now works inside `#pipe`, reading the piped value through `$self`. It used to fall back to a regular map, which rendered every condition and branch.
+- With `preserve_types`, including every `render_map/3` field, a single-expression template no longer evaluates twice, so its filters run once.
 - Atom keys now resolve the same way in `{{ name }}`, `{{ user.name }}` and `{{ user["name"] }}`. A string key takes priority, and `{{ name }}` with an atom key no longer returns an error in strict mode.
 - `<`, `<=`, `>` and `>=` now bind tighter than `==` and `!=`, so `{{ 1 < 2 == true }}` works.
 - `and` and `or` now need a word boundary, so `{{ a orb }}` is a syntax error instead of `a or b`.

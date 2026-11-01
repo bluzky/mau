@@ -329,4 +329,67 @@ defmodule Mau.CondDirectiveTest do
       assert {:ok, %{"r" => nil}} = Mau.render_map(input, %{})
     end
   end
+
+  describe "#cond in a #pipe" do
+    defp piped_cond(initial, conditions) do
+      %{"#pipe" => [initial, [%{"#cond" => [conditions]}]]}
+    end
+
+    test "picks the first matching branch using $self" do
+      input =
+        piped_cond("{{ score }}", [
+          ["{{ $self > 90 }}", "A"],
+          ["{{ $self > 80 }}", "B"],
+          ["{{ true }}", "C"]
+        ])
+
+      assert {:ok, "B"} = Mau.render_map(input, %{"score" => 85})
+    end
+
+    test "stops at the first match without evaluating later branches" do
+      input =
+        piped_cond("{{ score }}", [
+          ["{{ $self > 80 }}", "first"],
+          ["{{ missing > 1 }}", "second"],
+          ["{{ true }}", "{{ missing }}"]
+        ])
+
+      assert {:ok, "first"} = Mau.render_map(input, %{"score" => 85}, strict_mode: true)
+    end
+
+    test "does not render a branch whose condition is false" do
+      input =
+        piped_cond("{{ score }}", [
+          ["{{ false }}", "{{ missing }}"],
+          ["{{ true }}", "second"]
+        ])
+
+      assert {:ok, "second"} = Mau.render_map(input, %{"score" => 85}, strict_mode: true)
+    end
+
+    test "returns nil when nothing matches" do
+      assert {:ok, nil} = Mau.render_map(piped_cond("x", [["{{ false }}", "a"]]), %{})
+    end
+
+    test "passes its result to the next stage" do
+      input = %{
+        "#pipe" => [
+          "{{ score }}",
+          [
+            %{"#cond" => [[["{{ $self > 80 }}", %{"a" => 1, "b" => 2}]]]},
+            %{"#pick" => ["a"]}
+          ]
+        ]
+      }
+
+      assert {:ok, %{"a" => 1}} = Mau.render_map(input, %{"score" => 85})
+    end
+
+    test "keeps piped data inert" do
+      input = piped_cond("{{ data }}", [["{{ true }}", "{{ $self }}"]])
+
+      assert {:ok, "{{ secret }}"} =
+               Mau.render_map(input, %{"data" => "{{ secret }}", "secret" => "LEAKED"})
+    end
+  end
 end

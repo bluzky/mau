@@ -188,6 +188,7 @@ Threads data through a series of transformations, similar to Elixir's `|>` opera
 
 - Each directive automatically receives the piped value as its first argument
 - You don't need to specify the collection/map argument for directives in the pipe
+- `#cond` has no value argument, so it keeps its usual syntax in a pipe and reads the piped value through `$self`
 - Use `$loop.item` for map/filter operations (standard behavior)
 - Use `$self` to access the raw piped value when needed
 - Empty directive list returns the initial value unchanged
@@ -838,6 +839,15 @@ Invalid directive arguments are treated as regular map keys rather than causing 
   "#filter" => ["{{$items}}"]  # Missing condition template
 }
 ```
+
+With `strict_mode: true`, these return an error of type `:runtime` that names the expected arguments:
+
+```elixir
+Mau.render_map(%{"#filter" => ["{{$items}}"]}, context, strict_mode: true)
+# {:error, %Mau.Error{message: "Invalid arguments for #filter, expected [collection, condition]"}}
+```
+
+`#case` and `#cond` entries must each have two elements. A malformed entry always returns an error of type `:runtime`, even without `strict_mode` and even if an earlier entry matches.
 
 ### Type Preservation
 

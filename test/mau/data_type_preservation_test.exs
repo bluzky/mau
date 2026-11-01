@@ -9,6 +9,83 @@ defmodule Mau.DataTypePreservationTest do
   use ExUnit.Case
   doctest Mau
 
+  describe "Data Type Preservation - Single Evaluation" do
+    setup do
+      Code.ensure_loaded!(Mau.FilterRegistry)
+      :erlang.trace_pattern({Mau.FilterRegistry, :apply, 3}, true, [:global])
+
+      on_exit(fn ->
+        :erlang.trace_pattern({Mau.FilterRegistry, :apply, 3}, false, [:global])
+      end)
+    end
+
+    # A process can't trace itself, so the render runs in its own process
+    defp count_filter_calls(fun) do
+      test_pid = self()
+
+      pid =
+        spawn_link(fn ->
+          receive do
+            :go -> send(test_pid, {:result, fun.()})
+          end
+        end)
+
+      :erlang.trace(pid, true, [:call])
+      send(pid, :go)
+
+      result =
+        receive do
+          {:result, result} -> result
+        end
+
+      ref = :erlang.trace_delivered(pid)
+
+      receive do
+        {:trace_delivered, ^pid, ^ref} -> {result, drain_filter_calls(0)}
+      end
+    end
+
+    defp drain_filter_calls(count) do
+      receive do
+        {:trace, _pid, :call, {Mau.FilterRegistry, :apply, _args}} ->
+          drain_filter_calls(count + 1)
+      after
+        0 -> count
+      end
+    end
+
+    test "runs filters once in a render" do
+      context = %{"l" => [1, 2, 3]}
+
+      assert {{:ok, 3}, 1} =
+               count_filter_calls(fn ->
+                 Mau.render("{{ l | length }}", context, preserve_types: true)
+               end)
+    end
+
+    test "runs filters once in a render_map field" do
+      context = %{"l" => [1, 2, 3]}
+
+      assert {{:ok, %{a: 3}}, 1} =
+               count_filter_calls(fn ->
+                 Mau.render_map(%{a: "{{ l | length }}"}, context)
+               end)
+    end
+
+    test "counts a single value against the output limit" do
+      context = %{"s" => "xxxx"}
+
+      assert {:ok, "xxxx"} =
+               Mau.render("{{ s }}", context, preserve_types: true, max_output_size: 4)
+
+      assert {:error, %Mau.Error{type: :limit}} =
+               Mau.render("{{ s }}", context, preserve_types: true, max_output_size: 3)
+
+      assert {:error, %Mau.Error{type: :limit}} =
+               Mau.render("{{ l }}", %{"l" => [1, 2, 3]}, preserve_types: true, max_output_size: 3)
+    end
+  end
+
   describe "Data Type Preservation - Basic Types" do
     test "preserves integer values" do
       assert {:ok, 42} = Mau.render("{{ 42 }}", %{}, preserve_types: true)
