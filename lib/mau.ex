@@ -118,6 +118,9 @@ defmodule Mau do
   end
 
   # Private helper for recursive map rendering
+  # Already-rendered data injected by #pipe - never treat it as a template
+  defp render_map_recursive({:mau_value, value}, _context, _opts), do: value
+
   defp render_map_recursive(map, context, opts) when is_map(map) do
     # Try to match special directive patterns
     case MapDirectives.match_directive(map) do

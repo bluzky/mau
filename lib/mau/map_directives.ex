@@ -373,12 +373,13 @@ defmodule Mau.MapDirectives do
     nil
   end
 
-  # Helper to inject piped value as first argument to directives
+  # Helper to inject piped value as first argument to directives. The value is
+  # already rendered, so it's wrapped to stop it being rendered again as a template.
   defp inject_piped_value(directive_map, piped_value) when is_map(directive_map) do
     directive_map
     |> Enum.map(fn {key, args} ->
       if String.starts_with?(key, "#") do
-        {key, [piped_value, args]}
+        {key, [{:mau_value, piped_value}, args]}
       else
         {key, args}
       end

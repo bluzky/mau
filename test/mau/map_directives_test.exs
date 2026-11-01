@@ -1367,6 +1367,64 @@ defmodule Mau.MapDirectivesTest do
 
       assert {:ok, ^expected} = Mau.render_map(input, context)
     end
+
+    test "does not render template syntax in piped strings" do
+      input = %{
+        result: %{"#pipe" => ["{{$items}}", [%{"#map" => "{{$loop.item}}"}]]}
+      }
+
+      context = %{"$items" => ["{{ secret }}"], "secret" => "LEAKED"}
+
+      assert {:ok, %{result: ["{{ secret }}"]}} = Mau.render_map(input, context)
+    end
+
+    test "does not run directives found in piped data" do
+      payload = %{"#if" => [true, "{{ secret }}"]}
+
+      input = %{
+        result: %{"#pipe" => ["{{$data}}", [%{"#pick" => ["#if"]}]]}
+      }
+
+      context = %{"$data" => payload, "secret" => "LEAKED"}
+
+      assert {:ok, %{result: ^payload}} = Mau.render_map(input, context)
+    end
+
+    test "piped data stays inert in every directive" do
+      unsafe = "{{ secret }}"
+
+      for {data, step, expected} <- [
+            {[unsafe], %{"#filter" => "{{$loop.item}}"}, [unsafe]},
+            {[[unsafe]], %{"#flat_map" => "{{$loop.item}}"}, [unsafe]},
+            {%{"a" => unsafe}, %{"#merge" => %{"b" => 1}}, %{"a" => unsafe, "b" => 1}},
+            {%{"a" => unsafe}, %{"#pick" => ["a"]}, %{"a" => unsafe}},
+            {unsafe, %{"#case" => [["LEAKED", "matched"]]}, nil},
+            {"{{ missing }}", %{"#if" => "yes"}, "yes"}
+          ] do
+        input = %{result: %{"#pipe" => ["{{$data}}", [step]]}}
+        context = %{"$data" => data, "secret" => "LEAKED"}
+
+        assert {:ok, %{result: ^expected}} = Mau.render_map(input, context)
+      end
+    end
+
+    test "piped data stays inert across chained steps and nested pipes" do
+      input = %{
+        result: %{
+          "#pipe" => [
+            "{{$items}}",
+            [
+              %{"#filter" => "{{$loop.item}}"},
+              %{"#pipe" => [%{"#map" => "{{$loop.item}}"}]}
+            ]
+          ]
+        }
+      }
+
+      context = %{"$items" => ["{{ secret }}"], "secret" => "LEAKED"}
+
+      assert {:ok, %{result: ["{{ secret }}"]}} = Mau.render_map(input, context)
+    end
   end
 
   describe "#pick directive" do
