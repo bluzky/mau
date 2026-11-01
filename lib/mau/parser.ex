@@ -149,15 +149,15 @@ defmodule Mau.Parser do
   # FUNCTION CALL AND FILTER PARSING
   # ============================================================================
 
-  # Argument list for function calls - uses primary expressions to avoid circular dependencies
+  # Argument list for function calls - each argument is a full expression
   defcombinatorp(
     :argument_list,
-    primary_expression
+    parsec(:pipe_expression)
     |> repeat(
       ignore(optional_whitespace)
       |> ignore(string(","))
       |> ignore(optional_whitespace)
-      |> concat(primary_expression)
+      |> concat(parsec(:pipe_expression))
     )
     |> reduce(:build_argument_list)
   )

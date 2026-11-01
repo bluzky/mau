@@ -358,6 +358,14 @@ Filters transform expression values using the pipe (`|`) operator or function ca
 {{ upper_case(text) }}
 ```
 
+Arguments can be any expression, in both syntaxes:
+```liquid
+{{ upper_case(first + " " + last) }}
+{{ upper_case(strip(name)) }}
+{{ round(price * 1.2, 2) }}
+{{ name | default(nickname or "Guest") }}
+```
+
 **Multiple Filters** *(Fully Supported)*
 
 Filters can be chained together for complex transformations:

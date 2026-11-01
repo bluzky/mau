@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `<`, `<=`, `>` and `>=` now bind tighter than `==` and `!=`, so `{{ 1 < 2 == true }}` works.
 - `and` and `or` now need a word boundary, so `{{ a orb }}` is a syntax error instead of `a or b`.
 - `#cond` now stops at the first matching branch even if its result is `false` or `nil`, instead of moving on to the next branch.
+- Function and filter arguments can now be any expression, such as `upper_case(a + b)` or nested calls. These used to make the whole template render as its source.
 
 ### Added
 - `escape_html` filter for escaping user content in HTML. Output is still not escaped by default.
